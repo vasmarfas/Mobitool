@@ -186,10 +186,12 @@ if (macAppStore || developerIdIdentity != null) {
             }
             val bundle = app.get()
             if (appStore) {
-                programs.map { bundle.resolve("Contents/app/resources/$it") }.forEach {
+                val resources = bundle.resolve("Contents/app/resources")
+                programs.map { resources.resolve(it) }.forEach {
                     it.setExecutable(true, false)
                     codesign(it, helperEntitlements)
                 }
+                resources.listFiles { file -> file.extension == "jnilib" }.orEmpty().forEach { codesign(it, null) }
             } else {
                 bundle.resolve("Contents/app").listFiles { file -> file.extension == "jar" }.orEmpty().forEach { jar ->
                     val entries = ZipFile(jar).use { zip ->
