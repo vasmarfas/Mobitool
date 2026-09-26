@@ -325,7 +325,7 @@ jobs:
           signature=$(printf '%s' "$RUSTORE_KEY_ID$timestamp" | openssl dgst -sha512 -sign "$key" | openssl base64 -A)
           auth=$(jq -n --arg id "$RUSTORE_KEY_ID" --arg ts "$timestamp" --arg sig "$signature" \
             '{keyId: $id, timestamp: $ts, signature: $sig}')
-          session=$(curl -sS -X POST "$api/public/auth" -H 'Content-Type: application/json' -d "$auth")
+          session=$(curl -sS -X POST "$api/public/auth/" -H 'Content-Type: application/json' -d "$auth")
           rm -f "$key"
           token=$(jq -r '.body.jwe // ""' <<< "$session")
           if [ -z "$token" ]; then

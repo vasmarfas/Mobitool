@@ -13,7 +13,7 @@ on:
         required: false
         default: ''
       build_windows:
-        description: 'Windows (MSI, EXE)'
+        description: 'Windows (MSI, EXE, MSIX)'
         type: boolean
         default: true
       build_linux:
@@ -25,7 +25,7 @@ on:
         type: boolean
         default: true
       publish_mac_app_store:
-        description: 'Upload the PKG to the Mac App Store (needs appStore = true in desktopApp/build.gradle.kts)'
+        description: 'Upload the Mac App Store PKG to App Store Connect'
         type: boolean
         default: false
   workflow_call:
@@ -109,7 +109,7 @@ jobs:
           APP_VERSION_CODE: ${{ steps.version.outputs.code }}
           METRICA_DESKTOP_COUNTER: ${{ secrets.METRICA_DESKTOP_COUNTER }}
           METRICA_DESKTOP_TOKEN: ${{ secrets.METRICA_DESKTOP_TOKEN }}
-        run: ./gradlew :desktopApp:packageMsi :desktopApp:packageExe
+        run: ./gradlew :desktopApp:packageMsi :desktopApp:packageExe :desktopApp:createDistributable
 
       - name: Collect artifacts
         env:
@@ -147,6 +147,44 @@ jobs:
         with:
           name: release-windows
           path: out/*
+          if-no-files-found: error
+
+      - name: Package MSIX
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.name }}
+          PACKAGE_VERSION: ${{ steps.version.outputs.package }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $kit = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\makeappx.exe' |
+            Sort-Object FullName -Descending | Select-Object -First 1 | Split-Path
+          $root = Join-Path $env:RUNNER_TEMP 'msix'
+          Copy-Item desktopApp/msix $root -Recurse
+          $manifest = Join-Path $root 'AppxManifest.xml'
+          $xml = [xml](Get-Content $manifest -Raw)
+          $xml.Package.Identity.Version = "$env:PACKAGE_VERSION.0"
+          $xml.Save($manifest)
+          # the default config splits resources.pri per scale for bundles, a single package needs one file
+          $config = Join-Path $env:RUNNER_TEMP 'priconfig.xml'
+          & "$kit\makepri.exe" createconfig /cf $config /dq en-US /pv 10.0.0 /o
+          $pri = [xml](Get-Content $config -Raw)
+          $null = $pri.resources.RemoveChild($pri.resources.packaging)
+          $pri.Save($config)
+          & "$kit\makepri.exe" new /pr $root /cf $config /mn $manifest /of (Join-Path $root 'resources.pri') /o
+          Copy-Item desktopApp/build/compose/binaries/main/app/Mobitool/* $root -Recurse
+          New-Item -ItemType Directory -Force msix | Out-Null
+          $package = "msix/vasmarfas-$env:VERSION-windows.msix"
+          & "$kit\makeappx.exe" pack /d $root /p $package /o
+          $cert = New-SelfSignedCertificate -Type Custom -Subject $xml.Package.Identity.Publisher -KeyUsage DigitalSignature `
+            -CertStoreLocation Cert:\CurrentUser\My -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+          & "$kit\signtool.exe" sign /fd SHA256 /sha1 $cert.Thumbprint $package
+          Export-Certificate -Cert $cert -FilePath "msix/vasmarfas-$env:VERSION-windows.cer" | Out-Null
+
+      - name: Upload MSIX
+        uses: actions/upload-artifact@v7
+        with:
+          name: msix-windows
+          path: msix/*
           if-no-files-found: error
 
   linux:
@@ -322,11 +360,17 @@ jobs:
           else
             printf '%s' "$ASC_KEY_P8" | tr -d '\n\r ' | openssl base64 -d -A > "$key"
           fi
+          trap 'rm -f "$key"' EXIT
           for dmg in out/*.dmg; do
-            xcrun notarytool submit "$dmg" --key "$key" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" --wait
+            result=$(xcrun notarytool submit "$dmg" --key "$key" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" --wait --output-format json)
+            echo "$result"
+            if [ "$(jq -r .status <<< "$result")" != 'Accepted' ]; then
+              xcrun notarytool log "$(jq -r .id <<< "$result")" --key "$key" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID"
+              echo "::error::notarization of $(basename "$dmg") ended with status $(jq -r .status <<< "$result")"
+              exit 1
+            fi
             xcrun stapler staple "$dmg"
           done
-          rm -f "$key"
 
       - name: Upload
         uses: actions/upload-artifact@v7
@@ -336,7 +380,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload to the Mac App Store
-        if: ${{ inputs.publish_mac_app_store }}
+        if: ${{ !cancelled() && inputs.publish_mac_app_store }}
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
@@ -387,8 +431,9 @@ jobs:
           done
           rm -f "$key" ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
 
-      - name: Remove the temporary keychain
-        if: always() && steps.certificate.outputs.imported == 'true'
+      - name: Remove the temporary keychains
+        if: always()
         run: |
           security list-keychains -d user -s login.keychain-db
           security delete-keychain "$RUNNER_TEMP/build.keychain-db" || true
+          security delete-keychain "$RUNNER_TEMP/mas.keychain-db" || true

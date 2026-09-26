@@ -1,26 +1,19 @@
 name: Publish Microsoft Store
-run-name: Publish Microsoft Store ${{ inputs.version_name }}
+run-name: Publish Microsoft Store from run ${{ inputs.run_id || github.run_id }}
 
 on:
   workflow_dispatch:
     inputs:
-      version_name:
-        description: 'Version without the v prefix'
+      run_id:
+        description: 'ID of the Deploy Desktop or Release run with the msix-windows artifact (the number in the run URL)'
         required: true
-      package_url:
-        description: 'Public URL of the MSI (empty = the asset of the v<version> release)'
-        required: false
-        default: ''
       submit:
-        description: 'Send the draft to certification'
+        description: 'Send the submission to certification (off = leave it as a draft)'
         type: boolean
         default: true
   workflow_call:
     inputs:
-      version_name:
-        type: string
-        required: true
-      package_url:
+      run_id:
         type: string
         required: false
         default: ''
@@ -30,6 +23,7 @@ on:
         default: true
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -39,9 +33,12 @@ concurrency:
 jobs:
   publish:
     name: Partner Center submission
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Check credentials and package
+      - name: Check credentials
         id: guard
         env:
           MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
@@ -49,8 +46,6 @@ jobs:
           MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
           MS_STORE_APP_ID: ${{ secrets.MS_STORE_APP_ID }}
           MS_SELLER_ID: ${{ secrets.MS_SELLER_ID }}
-          INPUT_URL: ${{ inputs.package_url }}
-          VERSION: ${{ inputs.version_name }}
         run: |
           set -eu
           if [ -z "${MS_TENANT_ID:-}" ] || [ -z "${MS_CLIENT_ID:-}" ] || [ -z "${MS_CLIENT_SECRET:-}" ] ||
@@ -60,21 +55,20 @@ jobs:
             echo 'Microsoft Store: skipped, secrets are not set.' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          url="$INPUT_URL"
-          if [ -z "$url" ]; then
-            url="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/vasmarfas-$VERSION-windows.msi"
-          fi
-          code=$(curl -sSL -r 0-0 -o /dev/null -w '%{http_code}' "$url" || echo 000)
-          if [ "$code" != '200' ] && [ "$code" != '206' ]; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::$url is not publicly available (HTTP $code), the Store cannot download the installer"
-            echo "Microsoft Store: skipped, the MSI is not available at $url (HTTP $code)." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          {
-            echo "ready=true"
-            echo "url=$url"
-          } >> "$GITHUB_OUTPUT"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Download MSIX
+        if: steps.guard.outputs.ready == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: msix-windows
+          path: msix
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ inputs.run_id && github.token || '' }}
+
+      - name: Set up the Microsoft Store CLI
+        if: steps.guard.outputs.ready == 'true'
+        uses: microsoft/microsoft-store-apppublisher@v1.1
 
       - name: Submit
         if: steps.guard.outputs.ready == 'true'
@@ -84,64 +78,16 @@ jobs:
           MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
           MS_STORE_APP_ID: ${{ secrets.MS_STORE_APP_ID }}
           MS_SELLER_ID: ${{ secrets.MS_SELLER_ID }}
-          PACKAGE_URL: ${{ steps.guard.outputs.url }}
           SUBMIT: ${{ inputs.submit }}
         run: |
-          set -euo pipefail
-          token=$(curl -sS -X POST "https://login.microsoftonline.com/$MS_TENANT_ID/oauth2/v2.0/token" \
-            --data-urlencode 'grant_type=client_credentials' \
-            --data-urlencode "client_id=$MS_CLIENT_ID" \
-            --data-urlencode "client_secret=$MS_CLIENT_SECRET" \
-            --data-urlencode 'scope=https://api.store.microsoft.com/.default' | jq -r '.access_token // ""')
-          if [ -z "$token" ]; then
-            echo '::error::Azure AD did not return an access token'
-            exit 1
+          set -eu
+          msstore reconfigure --tenantId "$MS_TENANT_ID" --sellerId "$MS_SELLER_ID" \
+            --clientId "$MS_CLIENT_ID" --clientSecret "$MS_CLIENT_SECRET"
+          set -- msix/*.msix
+          if [ "$SUBMIT" = 'true' ]; then
+            msstore publish "$1" --appId "$MS_STORE_APP_ID"
+            echo "Microsoft Store: $(basename "$1") sent to certification." >> "$GITHUB_STEP_SUMMARY"
+          else
+            msstore publish "$1" --appId "$MS_STORE_APP_ID" --noCommit
+            echo "Microsoft Store: $(basename "$1") uploaded, the submission is left as a draft." >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo "::add-mask::$token"
-
-          api="https://api.store.microsoft.com/submission/v1/product/$MS_STORE_APP_ID"
-          auth=(-H "Authorization: Bearer $token" -H "X-Seller-Account-Id: $MS_SELLER_ID" -H 'Content-Type: application/json')
-
-          packages=$(jq -n --arg url "$PACKAGE_URL" '{
-            packages: [{
-              packageUrl: $url,
-              languages: ["en-us", "ru-ru"],
-              architectures: ["X64"],
-              packageType: "msi",
-              isSilentInstall: true,
-              installerParameters: "/quiet"
-            }]
-          }')
-          response=$(curl -sS -X PUT "${auth[@]}" -d "$packages" "$api/packages")
-          if [ "$(jq -r 'if has("isSuccess") then .isSuccess else true end' <<< "$response")" != 'true' ]; then
-            echo "::error::updating the packages failed: $(jq -c '.errors // .' <<< "$response")"
-            exit 1
-          fi
-          curl -sS -X POST "${auth[@]}" "$api/packages/commit" > /dev/null
-
-          ready=false
-          for _ in $(seq 1 40); do
-            status=$(curl -sS "${auth[@]}" "$api/status")
-            if [ "$(jq -r '.responseData.isReady // false' <<< "$status")" = 'true' ]; then
-              ready=true
-              break
-            fi
-            sleep 30
-          done
-          if [ "$ready" != 'true' ]; then
-            echo '::error::the draft did not become ready within 20 minutes'
-            exit 1
-          fi
-
-          if [ "$SUBMIT" != 'true' ]; then
-            echo 'Microsoft Store: packages updated, the draft was not submitted.' >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          submission=$(curl -sS -X POST "${auth[@]}" "$api/submit")
-          submission_id=$(jq -r '.responseData.submissionId // ""' <<< "$submission")
-          if [ -z "$submission_id" ]; then
-            echo "::error::the submission was not created: $(jq -c '.errors // .' <<< "$submission")"
-            exit 1
-          fi
-          echo "Microsoft Store: submission $submission_id sent to certification." >> "$GITHUB_STEP_SUMMARY"

@@ -2,6 +2,10 @@ import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.process.ExecOperations
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
+import java.nio.file.FileSystems
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.util.zip.ZipFile
 import javax.inject.Inject
 
 plugins {
@@ -23,6 +27,7 @@ dependencies {
 val macAppStore = providers.gradleProperty("macAppStore").map { it.isEmpty() || it.toBoolean() }.getOrElse(false)
 val macAppStoreIdentity = providers.gradleProperty("macAppStoreIdentity")
     .orElse(providers.environmentVariable("APPLE_MAS_IDENTITY")).orNull?.takeIf { it.isNotBlank() }
+val developerIdIdentity = providers.environmentVariable("APPLE_DEVELOPER_ID_IDENTITY").orNull?.takeIf { it.isNotBlank() }
 val macArm = System.getProperty("os.arch") == "aarch64"
 val macAppResources = layout.buildDirectory.dir("macAppStore/resources")
 
@@ -103,11 +108,10 @@ compose.desktop {
                     }
                 } else {
                     entitlementsFile.set(project.file("macos/developer-id-entitlements.plist"))
-                    val identity = System.getenv("APPLE_DEVELOPER_ID_IDENTITY")
-                    if (!identity.isNullOrBlank()) {
+                    if (developerIdIdentity != null) {
                         signing {
                             sign.set(true)
-                            this.identity.set(identity)
+                            identity.set(developerIdIdentity)
                         }
                     }
                     val appleId = System.getenv("APPLE_ID")
@@ -142,38 +146,64 @@ val ffmpegRpm = listOf(
     "libxcb.so.1", "libxcb-shm.so.0", "libxcb-shape.so.0", "libxcb-xfixes.so.0", "libasound.so.2",
 ).map { "$it()(64bit)" }
 
-interface MacAppStoreSigning {
+interface MacSigning {
     @get:Inject val exec: ExecOperations
 }
 
 if (macAppStore) {
     tasks.matching { it.name == "prepareAppResources" }.configureEach { dependsOn(unpackMacNatives) }
+}
 
-    val signing = objects.newInstance<MacAppStoreSigning>()
+if (macAppStore || developerIdIdentity != null) {
+    val signing = objects.newInstance<MacSigning>()
+    val appStore = macAppStore
+    val programs = listOf("ffmpeg", "ffprobe")
     val helperEntitlements = file("macos/helper-entitlements.plist")
-    val appEntitlements = file("macos/entitlements.plist")
-    val signer = macAppStoreIdentity?.let {
-        if (it.startsWith("3rd Party Mac Developer Application: ") || it.startsWith("Developer ID Application: ")) it
-        else "3rd Party Mac Developer Application: $it"
+    val appEntitlements = file(if (appStore) "macos/entitlements.plist" else "macos/developer-id-entitlements.plist")
+    val signer = if (appStore) {
+        macAppStoreIdentity?.let {
+            if (it.startsWith("3rd Party Mac Developer Application: ") || it.startsWith("Developer ID Application: ")) it
+            else "3rd Party Mac Developer Application: $it"
+        }
+    } else {
+        developerIdIdentity?.let { if (it.startsWith("Developer ID Application: ")) it else "Developer ID Application: $it" }
     }
     tasks.withType<AbstractJPackageTask>().matching { it.name == "createDistributableImpl" }.configureEach {
         val app = destinationDir.zip(packageName) { dir, name -> dir.dir("$name.app").asFile }
         doLast {
-            fun codesign(entitlements: File, target: File) = signing.exec.exec {
+            fun codesign(target: File, entitlements: File?) = signing.exec.exec {
                 commandLine(
                     listOfNotNull(
                         "codesign", "--force", "--options", "runtime", "--timestamp".takeIf { signer != null },
-                        "--prefix", "com.vasmarfas.mobitool.", "--entitlements", entitlements.path,
+                        "--prefix", "com.vasmarfas.mobitool.",
+                        "--entitlements".takeIf { entitlements != null }, entitlements?.path,
                         "--sign", signer ?: "-", target.path,
                     ),
                 )
             }
             val bundle = app.get()
-            listOf("ffmpeg", "ffprobe").map { bundle.resolve("Contents/app/resources/$it") }.forEach {
-                it.setExecutable(true, false)
-                codesign(helperEntitlements, it)
+            if (appStore) {
+                programs.map { bundle.resolve("Contents/app/resources/$it") }.forEach {
+                    it.setExecutable(true, false)
+                    codesign(it, helperEntitlements)
+                }
+            } else {
+                bundle.resolve("Contents/app").listFiles { file -> file.extension == "jar" }.orEmpty().forEach { jar ->
+                    val entries = ZipFile(jar).use { zip ->
+                        zip.entries().toList().map { it.name }.filter { it.substringAfterLast('/') in programs }
+                    }
+                    if (entries.isEmpty()) return@forEach
+                    FileSystems.newFileSystem(jar.toPath()).use { fs ->
+                        entries.forEach { entry ->
+                            val program = temporaryDir.resolve(entry.substringAfterLast('/'))
+                            Files.copy(fs.getPath(entry), program.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                            codesign(program, null)
+                            Files.copy(program.toPath(), fs.getPath(entry), StandardCopyOption.REPLACE_EXISTING)
+                        }
+                    }
+                }
             }
-            codesign(appEntitlements, bundle)
+            codesign(bundle, appEntitlements)
         }
     }
 }

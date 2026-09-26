@@ -28,11 +28,11 @@ on:
         type: boolean
         default: false
       publish_ios_app_store:
-        description: 'Upload the IPA to App Store Connect (TestFlight)'
+        description: 'Upload to App Store Connect: the iOS IPA and the macOS PKG (TestFlight)'
         type: boolean
         default: false
       publish_microsoft_store:
-        description: 'Send the MSI to Microsoft Store'
+        description: 'Send the MSIX to Microsoft Store'
         type: boolean
         default: false
       draft:
@@ -41,6 +41,7 @@ on:
         default: false
 
 permissions:
+  actions: read
   contents: write
   pages: write
   id-token: write
@@ -167,6 +168,7 @@ jobs:
     with:
       version_name: ${{ needs.meta.outputs.version_name }}
       version_code: ${{ needs.meta.outputs.version_code }}
+      publish_mac_app_store: ${{ needs.meta.outputs.publish_ios_app_store == 'true' }}
     secrets: inherit
 
   ios:
@@ -216,10 +218,9 @@ jobs:
 
   microsoft_store:
     name: Microsoft Store
-    needs: [meta, github_release]
-    if: ${{ !cancelled() && needs.github_release.result == 'success' && needs.meta.outputs.publish_microsoft_store == 'true' && needs.meta.outputs.draft != 'true' }}
+    needs: [meta, desktop]
+    if: ${{ !cancelled() && needs.meta.outputs.publish_microsoft_store == 'true' }}
     uses: ./.github/workflows/publish_microsoft_store.yml
     with:
-      version_name: ${{ needs.meta.outputs.version_name }}
       submit: true
     secrets: inherit
