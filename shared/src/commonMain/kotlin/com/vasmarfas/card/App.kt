@@ -142,9 +142,9 @@ fun App(
         LocalChrome provides chrome,
         LocalFind provides find,
     ) {
+        val navController = rememberNavController()
         key(settings.lang) {
             MobitoolTheme(settings) {
-                val navController = rememberNavController()
                 val entry = onboarding
                 if (entry != null) {
                     OnboardingScreen(

@@ -183,7 +183,7 @@ private class LocationDelegate(private val onFix: (LocationFix) -> Unit) : NSObj
     }
 }
 
-actual fun locationSupported(): Boolean = CLLocationManager.locationServicesEnabled()
+actual fun locationSupported(): Boolean = true
 
 actual fun locationFlow(): Flow<LocationFix> = callbackFlow {
     val manager = CLLocationManager()
@@ -193,7 +193,7 @@ actual fun locationFlow(): Flow<LocationFix> = callbackFlow {
     manager.startUpdatingLocation()
     awaitClose {
         manager.stopUpdatingLocation()
-        manager.delegate = null
+        if (manager.delegate === delegate) manager.delegate = null
     }
 }
 

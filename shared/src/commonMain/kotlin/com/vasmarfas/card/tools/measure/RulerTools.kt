@@ -45,10 +45,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vasmarfas.card.core.AppleDisplay
 import com.vasmarfas.card.core.DisplayPanel
+import com.vasmarfas.card.core.PlatformKind
 import com.vasmarfas.card.core.Prefs
 import com.vasmarfas.card.core.appleCandidates
 import com.vasmarfas.card.core.appleDisplays
 import com.vasmarfas.card.core.appleScreen
+import com.vasmarfas.card.core.currentPlatform
 import com.vasmarfas.card.core.displayPanels
 import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.screenDpi
@@ -127,7 +129,7 @@ private fun defaultPxPerMm(): Float {
 
 private class ScreenModel(val key: String, val label: String, val pxPerMm: Float)
 
-private class ScreenModels(val apple: Boolean, val all: List<ScreenModel>, val matching: List<ScreenModel>) {
+private class ScreenModels(val apple: Boolean, val all: List<ScreenModel>, val matching: List<ScreenModel>, val loading: Boolean = false) {
     val auto: Float? get() = matching.map { it.pxPerMm }.distinct().singleOrNull()
 }
 
@@ -135,7 +137,7 @@ private class ScreenModels(val apple: Boolean, val all: List<ScreenModel>, val m
 private fun rememberScreenModels(pixels: Pair<Int, Int>?): ScreenModels {
     val density = LocalDensity.current.density
     val apple = remember { appleScreen() }
-    var panels by remember { mutableStateOf(emptyList<DisplayPanel>()) }
+    var panels by remember { mutableStateOf<List<DisplayPanel>?>(null) }
     LaunchedEffect(Unit) { panels = displayPanels() }
     return remember(apple, panels, pixels, density) {
         if (apple != null) {
@@ -147,13 +149,14 @@ private fun rememberScreenModels(pixels: Pair<Int, Int>?): ScreenModels {
             ScreenModels(true, appleDisplays.map { it.model() }, appleCandidates(apple, pixels, density).map { it.model() })
         } else {
             val (w, h) = pixels ?: (0 to 0)
-            val fits = panels.filter { minOf(it.widthPx, it.heightPx) == minOf(w, h) && maxOf(it.widthPx, it.heightPx) == maxOf(w, h) }
+            val known = panels.orEmpty()
+            val fits = known.filter { minOf(it.widthPx, it.heightPx) == minOf(w, h) && maxOf(it.widthPx, it.heightPx) == maxOf(w, h) }
             fun DisplayPanel.model() = ScreenModel(
                 "$name:${widthMm}x$heightMm",
                 "$name · ${diagonalInches.fmt(1)}\" · $widthPx × $heightPx",
                 (maxOf(w, h).takeIf { it > 0 } ?: maxOf(widthPx, heightPx)).toFloat() / maxOf(widthMm, heightMm),
             )
-            ScreenModels(false, panels.map { it.model() }, fits.map { it.model() })
+            ScreenModels(false, known.map { it.model() }, fits.map { it.model() }, panels == null && currentPlatform == PlatformKind.DESKTOP)
         }
     }
 }
@@ -167,9 +170,15 @@ private fun RulerScreen() {
     var chosen by rememberSaveable { mutableStateOf(Prefs.store.get(SCREEN_KEY)) }
     val pxPerMm = saved ?: models.auto ?: fallback
     val model = models.all.firstOrNull { it.key == chosen } ?: models.matching.firstOrNull()?.takeIf { saved == null && models.auto != null }
-    var calibrating by rememberSaveable { mutableStateOf(saved == null && models.auto == null) }
+    var calibrating by rememberSaveable { mutableStateOf(saved == null && models.auto == null && !models.loading) }
     LaunchedEffect(models.auto) {
         if (saved == null && models.auto != null) calibrating = false
+    }
+    var decided by rememberSaveable { mutableStateOf(!models.loading) }
+    LaunchedEffect(models.loading) {
+        if (models.loading || decided) return@LaunchedEffect
+        decided = true
+        if (saved == null && models.auto == null) calibrating = true
     }
     var mode by rememberSaveable { mutableStateOf(CalibrationMode.OBJECT) }
     var referenceIndex by rememberSaveable { mutableStateOf(0) }
@@ -331,7 +340,7 @@ private fun RulerScreen() {
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
             shape = MaterialTheme.shapes.medium,
             modifier = Modifier
-                .align(Alignment.TopEnd)
+                .align(if (along) Alignment.TopCenter else Alignment.CenterEnd)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.End))
                 .padding(12.dp),
         ) {
@@ -387,12 +396,14 @@ private fun DrawScope.drawRuler(
 ) {
     val length = if (vertical) size.height else size.width
     val pxPerCm = pxPerMm * 10
+    val widest = measurer.measure("${(length / pxPerCm).toInt()}", labelStyle).size
+    val everyCm = (if (vertical) widest.height.toFloat() else widest.width + 6f) + 4f <= pxPerCm
     var cm = 0
     while (cm * pxPerCm <= length) {
         val at = cm * pxPerCm
         val major = cm % 5 == 0
         drawLine(color, rulerPoint(vertical, at, 0f, false), rulerPoint(vertical, at, if (major) 56f else 44f, false), 2.5f)
-        if (cm > 0) {
+        if (cm > 0 && (major || everyCm)) {
             val text = measurer.measure("$cm", if (major) majorStyle else labelStyle)
             val offset = if (vertical) {
                 Offset(if (major) 62f else 50f, at - text.size.height / 2f)

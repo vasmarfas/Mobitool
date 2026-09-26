@@ -43,7 +43,7 @@ class ThemeContrastTest {
     private fun schemes(): List<Triple<String, Boolean, ColorScheme>> =
         seedPresets.flatMap { (seed, name) ->
             listOf(false, true).map { dark ->
-                Triple(name, dark, appColorScheme(seed, dark))
+                Triple(name.en, dark, appColorScheme(seed, dark))
             }
         }
 

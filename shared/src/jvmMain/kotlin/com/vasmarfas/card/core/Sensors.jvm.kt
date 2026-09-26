@@ -1,5 +1,11 @@
 package com.vasmarfas.card.core
 
+import com.sun.jna.Library
+import com.sun.jna.Native
+import com.sun.jna.Pointer
+import com.sun.jna.Structure
+import com.sun.jna.ptr.IntByReference
+import java.awt.GraphicsDevice
 import java.awt.GraphicsEnvironment
 import java.awt.Toolkit
 import java.awt.Window
@@ -8,6 +14,7 @@ import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.TargetDataLine
 import kotlin.math.log10
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -106,13 +113,21 @@ actual fun displayExtras(): List<Pair<String, String>> = runCatching {
     }
 }.getOrDefault(emptyList())
 
-actual fun screenDpi(): Float? = runCatching { Toolkit.getDefaultToolkit().screenResolution.toFloat() }.getOrNull()
-
 // the monitor with the focused window, where the ruler is shown
+private fun activeDevice(): GraphicsDevice = Window.getWindows().firstOrNull { it.isActive }?.graphicsConfiguration?.device
+    ?: GraphicsEnvironment.getLocalGraphicsEnvironment().defaultScreenDevice
+
+// macOS reports modes and DPI in points, while Compose draws into the backing store
+private fun GraphicsDevice.backingScale(): Double = if (osName.startsWith("mac")) defaultConfiguration.defaultTransform.scaleX else 1.0
+
+actual fun screenDpi(): Float? = runCatching {
+    (Toolkit.getDefaultToolkit().screenResolution * activeDevice().backingScale()).toFloat()
+}.getOrNull()
+
 actual fun screenPixels(): Pair<Int, Int>? = runCatching {
-    val device = Window.getWindows().firstOrNull { it.isActive }?.graphicsConfiguration?.device
-        ?: GraphicsEnvironment.getLocalGraphicsEnvironment().defaultScreenDevice
-    device.displayMode.let { it.width to it.height }
+    val device = activeDevice()
+    val scale = device.backingScale()
+    device.displayMode.let { (it.width * scale).roundToInt() to (it.height * scale).roundToInt() }
 }.getOrNull()
 
 actual fun appleScreen(): AppleScreen? = null
@@ -123,6 +138,7 @@ private const val EDID_SCRIPT = "Get-CimInstance -Namespace root\\wmi -ClassName
 // Windows gives the raw EDID of active monitors through WMI without admin rights, Linux keeps it in sysfs
 actual suspend fun displayPanels(): List<DisplayPanel> = withContext(Dispatchers.IO) {
     val os = System.getProperty("os.name").lowercase()
+    if (os.startsWith("mac")) return@withContext macPanels()
     val blocks = when {
         os.startsWith("windows") -> runCatching {
             val process = ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command", EDID_SCRIPT).redirectErrorStream(true).start()
@@ -137,6 +153,50 @@ actual suspend fun displayPanels(): List<DisplayPanel> = withContext(Dispatchers
     }
     blocks.mapNotNull(::parseEdid).distinctBy { listOf(it.name, it.widthPx, it.heightPx, it.widthMm, it.heightMm) }
 }
+
+@Structure.FieldOrder("width", "height")
+open class CGSize : Structure() {
+    @JvmField var width = 0.0
+    @JvmField var height = 0.0
+
+    class ByValue : CGSize(), Structure.ByValue
+}
+
+@Suppress("FunctionName")
+internal interface CoreGraphics : Library {
+    fun CGGetActiveDisplayList(maxDisplays: Int, displays: IntArray, count: IntByReference): Int
+    fun CGDisplayScreenSize(display: Int): CGSize.ByValue
+    fun CGDisplayCopyDisplayMode(display: Int): Pointer?
+    fun CGDisplayModeGetPixelWidth(mode: Pointer): Long
+    fun CGDisplayModeGetPixelHeight(mode: Pointer): Long
+    fun CGDisplayModeRelease(mode: Pointer)
+    fun CGDisplayIsBuiltin(display: Int): Int
+}
+
+private fun macPanels(): List<DisplayPanel> = runCatching {
+    val cg = Native.load("CoreGraphics", CoreGraphics::class.java)
+    val ids = IntArray(16)
+    val count = IntByReference()
+    if (cg.CGGetActiveDisplayList(ids.size, ids, count) != 0) return@runCatching emptyList()
+    val active = ids.take(count.value)
+    val externals = active.count { cg.CGDisplayIsBuiltin(it) == 0 }
+    var external = 0
+    active.mapNotNull { id ->
+        val size = cg.CGDisplayScreenSize(id)
+        val mode = cg.CGDisplayCopyDisplayMode(id) ?: return@mapNotNull null
+        val width = cg.CGDisplayModeGetPixelWidth(mode).toInt()
+        val height = cg.CGDisplayModeGetPixelHeight(mode).toInt()
+        cg.CGDisplayModeRelease(mode)
+        if (size.width < 1 || size.height < 1 || width <= 0 || height <= 0) return@mapNotNull null
+        val name = if (cg.CGDisplayIsBuiltin(id) != 0) {
+            Tr("Built-in display", "Встроенный дисплей")[appLang]
+        } else {
+            external++
+            Tr("External display", "Внешний монитор")[appLang] + if (externals > 1) " $external" else ""
+        }
+        DisplayPanel(name, width, height, size.width.roundToInt(), size.height.roundToInt())
+    }
+}.getOrDefault(emptyList())
 
 actual fun microphoneSupported(): Boolean = true
 

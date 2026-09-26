@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamicColorScheme
+import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.platformDynamicColorScheme
 import com.vasmarfas.card.core.setSystemBarsDark
 import com.vasmarfas.card.data.AppSettings
@@ -51,15 +52,15 @@ fun appColorScheme(seed: Long, dark: Boolean): ColorScheme = dynamicColorScheme(
     style = PaletteStyle.Vibrant,
 )
 
-val seedPresets: List<Pair<Long, String>> = listOf(
-    AppSettings.DEFAULT_SEED to "Teal",
-    0xFF3F51B5 to "Indigo",
-    0xFF6750A4 to "Violet",
-    0xFF006E1C to "Green",
-    0xFFB3261E to "Red",
-    0xFF9C4400 to "Orange",
-    0xFF00629E to "Blue",
-    0xFF7B4E7F to "Plum",
+val seedPresets: List<Pair<Long, Tr>> = listOf(
+    AppSettings.DEFAULT_SEED to Tr("Teal", "Бирюзовый"),
+    0xFF3F51B5 to Tr("Indigo", "Индиго"),
+    0xFF6750A4 to Tr("Violet", "Фиолетовый"),
+    0xFF006E1C to Tr("Green", "Зелёный"),
+    0xFFB3261E to Tr("Red", "Красный"),
+    0xFF9C4400 to Tr("Orange", "Оранжевый"),
+    0xFF00629E to Tr("Blue", "Синий"),
+    0xFF7B4E7F to Tr("Plum", "Сливовый"),
 )
 
 private fun TextStyle.emphasised(tracking: Float) = copy(

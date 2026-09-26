@@ -357,9 +357,11 @@ private fun GroupHeader(text: String, icon: ImageVector? = null) {
 
 @Composable
 private fun ChipRow(title: String, tools: List<Tool>, onOpenTool: (String) -> Unit) {
+    val state = rememberLazyListState()
+    LaunchedEffect(tools.firstOrNull()?.id) { state.scrollToItem(0) }
     Column {
         GroupHeader(title)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyRow(state = state, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(tools, key = { it.id }) { tool ->
                 AssistChip(
                     onClick = { onOpenTool(tool.id) },

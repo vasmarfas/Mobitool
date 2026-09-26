@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.TestExecutable
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -38,6 +39,14 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
+        }
+    }
+    // the Compose swiftUtils klib links against the Xcode path of JetBrains' CI, so test executables
+    // get the Swift libraries of whichever Xcode is selected here
+    if (System.getProperty("os.name").startsWith("Mac")) {
+        val xcode = providers.exec { commandLine("xcode-select", "-p") }.standardOutput.asText.map { it.trim() }
+        iosSimulatorArm64().binaries.withType<TestExecutable>().configureEach {
+            linkerOpts("-L${xcode.get()}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphonesimulator")
         }
     }
 
@@ -144,6 +153,7 @@ kotlin {
             implementation("org.bytedeco:javacpp:${libs.versions.javacpp.get()}:$javacppPlatform")
             implementation("org.bytedeco:ffmpeg:${libs.versions.ffmpeg.get()}:$javacppPlatform")
             implementation(libs.pdfbox)
+            implementation(libs.jna)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

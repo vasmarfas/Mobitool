@@ -108,15 +108,16 @@ fun SettingsScreen(onRunOnboarding: () -> Unit) {
                     description = Res.string.dynamic_color_hint.str(),
                 )
             }
-            val accentUsed = !settings.dynamicColor
+            val accentUsed = !(supportsDynamicColor() && settings.dynamicColor)
             Column(
                 modifier = Modifier.alpha(if (accentUsed) 1f else 0.4f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 SettingsLabel(Res.string.accent_color.str())
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    seedPresets.forEach { (seed, name) ->
+                    seedPresets.forEach { (seed, title) ->
                         val selected = seed == settings.seedColor
+                        val name = title.str()
                         Box(
                             modifier = Modifier
                                 .size(48.dp)
