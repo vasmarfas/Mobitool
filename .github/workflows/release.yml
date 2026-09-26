@@ -31,17 +31,12 @@ on:
         description: 'Upload to App Store Connect: the iOS IPA and the macOS PKG (TestFlight)'
         type: boolean
         default: false
-      publish_microsoft_store:
-        description: 'Send the MSIX to Microsoft Store'
-        type: boolean
-        default: false
       draft:
         description: 'Create the GitHub release as a draft'
         type: boolean
         default: false
 
 permissions:
-  actions: read
   contents: write
   pages: write
   id-token: write
@@ -60,7 +55,6 @@ jobs:
       publish_google_play: ${{ steps.resolve.outputs.publish_google_play }}
       publish_rustore: ${{ steps.resolve.outputs.publish_rustore }}
       publish_ios_app_store: ${{ steps.resolve.outputs.publish_ios_app_store }}
-      publish_microsoft_store: ${{ steps.resolve.outputs.publish_microsoft_store }}
       draft: ${{ steps.resolve.outputs.draft }}
     steps:
       - uses: actions/checkout@v7
@@ -73,7 +67,6 @@ jobs:
           INPUT_PLAY: ${{ inputs.publish_google_play }}
           INPUT_RUSTORE: ${{ inputs.publish_rustore }}
           INPUT_IOS: ${{ inputs.publish_ios_app_store }}
-          INPUT_MS: ${{ inputs.publish_microsoft_store }}
           INPUT_DRAFT: ${{ inputs.draft }}
         run: |
           set -eu
@@ -93,13 +86,11 @@ jobs:
           play=true
           rustore=true
           ios=true
-          microsoft=true
           draft=false
           if [ "$GITHUB_EVENT_NAME" = 'workflow_dispatch' ]; then
             play="$INPUT_PLAY"
             rustore="$INPUT_RUSTORE"
             ios="$INPUT_IOS"
-            microsoft="$INPUT_MS"
             draft="$INPUT_DRAFT"
           fi
           derived=$(printf '%s' "${name%%-*}" | awk -F. '{ print ($1 * 100 + $2) * 100 + $3 }')
@@ -109,7 +100,6 @@ jobs:
             echo "publish_google_play=$play"
             echo "publish_rustore=$rustore"
             echo "publish_ios_app_store=$ios"
-            echo "publish_microsoft_store=$microsoft"
             echo "draft=$draft"
           } >> "$GITHUB_OUTPUT"
 
@@ -215,12 +205,3 @@ jobs:
             artifacts/*.rpm
             artifacts/*.dmg
             artifacts/*.zip
-
-  microsoft_store:
-    name: Microsoft Store
-    needs: [meta, desktop]
-    if: ${{ !cancelled() && needs.meta.outputs.publish_microsoft_store == 'true' }}
-    uses: ./.github/workflows/publish_microsoft_store.yml
-    with:
-      submit: true
-    secrets: inherit

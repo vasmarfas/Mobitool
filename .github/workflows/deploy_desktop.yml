@@ -403,11 +403,10 @@ jobs:
               exit 0
             fi
           done
-          umask 077
           keychain="$RUNNER_TEMP/mas.keychain-db"
           password=$(openssl rand -hex 24)
           echo "::add-mask::$password"
-          printf '%s' "$MAC_APP_STORE_P12_BASE64" | tr -d '\n\r ' | openssl base64 -d -A > "$RUNNER_TEMP/mas.p12"
+          (umask 077; printf '%s' "$MAC_APP_STORE_P12_BASE64" | tr -d '\n\r ' | openssl base64 -d -A > "$RUNNER_TEMP/mas.p12")
           security create-keychain -p "$password" "$keychain"
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$password" "$keychain"
@@ -418,6 +417,7 @@ jobs:
           printf '%s' "$MAC_APP_STORE_PROFILE_BASE64" | tr -d '\n\r ' | openssl base64 -d -A > desktopApp/macos/embedded.provisionprofile
           printf '%s' "$MAC_APP_STORE_RUNTIME_PROFILE_BASE64" | tr -d '\n\r ' | openssl base64 -d -A > desktopApp/macos/runtime.provisionprofile
           ./gradlew :desktopApp:packagePkg -PmacAppStore -PmacAppStoreIdentity="$MAC_APP_STORE_IDENTITY"
+          umask 077
           key="$RUNNER_TEMP/asc_key.p8"
           if printf '%s' "$ASC_KEY_P8" | grep -q 'BEGIN'; then
             printf '%s\n' "$ASC_KEY_P8" > "$key"

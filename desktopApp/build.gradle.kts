@@ -152,6 +152,9 @@ interface MacSigning {
 
 if (macAppStore) {
     tasks.matching { it.name == "prepareAppResources" }.configureEach { dependsOn(unpackMacNatives) }
+    tasks.withType<AbstractJPackageTask>().matching { it.name == "packagePkg" }.configureEach {
+        freeArgs.addAll("--resource-dir", layout.buildDirectory.dir("compose/tmp/resources").get().asFile.path)
+    }
 }
 
 if (macAppStore || developerIdIdentity != null) {
