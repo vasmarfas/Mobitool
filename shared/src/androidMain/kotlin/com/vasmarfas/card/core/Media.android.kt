@@ -20,6 +20,7 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.audio.ChannelMixingAudioProcessor
 import androidx.media3.common.audio.ChannelMixingMatrix
+import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.Size
 import androidx.media3.effect.Presentation
 import androidx.media3.effect.StaticOverlaySettings
@@ -34,15 +35,16 @@ import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
 import androidx.media3.transformer.VideoEncoderSettings
+import com.vasmarfas.card.resources.*
 import io.github.vinceglb.filekit.AndroidFile
 import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.nio.ByteBuffer
-import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -277,7 +279,7 @@ actual object MediaEngine {
                     withTimeoutOrNull(200) { done.await() }
                 }
                 done.await()
-            } catch (e: CancellationException) {
+            } catch (e: Throwable) {
                 transformer.cancel()
                 File(output).delete()
                 throw e
@@ -288,9 +290,7 @@ actual object MediaEngine {
 
     internal class Built(val composition: Composition, val width: Int, val height: Int, val fps: Int, val layers: LayerHolder)
 
-    // Media3 draws sequence 0 on top and takes the output timestamps from it, so sequence 0 is a transparent
-    // clock at the project rate and the picture tracks follow top first. Gaps are transparent stills to keep
-    // every input fed, sound goes into separate audio-only sequences
+    // sequence 0 is drawn on top and sets the output timestamps, so it is a transparent clock at the project rate
     internal fun composition(project: MediaProject, infos: Map<PlatformFile, MediaInfo>, video: Boolean, audio: Boolean, maxSide: Int = 0, clock: Boolean = true): Built {
         val spec = project.spec
         val first = project.firstPicture?.let { infos[it.file] }
@@ -319,6 +319,7 @@ actual object MediaEngine {
         val builder = Composition.Builder(sequences)
         val holder = LayerHolder(layers)
         if (video) builder.setVideoCompositorSettings(Layers(holder, width, height, if (clock) 1 else 0))
+        if (audio && spec.sampleRate > 0) builder.setEffects(Effects(listOf(SonicAudioProcessor().apply { setOutputSampleRateHz(spec.sampleRate) }), emptyList()))
         return Built(builder.build(), width, height, fps, holder)
     }
 
@@ -438,8 +439,9 @@ actual object MediaEngine {
                 )
                 doneMs += clip.durationMs
             }
-            sink?.finish() ?: throw MediaException("no audio stream")
+            sink?.finish() ?: throw MediaException("no audio stream", Res.string.no_audio_track)
         } catch (e: Throwable) {
+            runCatching { sink?.finish() }
             File(output).delete()
             throw e
         }
@@ -492,7 +494,7 @@ actual object MediaEngine {
                 true
             },
         )
-        if (rate == 0) throw MediaException("no audio stream")
+        if (rate == 0) throw MediaException("no audio stream", Res.string.no_audio_track)
         PcmAudio(rate, channels, samples.copyOf(size))
     }
 
@@ -508,8 +510,10 @@ actual object MediaEngine {
             val resampler = Resampler(source.sampleRate, rate, source.channels)
             val chunk = ShortArray(4096 * source.channels)
             var frames = 0L
+            var completed = false
             try {
                 while (true) {
+                    ensureActive()
                     val n = source.read(chunk)
                     if (n <= 0) break
                     val out = resampler.process(chunk, n)
@@ -517,8 +521,10 @@ actual object MediaEngine {
                     frames += n / source.channels
                     onProgress((frames.toFloat() / source.frames.coerceAtLeast(1)).coerceIn(0f, 1f))
                 }
+                completed = true
             } finally {
                 sink.finish()
+                if (!completed) File(output).delete()
             }
             MediaResult(PlatformFile(output))
         }

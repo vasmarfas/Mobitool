@@ -385,11 +385,13 @@ internal class RtfReader(private val src: ByteArray) {
     // code pages TextDecoding has no table for fall back to windows-1252, writers put such text into \u anyway
     private fun decode(bytes: ByteArray, page: Int): String {
         val name = when (page) {
+            1250 -> "windows-1250"
             1251 -> "windows-1251"
             866 -> "cp866"
             437 -> "ibm437"
             20866 -> "koi8-r"
             28591 -> "iso-8859-1"
+            28592 -> "iso-8859-2"
             else -> "windows-1252"
         }
         return TextDecoding.decode(bytes, name)

@@ -60,4 +60,10 @@ class ProfileCompatibilityTest {
     fun aBrokenFileFailsLoudlySoTheRepositoryCanFallBack() {
         assertFails { parse("""{ "person": { "name": "not an object" } }""") }
     }
+
+    // the home screen crossfades to every new profile value, fetching the same file again must not be one
+    @Test
+    fun theSameFileGivesAnEqualProfile() {
+        assertEquals(parse(minimal), parse(minimal))
+    }
 }

@@ -40,6 +40,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import org.jetbrains.compose.resources.pluralStringResource
 
 val lanScannerTool = Tool(
     id = "lan-scanner",
@@ -132,7 +133,7 @@ private fun LanScannerScreen() {
     error?.let { ErrorText(it) }
     if (running) LoadingRow("${Res.string.scanning.str()} $done / $total")
     if (hosts.isNotEmpty() || (!running && total > 0)) {
-        ResultCard(title = "${hosts.size} " + Res.string.hosts.str()) {
+        ResultCard(title = pluralStringResource(Res.plurals.lan_host_count, hosts.size, hosts.size)) {
             TableBlock {
                 TableRow(listOf(Res.string.address.str(), Res.string.name.str(), Res.string.open_ports.str(), Res.string.unit_ms.str()), header = true, weights = listOf(1.4f, 2f, 1.6f, 0.6f))
                 hosts.sortedBy { Ipv4.parse(it.address) ?: 0 }.forEach { h ->

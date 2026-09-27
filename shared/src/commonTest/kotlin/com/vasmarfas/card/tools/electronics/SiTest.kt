@@ -16,6 +16,8 @@ class SiTest {
         assertEquals(5.0, Si.parse("5V")!!, 1e-9)
         assertEquals(1000.0, Si.parse("1e3")!!, 1e-9)
         assertEquals(4.7, Si.parse("4R7")!!, 1e-9)
+        assertEquals(4.7, Si.parse("4,7")!!, 1e-9)
+        assertEquals(10_000.0, Si.parse("10,000")!!, 1e-9)
         assertNull(Si.parse("abc"))
         assertNull(Si.parse(""))
     }

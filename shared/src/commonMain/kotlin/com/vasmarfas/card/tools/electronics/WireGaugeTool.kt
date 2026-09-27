@@ -76,7 +76,7 @@ private fun WireGaugeScreen() {
                 suffix = mm2,
                 isError = valueText.isNotBlank() && value == null,
             )
-            value?.let { WireGauge.nearest(WireGauge.awgFromArea(it)) }
+            value?.let { WireGauge.notThicker(WireGauge.awgFromArea(it)) }
         }
         WireLookup.DIAMETER -> {
             NumberField(
@@ -86,7 +86,7 @@ private fun WireGaugeScreen() {
                 suffix = mm,
                 isError = valueText.isNotBlank() && value == null,
             )
-            value?.let { WireGauge.nearest(WireGauge.awgFromDiameter(it)) }
+            value?.let { WireGauge.notThicker(WireGauge.awgFromDiameter(it)) }
         }
     }
     if (row != null) {

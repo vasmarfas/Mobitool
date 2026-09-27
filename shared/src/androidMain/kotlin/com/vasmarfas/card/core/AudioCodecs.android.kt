@@ -9,13 +9,16 @@ import android.media.MediaFormat as CodecFormat
 import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Build
+import com.vasmarfas.card.resources.*
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.nio.ByteOrder
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 private const val TIMEOUT_US = 10_000L
 
-internal fun decodePcm(
+internal suspend fun decodePcm(
     context: Context,
     uri: Uri,
     startUs: Long,
@@ -29,7 +32,7 @@ internal fun decodePcm(
         extractor.getTrackFormat(it).getString(CodecFormat.KEY_MIME)?.startsWith("audio/") == true
     } ?: run {
         extractor.release()
-        throw MediaException("no audio stream")
+        throw MediaException("no audio stream", Res.string.no_audio_track)
     }
     extractor.selectTrack(track)
     val format = extractor.getTrackFormat(track)
@@ -47,6 +50,7 @@ internal fun decodePcm(
         var inputDone = false
         var chunk = ShortArray(0)
         while (true) {
+            currentCoroutineContext().ensureActive()
             if (!inputDone) {
                 val index = codec.dequeueInputBuffer(TIMEOUT_US)
                 if (index >= 0) {

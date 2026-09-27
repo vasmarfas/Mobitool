@@ -49,9 +49,7 @@ internal class Mp3Granule {
     var count1Table = 0
 }
 
-// inner loop: the finest global gain that fits the bit budget. Outer loop: raise the scalefactors of
-// groups over their allowed noise, keep the iteration with the least noise over it. A group is a long
-// band or one window of a short band
+// ISO inner and outer loops, a group is a long band or one window of a short band
 internal class Mp3Quantizer(private val mpeg1: Boolean, private val longEdges: IntArray, private val shortGroups: IntArray) {
     private val huffman = Mp3Huffman()
     private val magnitude = DoubleArray(576)

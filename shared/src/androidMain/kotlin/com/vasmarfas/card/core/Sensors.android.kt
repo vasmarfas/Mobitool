@@ -24,6 +24,7 @@ import android.os.Looper
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import androidx.annotation.RequiresPermission
+import com.vasmarfas.card.resources.*
 import java.lang.ref.WeakReference
 import kotlin.math.log10
 import kotlin.math.sqrt
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.getString
 
 object ActivityHolder {
     private var ref: WeakReference<Activity>? = null
@@ -130,6 +132,10 @@ actual fun locationFlow(): Flow<LocationFix> = callbackFlow {
         override fun onProviderDisabled(provider: String) = Unit
     }
     val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER).filter { runCatching { manager.isProviderEnabled(it) }.getOrDefault(false) }
+    if (providers.isEmpty()) {
+        close(IllegalStateException(getString(Res.string.location_turned_off)))
+        return@callbackFlow
+    }
     try {
         providers.forEach { provider ->
             manager.getLastKnownLocation(provider)?.let { listener.onLocationChanged(it) }
@@ -176,14 +182,14 @@ actual suspend fun batteryInfo(): BatteryInfo? {
             else -> "unknown"
         })
         add("Temperature" to "${intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10.0} °C")
-        add("Voltage" to "${intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0)} mV")
+        add("Voltage" to "${intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0)} ${getString(Res.string.unit_mv)}")
         intent.getStringExtra(BatteryManager.EXTRA_TECHNOLOGY)?.let { add("Technology" to it) }
         val current = manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-        if (current != Int.MIN_VALUE) add("Current now" to "${current / 1000} mA")
+        if (current != Int.MIN_VALUE) add("Current now" to "${current / 1000} ${getString(Res.string.unit_ma)}")
         val counter = manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
-        if (counter != Int.MIN_VALUE && counter > 0) add("Charge counter" to "${counter / 1000} mAh")
+        if (counter != Int.MIN_VALUE && counter > 0) add("Charge counter" to "${counter / 1000} ${getString(Res.string.unit_mah)}")
         val energy = manager.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER)
-        if (energy != Long.MIN_VALUE && energy > 0) add("Energy" to "${energy / 1_000_000} mWh")
+        if (energy != Long.MIN_VALUE && energy > 0) add("Energy" to "${energy / 1_000_000} ${getString(Res.string.unit_mwh)}")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             val cycles = intent.getIntExtra(BatteryManager.EXTRA_CYCLE_COUNT, -1)
             if (cycles >= 0) add("Cycle count" to cycles.toString())
@@ -265,13 +271,18 @@ actual fun microphoneLevelFlow(): Flow<Double> = flow {
     val record = try {
         AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, buffer.size * 2)
     } catch (e: SecurityException) {
-        return@flow
+        throw IllegalStateException("NotAllowedError")
     }
-    if (record.state != AudioRecord.STATE_INITIALIZED) return@flow
-    record.startRecording()
+    if (record.state != AudioRecord.STATE_INITIALIZED) {
+        record.release()
+        throw IllegalStateException("NotFoundError")
+    }
     try {
+        record.startRecording()
+        if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) throw IllegalStateException("NotReadableError")
         while (currentCoroutineContextActive()) {
             val read = record.read(buffer, 0, buffer.size)
+            if (read < 0) throw IllegalStateException("NotReadableError")
             if (read > 0) {
                 var sum = 0.0
                 for (i in 0 until read) sum += buffer[i].toDouble() * buffer[i].toDouble()

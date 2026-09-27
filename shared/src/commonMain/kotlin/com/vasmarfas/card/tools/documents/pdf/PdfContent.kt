@@ -51,12 +51,14 @@ internal class GraphicsState(
     var lineWidth: Double = 1.0,
     var fill: String = "",
     var stroke: String = "",
-    var states: String = "",
+    var states: List<String> = emptyList(),
 ) {
     fun copy() = GraphicsState(ctm, font, fontName, fontSize, charSpacing, wordSpacing, scale, leading, rise, render, color, lineWidth, fill, stroke, states)
 }
 
 private const val BLACK = 0xFF000000.toInt()
+
+private const val MAX_FORM_OPERATORS = 5_000_000
 
 internal val contentOperators = setOf(
     "b", "B", "b*", "B*", "BDC", "BI", "BMC", "BT", "BX", "c", "cm", "CS", "cs", "d", "d0", "d1", "Do", "DP", "EI", "EMC", "ET", "EX",
@@ -85,7 +87,7 @@ internal fun pageContentData(doc: PdfDocument, page: PdfPage): ByteArray {
 }
 
 private fun decodeOrEmpty(doc: PdfDocument, stream: PdfStream): ByteArray = try {
-    doc.decodedStream(stream)
+    PdfFilters.decode(stream.data, stream.dict, doc, lenient = true)
 } catch (_: PdfException) {
     ByteArray(0)
 }
@@ -96,7 +98,7 @@ enum class GraphicKind { IMAGE, FORM, PATH }
 
 class PageGraphic internal constructor(val first: Int, internal val last: Int, val kind: GraphicKind, val bounds: PdfRect, internal val ctm: Matrix)
 
-class TextRun internal constructor(val op: Int, val glyphs: List<PageGlyph>, internal val placeholder: String, internal val alone: String?)
+class TextRun internal constructor(val op: Int, val glyphs: List<PageGlyph>, internal val placeholder: String, internal val alone: Lazy<String>?)
 
 class PageContent internal constructor(
     private val data: ByteArray,
@@ -134,7 +136,7 @@ class PageContent internal constructor(
                 out.writeAscii(run.placeholder)
                 copied = op.end
                 val move = moved[i]
-                if (i !in removed && move != null && run.alone != null) tail.append("q ").append(Matrix.of(move).operands()).append(" cm ").append(run.alone).append(" Q\n")
+                if (i !in removed && move != null && run.alone != null) tail.append("q ").append(Matrix.of(move).operands()).append(" cm ").append(run.alone.value).append(" Q\n")
             }
             i++
         }
@@ -195,6 +197,7 @@ internal class ContentInterpreter(private val doc: PdfDocument, private val sink
     private var pathFirst = -1
     private var clip = false
     private val path = ArrayList<Double>()
+    private var budget = MAX_FORM_OPERATORS
 
     fun run(page: PdfPage) {
         val data = pageContentData(doc, page)
@@ -203,12 +206,13 @@ internal class ContentInterpreter(private val doc: PdfDocument, private val sink
     }
 
     private fun execute(data: ByteArray, resources: PdfDict) {
-        val top = if (forms.isEmpty()) analysis else null
+        val nested = forms.isNotEmpty()
+        val top = if (nested) null else analysis
         val parser = PdfParser(data, doc.names, allowRefs = false)
         val lexer = parser.lexer
         val operands = ArrayList<PdfObject>()
         var start = -1
-        while (true) {
+        while (!nested || budget > 0) {
             lexer.skipWhitespace()
             val c = lexer.peek()
             if (c < 0) break
@@ -236,6 +240,7 @@ internal class ContentInterpreter(private val doc: PdfDocument, private val sink
                     start = -1
                 }
                 else -> {
+                    if (nested) budget--
                     if (top != null) {
                         top.ops += ContentOp(op, operands.toList(), start, lexer.pos)
                         index = top.ops.lastIndex
@@ -313,7 +318,7 @@ internal class ContentInterpreter(private val doc: PdfDocument, private val sink
             "sc", "scn" -> if (state.fill.isNotEmpty()) state.fill = state.fill.substringBefore(" cs") + " cs " + source
             "G", "RG", "K", "CS" -> state.stroke = source
             "SC", "SCN" -> state.stroke = state.stroke.substringBefore(" CS", "").let { if (it.isEmpty()) source else "$it CS $source" }
-            "gs" -> state.states += "$source "
+            "gs" -> (args.lastOrNull() as? PdfName)?.let { state.states = state.states - it.name + it.name }
             "m", "l" -> point(number(args, 1), number(args, 0))
             "c" -> for (k in 0 until 3) point(number(args, 5 - 2 * k), number(args, 4 - 2 * k))
             "v", "y" -> for (k in 0 until 2) point(number(args, 3 - 2 * k), number(args, 2 - 2 * k))
@@ -382,15 +387,21 @@ internal class ContentInterpreter(private val doc: PdfDocument, private val sink
             else -> empty
         }
         val alone = state.fontName?.let { font ->
-            val show = latin1(PdfSyntax.serialize(shown)) + if (op == "TJ") " TJ" else " Tj"
-            val fill = state.fill.ifEmpty { colorOperands(state.color) + " rg" }
-            val stroke = if (state.render % 4 == 1 || state.render % 4 == 2) "${state.stroke} ${formatReal(state.lineWidth)} w " else ""
-            "q ${state.ctm.operands()} cm ${state.states}$fill $stroke" +
-                "BT /$font ${formatReal(state.fontSize)} Tf ${formatReal(state.charSpacing)} Tc ${formatReal(state.wordSpacing)} Tw " +
-                "${formatReal(state.scale * 100)} Tz ${formatReal(state.rise)} Ts ${state.render} Tr ${before.operands()} Tm $show ET Q"
+            val at = state.copy()
+            lazy(LazyThreadSafetyMode.NONE) {
+                val show = latin1(PdfSyntax.serialize(shown)) + if (op == "TJ") " TJ" else " Tj"
+                val fill = at.fill.ifEmpty { colorOperands(at.color) + " rg" }
+                val stroke = if (at.render % 4 == 1 || at.render % 4 == 2) "${at.stroke} ${formatReal(at.lineWidth)} w " else ""
+                val states = at.states.joinToString("") { "${name(it)} gs " }
+                "q ${at.ctm.operands()} cm $states$fill $stroke" +
+                    "BT ${name(font)} ${formatReal(at.fontSize)} Tf ${formatReal(at.charSpacing)} Tc ${formatReal(at.wordSpacing)} Tw " +
+                    "${formatReal(at.scale * 100)} Tz ${formatReal(at.rise)} Ts ${at.render} Tr ${before.operands()} Tm $show ET Q"
+            }
         }
         top.runs += TextRun(index, glyphs, placeholder, alone)
     }
+
+    private fun name(value: String) = latin1(PdfSyntax.serialize(PdfName(value)))
 
     private fun colorOperands(argb: Int) = listOf(16, 8, 0).joinToString(" ") { formatReal(((argb shr it) and 0xFF) / 255.0) }
 

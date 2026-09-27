@@ -698,6 +698,27 @@ object TextDecoding {
         "≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\u00A0",
     )
 
+    private val CP1250 = table(
+        "€\uFFFD‚\uFFFD„…†‡\uFFFD‰Š‹ŚŤŽŹ",
+        "\uFFFD‘’“”•–—\uFFFD™š›śťžź",
+        "\u00A0ˇ˘Ł¤Ą¦§¨©Ş«¬\u00AD®Ż",
+        "°±˛ł´µ¶·¸ąş»Ľ˝ľż",
+        "ŔÁÂĂÄĹĆÇČÉĘËĚÍÎĎ",
+        "ĐŃŇÓÔŐÖ×ŘŮÚŰÜÝŢß",
+        "ŕáâăäĺćçčéęëěíîď",
+        "đńňóôőö÷řůúűüýţ˙",
+    )
+
+    private val LATIN2 = table(
+        "\u00A0Ą˘Ł¤ĽŚ§¨ŠŞŤŹ\u00ADŽŻ",
+        "°ą˛ł´ľśˇ¸šşťź˝žż",
+        "ŔÁÂĂÄĹĆÇČÉĘËĚÍÎĎ",
+        "ĐŃŇÓÔŐÖ×ŘŮÚŰÜÝŢß",
+        "ŕáâăäĺćçčéęëěíîď",
+        "đńňóôőö÷řůúűüýţ˙",
+        from = 0xA0,
+    )
+
     private val LATIN1 = table()
 
     private val DECLARED_ENCODING = Regex("""encoding\s*=\s*["']([A-Za-z0-9._:-]+)["']""")
@@ -735,7 +756,9 @@ object TextDecoding {
     private fun tableFor(key: String?): CharArray? = when (key) {
         "windows1251", "cp1251", "win1251", "xcp1251" -> CP1251
         "koi8r", "koi8" -> KOI8_R
+        "windows1250", "cp1250", "xcp1250" -> CP1250
         "windows1252", "cp1252" -> CP1252
+        "iso88592", "latin2", "l2" -> LATIN2
         "iso88591", "latin1", "l1" -> LATIN1
         "cp866", "ibm866" -> CP866
         "ibm437", "cp437" -> CP437
@@ -814,9 +837,9 @@ object TextDecoding {
         return chars.concatToString()
     }
 
-    private fun table(vararg rows: String): CharArray {
+    private fun table(vararg rows: String, from: Int = 0x80): CharArray {
         val table = CharArray(256) { it.toChar() }
-        var i = 0x80
+        var i = from
         for (row in rows) for (c in row) table[i++] = c
         return table
     }

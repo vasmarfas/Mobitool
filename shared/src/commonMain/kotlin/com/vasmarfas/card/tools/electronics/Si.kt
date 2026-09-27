@@ -2,6 +2,7 @@ package com.vasmarfas.card.tools.electronics
 
 import com.vasmarfas.card.core.Lang
 import com.vasmarfas.card.core.appLang
+import com.vasmarfas.card.core.normalizeNumber
 import com.vasmarfas.card.tools.converters.fmtSig
 import kotlin.math.abs
 
@@ -17,7 +18,7 @@ object Si {
     )
 
     fun parse(text: String): Double? {
-        val s = text.trim().replace(" ", "").replace(',', '.')
+        val s = text.normalizeNumber()
         if (s.isEmpty()) return null
         s.toDoubleOrNull()?.let { return it }
         val match = pattern.find(s) ?: return null

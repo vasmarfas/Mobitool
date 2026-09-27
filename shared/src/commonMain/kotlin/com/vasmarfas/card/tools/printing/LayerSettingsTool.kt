@@ -24,6 +24,7 @@ import com.vasmarfas.card.ui.components.ErrorText
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
+import org.jetbrains.compose.resources.stringResource
 
 private val commonNozzles = listOf(0.2, 0.3, 0.4, 0.6, 0.8, 1.0)
 
@@ -86,22 +87,22 @@ private fun LayerSettingsScreen() {
     ResultCard(Res.string.recommended.str()) {
         KeyValueRow(
             Res.string.layer_height_range.str(),
-            "${advice.minLayer.fmt(3)} — ${advice.maxLayer.fmt(3)} ${Res.string.unit_mm.str()}",
+            "${advice.minLayer.fmt(3)} – ${advice.maxLayer.fmt(3)} ${Res.string.unit_mm.str()}",
         )
         KeyValueRow(Res.string.extrusion_width.str(), "${advice.recommendedWidth.fmt(2)} ${Res.string.unit_mm.str()}")
         KeyValueRow(
             Res.string.width_range.str(),
-            "${advice.minWidth.fmt(2)} — ${advice.maxWidth.fmt(2)} ${Res.string.unit_mm.str()}",
+            "${advice.minWidth.fmt(2)} – ${advice.maxWidth.fmt(2)} ${Res.string.unit_mm.str()}",
         )
         KeyValueRow(Res.string.first_layer_height.str(), "${advice.firstLayerHeight.fmt(2)} ${Res.string.unit_mm.str()}")
         KeyValueRow(Res.string.first_layer_width.str(), "${advice.firstLayerWidth.fmt(2)} ${Res.string.unit_mm.str()}")
-        KeyValueRow(Res.string.layer_nozzle.str(), "${(layer / nozzle * 100).fmt(1)} %")
+        KeyValueRow(Res.string.layer_nozzle.str(), stringResource(Res.string.percent_value, (layer / nozzle * 100).fmt(1)))
     }
     ResultCard(Res.string.for_this_model.str()) {
         KeyValueRow(Res.string.layers.str(), advice.layerCount.toString())
         KeyValueRow(Res.string.real_height.str(), "${advice.exactHeight.fmt(3)} ${Res.string.unit_mm.str()}")
     }
-    advice.warnings.forEach { ErrorText(it.str()) }
+    advice.warnings.forEach { ErrorText(stringResource(it, advice.exactHeight.fmt(3))) }
     ResultCard(Res.string.layer_height_limits_per_nozzle.str()) {
         SimpleTable(
             header = listOf(

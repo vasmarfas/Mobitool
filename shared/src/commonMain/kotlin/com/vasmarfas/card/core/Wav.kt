@@ -26,17 +26,4 @@ object Wav {
         int(40, dataBytes.coerceAtMost(0xFFFFFFFFL))
         return out
     }
-
-    fun encode(pcm: PcmAudio): ByteArray {
-        val header = header(pcm.sampleRate, pcm.channels, pcm.samples.size * 2L)
-        val out = ByteArray(header.size + pcm.samples.size * 2)
-        header.copyInto(out)
-        var o = header.size
-        for (s in pcm.samples) {
-            out[o] = s.toByte()
-            out[o + 1] = (s.toInt() shr 8).toByte()
-            o += 2
-        }
-        return out
-    }
 }

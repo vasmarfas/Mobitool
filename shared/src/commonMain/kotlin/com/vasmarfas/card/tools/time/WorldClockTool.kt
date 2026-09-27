@@ -279,7 +279,6 @@ private val zoneNames: Map<String, StringResource> = mapOf(
     "Australia/Sydney" to Res.string.city_sydney,
 )
 
-// translated for well-known zones, the IANA name otherwise
 @Composable
 private fun zoneName(zone: String): String = zoneNames[zone]?.str() ?: WorldClock.shortName(zone)
 

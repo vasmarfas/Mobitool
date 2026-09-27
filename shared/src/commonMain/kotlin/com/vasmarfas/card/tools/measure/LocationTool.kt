@@ -73,6 +73,7 @@ private fun LocationScreen() {
     var maxSpeed by remember { mutableStateOf(0.0) }
     var distance by remember { mutableStateOf(0.0) }
     var last by remember { mutableStateOf<LocationFix?>(null) }
+    var attempt by remember { mutableStateOf(0) }
 
     if (!locationSupported()) {
         Text(Res.string.not_available_on_this_platform.str())
@@ -82,7 +83,8 @@ private fun LocationScreen() {
         PermissionPrompt(AppPermission.LOCATION, Res.string.gps_location_access_is_needed.str()) { permission = true }
         return
     }
-    LaunchedEffect(permission) {
+    LaunchedEffect(permission, attempt) {
+        error = null
         locationFlow().catch { error = it.message ?: it.toString() }.collect { f ->
             last?.let { prev ->
                 val d = Geo.haversineMeters(prev.latitude, prev.longitude, f.latitude, f.longitude)
@@ -93,7 +95,10 @@ private fun LocationScreen() {
             f.speed?.let { if (it * 3.6 > maxSpeed) maxSpeed = it * 3.6 }
         }
     }
-    error?.let { ErrorText(it) }
+    error?.let {
+        ErrorText(it)
+        TextButton(onClick = { attempt++ }) { Text(Res.string.try_again.str()) }
+    }
     val f = fix
     if (f == null) {
         if (error == null) LoadingRow(Res.string.waiting_for_a_fix.str())

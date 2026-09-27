@@ -12,7 +12,7 @@ object Punycode {
     private const val INITIAL_BIAS = 72
     private const val INITIAL_N = 128
 
-    private fun adapt(delta0: Int, numPoints: Int, firstTime: Boolean): Int {
+    private fun adapt(delta0: Long, numPoints: Int, firstTime: Boolean): Int {
         var delta = if (firstTime) delta0 / DAMP else delta0 / 2
         delta += delta / numPoints
         var k = 0
@@ -20,7 +20,7 @@ object Punycode {
             delta /= BASE - TMIN
             k += BASE
         }
-        return k + (BASE - TMIN + 1) * delta / (delta + SKEW)
+        return k + ((BASE - TMIN + 1) * delta / (delta + SKEW)).toInt()
     }
 
     private fun threshold(k: Int, bias: Int): Int = when {
@@ -46,11 +46,11 @@ object Punycode {
         var h = b
         if (b > 0) sb.append('-')
         var n = INITIAL_N
-        var delta = 0
+        var delta = 0L
         var bias = INITIAL_BIAS
         while (h < cps.size) {
             val m = cps.filter { it >= n }.min()
-            delta += (m - n) * (h + 1)
+            delta += (m - n).toLong() * (h + 1)
             n = m
             for (c in cps) {
                 if (c < n) delta++
@@ -60,11 +60,11 @@ object Punycode {
                     while (true) {
                         val t = threshold(k, bias)
                         if (q < t) break
-                        sb.append(digit(t + (q - t) % (BASE - t)))
+                        sb.append(digit((t + (q - t) % (BASE - t)).toInt()))
                         q = (q - t) / (BASE - t)
                         k += BASE
                     }
-                    sb.append(digit(q))
+                    sb.append(digit(q.toInt()))
                     bias = adapt(delta, h + 1, h == b)
                     delta = 0
                     h++
@@ -85,28 +85,30 @@ object Punycode {
             if (c.code >= 0x80) return null
             out += c.code
         }
-        var n = INITIAL_N
-        var i = 0
+        var n = INITIAL_N.toLong()
+        var i = 0L
         var bias = INITIAL_BIAS
         var pos = if (dash >= 0) dash + 1 else 0
         while (pos < input.length) {
             val oldI = i
-            var w = 1
+            var w = 1L
             var k = BASE
             while (true) {
                 if (pos >= input.length) return null
                 val d = digitValue(input[pos++]) ?: return null
                 i += d * w
+                if (i > Int.MAX_VALUE) return null
                 val t = threshold(k, bias)
                 if (d < t) break
                 w *= BASE - t
+                if (w > Int.MAX_VALUE) return null
                 k += BASE
             }
-            bias = adapt(i - oldI, out.size + 1, oldI == 0)
+            bias = adapt(i - oldI, out.size + 1, oldI == 0L)
             n += i / (out.size + 1)
             i %= out.size + 1
             if (n > 0x10FFFF) return null
-            out.add(i, n)
+            out.add(i.toInt(), n.toInt())
             i++
         }
         return buildString { for (cp in out) appendCodePoint(cp) }

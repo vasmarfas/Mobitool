@@ -33,6 +33,7 @@ import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
 import com.vasmarfas.card.ui.components.ToolInputField
 import com.vasmarfas.card.ui.components.ToolSection
+import org.jetbrains.compose.resources.stringResource
 
 private enum class DividerTarget { VOUT, PICK }
 
@@ -119,7 +120,7 @@ private fun VoltageDividerScreen() {
                     header = listOf("R1", "R2", "Vout", Res.string.divider_error.str()),
                     rows = pairs.map { p ->
                         val error = (p.vout - vout) / vout * 100
-                        listOf(Si.format(p.r1, ohm), Si.format(p.r2, ohm), Si.format(p.vout, volt), "${if (error >= 0) "+" else ""}${error.fmt(1)}%")
+                        listOf(Si.format(p.r1, ohm), Si.format(p.r2, ohm), Si.format(p.vout, volt), stringResource(Res.string.percent_value, (if (error >= 0) "+" else "") + error.fmt(1)))
                     },
                     highlight = 0,
                 )

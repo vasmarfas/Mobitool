@@ -32,6 +32,7 @@ import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
+import com.vasmarfas.card.tools.developer.Punycode
 import com.vasmarfas.card.ui.components.ActionButton
 import com.vasmarfas.card.ui.components.ChoiceChips
 import com.vasmarfas.card.ui.components.CopyIconButton
@@ -63,6 +64,8 @@ private data class DnsState(
     val loading: Boolean = false,
 )
 
+private class ResolverAnswer(val label: String, val response: DnsResponse?, val error: String?)
+
 @Composable
 private fun DnsLookupScreen() {
     val resolverLabels = DnsResolver.entries.associateWith { it.label.str() }
@@ -72,7 +75,7 @@ private fun DnsLookupScreen() {
     var customServer by rememberSaveable { mutableStateOf("192.168.88.1") }
     var customResolvers by remember { mutableStateOf(CustomResolvers.load()) }
     var state by remember { mutableStateOf(DnsState()) }
-    var compare by remember { mutableStateOf<List<Pair<String, Result<DnsResponse>>>?>(null) }
+    var compare by remember { mutableStateOf<List<ResolverAnswer>?>(null) }
     val scope = rememberCoroutineScope()
     val choices: List<ResolverChoice> =
         DnsResolver.entries.filter { it.usableHere }.map { ResolverChoice.BuiltIn(it) } + customResolvers.map { ResolverChoice.Custom(it) }
@@ -85,7 +88,7 @@ private fun DnsLookupScreen() {
         val effectiveName = when {
             Ipv4.parse(query) != null -> Ipv4.ptrName(Ipv4.parse(query)!!)
             Ipv6Address.parse(query) != null -> Ipv6Address.parse(query)!!.ptrName()
-            else -> query
+            else -> Punycode.toAscii(query)
         }
         state = DnsState(loading = true)
         compare = null
@@ -94,7 +97,7 @@ private fun DnsLookupScreen() {
             state = runCatching { DnsClient.query(effectiveName, effectiveType, choice, customServer) }
                 .fold(
                     onSuccess = { DnsState(result = it, elapsedMs = currentEpochMillis() - started) },
-                    onFailure = { DnsState(error = it.message ?: it.toString()) },
+                    onFailure = { DnsState(error = networkErrorText(it)) },
                 )
         }
     }
@@ -108,7 +111,10 @@ private fun DnsLookupScreen() {
         scope.launch {
             compare = coroutineScope {
                 targets.map { (label, url, flavour) ->
-                    async { label to runCatching { DnsClient.queryDoh(url, query, DnsTypes.byName[type] ?: 1, flavour) } }
+                    async {
+                        runCatching { DnsClient.queryDoh(url, Punycode.toAscii(query), DnsTypes.byName[type] ?: 1, flavour) }
+                            .fold({ ResolverAnswer(label, it, null) }, { ResolverAnswer(label, null, networkErrorText(it)) })
+                    }
                 }.awaitAll()
             }
             state = state.copy(loading = false)
@@ -151,7 +157,8 @@ private fun DnsLookupScreen() {
     state.error?.let { ErrorText(it) }
     state.result?.let { result ->
         val response = result.response
-        ResultCard(title = "${response.rcodeName} · ${state.elapsedMs} ${Res.string.unit_ms.str()}" + (if (response.authoritative) " · AD" else "") + (if (response.truncated) " · TC" else "")) {
+        val flags = listOfNotNull("AA".takeIf { response.authoritative }, "AD".takeIf { response.authenticData }, "TC".takeIf { response.truncated })
+        ResultCard(title = (listOf(response.rcodeName, "${state.elapsedMs} ${Res.string.unit_ms.str()}") + flags).joinToString(" · ")) {
             KeyValueRow(
                 Res.string.resolved_via.str(),
                 result.endpoint + (result.flavour?.let { " · ${it.label.str()}" } ?: ""),
@@ -172,14 +179,13 @@ private fun DnsLookupScreen() {
     }
     compare?.let { results ->
         ResultCard(title = Res.string.answers_across_resolvers.str()) {
-            results.forEach { (label, result) ->
-                val text = result.fold(
-                    onSuccess = { resp -> resp.answers.joinToString("\n") { "${it.typeName} ${it.data} (TTL ${it.ttl})" }.ifEmpty { resp.rcodeName } },
-                    onFailure = { it.message ?: Res.string.dns_error.str() },
-                )
-                KeyValueRow(label, text)
+            results.forEach { answer ->
+                val text = answer.response?.let { resp ->
+                    resp.answers.joinToString("\n") { "${it.typeName} ${it.data} (TTL ${it.ttl})" }.ifEmpty { resp.rcodeName }
+                } ?: answer.error.orEmpty()
+                KeyValueRow(answer.label, text)
             }
-            val distinct = results.mapNotNull { it.second.getOrNull()?.answers?.map { a -> a.data }?.sorted() }.distinct()
+            val distinct = results.mapNotNull { it.response?.answers?.map { a -> a.data }?.sorted() }.distinct()
             Text(
                 if (distinct.size <= 1) Res.string.all_resolvers_agree.str()
                 else Res.string.dns_resolvers_return_different.str(),

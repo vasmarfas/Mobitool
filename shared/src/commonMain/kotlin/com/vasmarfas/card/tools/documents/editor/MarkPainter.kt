@@ -202,12 +202,13 @@ internal class PaintCanvas(private val painter: MarkPainter) {
 
     private fun shape(mark: ShapeMark) {
         val box = mark.box
+        val fill = mark.fill?.takeIf { mark.kind == ShapeKind.RECTANGLE || mark.kind == ShapeKind.ELLIPSE }
         ops.append("q ")
-        val alpha = alpha(mark.color)
-        if (alpha < 1f) ops.append('/').append(state(alpha, alpha, multiply = false)).append(" gs ")
+        val strokeAlpha = alpha(mark.color)
+        val fillAlpha = if (fill != null) alpha(fill) else strokeAlpha
+        if (strokeAlpha < 1f || fillAlpha < 1f) ops.append('/').append(state(fillAlpha, strokeAlpha, multiply = false)).append(" gs ")
         strokeColor(mark.color)
         ops.append(n(mark.width.toDouble())).append(" w 1 J 1 j\n")
-        val fill = mark.fill
         if (fill != null) fillColor(fill)
         when (mark.kind) {
             ShapeKind.RECTANGLE -> ops.append(rect(box)).append(if (fill != null) " re B\n" else " re S\n")

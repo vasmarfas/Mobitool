@@ -1,8 +1,9 @@
-# vasmarfas
+# Mobitool
 
-Личный сайт и бесплатный мультитул в одном приложении. Одна кодовая база на Kotlin Multiplatform /
-Compose Multiplatform собирается в сайт на WebAssembly ([vasmarfas.com](https://vasmarfas.com),
-[vasmarfas.ru](https://vasmarfas.ru)) и в нативные приложения для Android, iOS, Windows, macOS и Linux.
+Личный сайт и бесплатный мультитул в одном приложении: сайт называется vasmarfas, приложение Mobitool.
+Одна кодовая база на Kotlin Multiplatform / Compose Multiplatform собирается в сайт на WebAssembly
+([vasmarfas.com](https://vasmarfas.com), [vasmarfas.ru](https://vasmarfas.ru)) и в нативные приложения
+для Android, iOS, Windows, macOS на Apple Silicon и Linux.
 
 **English:** [`README.md`](README.md) · **Поддержать:** [`SUPPORT.md`](SUPPORT.md) ·
 **Приватность:** [`privacy-policy.md`](privacy-policy.md) · **Условия:** [`terms.md`](terms.md)
@@ -43,7 +44,7 @@ Compose Multiplatform собирается в сайт на WebAssembly ([vasmar
 
 ## Стек
 
-Kotlin 2.4, Compose Multiplatform 1.12, Material 3 Expressive (`MaterialExpressiveTheme`,
+Kotlin 2.4, Compose Multiplatform 1.13 (alpha), Material 3 Expressive (`MaterialExpressiveTheme`,
 `MotionScheme`, `WideNavigationRail`, `ShortNavigationBar`, wavy-индикаторы), navigation-compose с
 привязкой к истории браузера, Ktor 3, kotlinx-serialization, kotlinx-datetime, material-kolor (схема
 из seed-цвета, динамические цвета на Android 12+), qrose (QR и штрихкоды). Веб — только `wasmJs`.

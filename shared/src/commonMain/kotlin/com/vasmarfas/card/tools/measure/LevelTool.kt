@@ -66,7 +66,7 @@ private fun LevelScreen() {
             KeyValueRow(Res.string.roll_x.str(), "${roll.toDouble().fmt(1)}°", copyable = false)
             KeyValueRow(Res.string.pitch_y.str(), "${pitch.toDouble().fmt(1)}°", copyable = false)
             KeyValueRow(Res.string.total_tilt.str(), "${Math_deg(kotlin.math.acos((abs(z) / g).coerceIn(0f, 1f))).toDouble().fmt(1)}°", copyable = false)
-            KeyValueRow("g", "${(g / 9.80665f).toDouble().fmt(3)} (${g.toDouble().fmt(2)} m/s²)", copyable = false)
+            KeyValueRow("g", "${(g / 9.80665f).toDouble().fmt(3)} (${g.toDouble().fmt(2)} ${Res.string.unit_mps2.str()})", copyable = false)
         }
     }
 }

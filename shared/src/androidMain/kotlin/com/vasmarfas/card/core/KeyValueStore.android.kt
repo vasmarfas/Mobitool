@@ -2,7 +2,6 @@ package com.vasmarfas.card.core
 
 import android.content.Context
 import android.content.SharedPreferences
-import org.jetbrains.compose.resources.getString
 
 private class PrefsStore(private val prefs: SharedPreferences) : KeyValueStore {
     override fun get(key: String): String? = prefs.getString(key, null)

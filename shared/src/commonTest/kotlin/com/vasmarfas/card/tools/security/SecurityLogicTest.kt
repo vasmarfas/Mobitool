@@ -19,6 +19,20 @@ class Base32Test {
     }
 }
 
+class ChecksumTest {
+    private val hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+    @Test
+    fun readsCommonLayouts() {
+        assertEquals(hash, normalizeHash("SHA256 (ubuntu.iso) = $hash"))
+        assertEquals(hash, normalizeHash("$hash  ubuntu-24.04.iso"))
+        assertEquals(hash, normalizeHash("$hash *ubuntu.iso"))
+        assertEquals(hash, normalizeHash(hash.uppercase().chunked(2).joinToString(":")))
+        assertEquals("e3b0c44298fc1c14", normalizeHash("E3B0 C442 98FC 1C14"))
+        assertFalse(normalizeHash("E3B0 C442 98FC 1C14") == normalizeHash("E3B0 FFFF 0000 1111"))
+    }
+}
+
 class TotpTest {
     private val seed = "12345678901234567890".encodeToByteArray()
 
@@ -29,6 +43,11 @@ class TotpTest {
         assertEquals("14050471", Totp.code(seed, Totp.counter(1_111_111_111_000L, 30), 8, HashAlgorithm.SHA1))
         assertEquals("89005924", Totp.code(seed, Totp.counter(1_234_567_890_000L, 30), 8, HashAlgorithm.SHA1))
         assertEquals("69279037", Totp.code(seed, Totp.counter(2_000_000_000_000L, 30), 8, HashAlgorithm.SHA1))
+    }
+
+    @Test
+    fun tenDigitCodeKeepsTheWholeValue() {
+        assertEquals("1726969429", Totp.code(seed, Totp.counter(90_000L, 30), 10, HashAlgorithm.SHA1))
     }
 
     @Test
@@ -186,6 +205,15 @@ class DiceTest {
         assertEquals(6, values.toSet().size)
         assertTrue(values.all { it in 1..49 })
         assertNull(Dice.uniqueInts(1, 3, 4))
+    }
+
+    @Test
+    fun wideRangesUseTheWholeSpan() {
+        assertTrue(List(40) { Dice.intInRange(0, Int.MAX_VALUE) }.any { it != 0 })
+        assertTrue(List(40) { Dice.intInRange(-2_000_000_000, 2_000_000_000) }.any { it > 0 })
+        assertEquals(5, assertNotNull(Dice.uniqueInts(1, 300_000_000, 5)).toSet().size)
+        assertEquals((1..10).toSet(), assertNotNull(Dice.uniqueInts(1, 10, 10)).toSet())
+        assertEquals(1000, assertNotNull(Dice.uniqueInts(Int.MIN_VALUE, Int.MAX_VALUE, 1000)).toSet().size)
     }
 
     @Test

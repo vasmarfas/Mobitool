@@ -19,6 +19,7 @@ import com.vasmarfas.card.core.AppPermission
 import com.vasmarfas.card.core.PlatformKind
 import com.vasmarfas.card.core.SensorReading
 import com.vasmarfas.card.core.SensorType
+import com.vasmarfas.card.core.currentPlatform
 import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.hasPermission
 import com.vasmarfas.card.core.str
@@ -62,12 +63,13 @@ private fun AccelerometerScreen() {
             colors = LocalStatusColors.current.series,
         )
         ResultCard {
-            KeyValueRow("X / Y / Z", "${reading.x.toDouble().fmt(2)} / ${reading.y.toDouble().fmt(2)} / ${reading.z.toDouble().fmt(2)} m/s²", copyable = false)
-            KeyValueRow(Res.string.magnitude.str(), "${magnitude.toDouble().fmt(2)} m/s² (${(magnitude / 9.80665f).toDouble().fmt(2)} g)", copyable = false)
-            KeyValueRow(Res.string.vibration_deviation_from_1_g.str(), "${dynamic.toDouble().fmt(3)} m/s²", copyable = false)
-            KeyValueRow(Res.string.peak.str(), "${peak.toDouble().fmt(3)} m/s²", copyable = false)
+            val ms2 = Res.string.unit_mps2.str()
+            KeyValueRow("X / Y / Z", "${reading.x.toDouble().fmt(2)} / ${reading.y.toDouble().fmt(2)} / ${reading.z.toDouble().fmt(2)} $ms2", copyable = false)
+            KeyValueRow(Res.string.magnitude.str(), "${magnitude.toDouble().fmt(2)} $ms2 (${(magnitude / 9.80665f).toDouble().fmt(2)} g)", copyable = false)
+            KeyValueRow(Res.string.vibration_deviation_from_1_g.str(), "${dynamic.toDouble().fmt(3)} $ms2", copyable = false)
+            KeyValueRow(Res.string.peak.str(), "${peak.toDouble().fmt(3)} $ms2", copyable = false)
             val rms = history.takeLast(50).map { sqrt(it.x * it.x + it.y * it.y + it.z * it.z) - 9.80665f }.let { if (it.isEmpty()) 0.0 else sqrt(it.sumOf { v -> (v * v).toDouble() } / it.size) }
-            KeyValueRow("RMS (2.5 s)", "${rms.fmt(3)} m/s²", copyable = false)
+            KeyValueRow("RMS (2.5 ${Res.string.unit_s.str()})", "${rms.fmt(3)} $ms2", copyable = false)
         }
         ActionButton(text = Res.string.reset.str(), onClick = { peak = 0f; history.clear() })
     }
@@ -93,20 +95,21 @@ private fun MagnetometerScreen() {
         val magnitude = sqrt(reading.x * reading.x + reading.y * reading.y + reading.z * reading.z)
         if (baseline == null && history.size > 10) baseline = history.takeLast(10).map { sqrt(it.x * it.x + it.y * it.y + it.z * it.z) }.average().toFloat()
         val delta = baseline?.let { magnitude - it }
+        val microtesla = Res.string.unit_microtesla.str()
         LineChart(
             series = listOf(history.map { sqrt(it.x * it.x + it.y * it.y + it.z * it.z) }),
             colors = listOf(MaterialTheme.colorScheme.primary),
             symmetric = false,
         )
         Text(
-            "${magnitude.toDouble().fmt(1)} µT",
+            "${magnitude.toDouble().fmt(1)} $microtesla",
             style = MaterialTheme.typography.displayMedium,
             color = if (delta != null && delta > 15) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
         )
         ResultCard {
-            KeyValueRow("X / Y / Z", "${reading.x.toDouble().fmt(1)} / ${reading.y.toDouble().fmt(1)} / ${reading.z.toDouble().fmt(1)} µT", copyable = false)
-            KeyValueRow(Res.string.baseline.str(), baseline?.let { "${it.toDouble().fmt(1)} µT" } ?: "…", copyable = false)
-            KeyValueRow(Res.string.deviation.str(), delta?.let { "${it.toDouble().fmt(1)} µT" } ?: "…", copyable = false)
+            KeyValueRow("X / Y / Z", "${reading.x.toDouble().fmt(1)} / ${reading.y.toDouble().fmt(1)} / ${reading.z.toDouble().fmt(1)} $microtesla", copyable = false)
+            KeyValueRow(Res.string.baseline.str(), baseline?.let { "${it.toDouble().fmt(1)} $microtesla" } ?: "…", copyable = false)
+            KeyValueRow(Res.string.deviation.str(), delta?.let { "${it.toDouble().fmt(1)} $microtesla" } ?: "…", copyable = false)
             Text(
                 Res.string.motion_earth_s_field.str(),
                 style = MaterialTheme.typography.bodySmall,
@@ -134,7 +137,8 @@ private fun LightMeterScreen() {
     val session = rememberSensor(SensorType.LIGHT, history)
     SensorGate(session) { reading ->
         val lux = reading.x.toDouble()
-        Text("${lux.fmt(0)} lx", style = MaterialTheme.typography.displayLarge)
+        val lx = Res.string.unit_lux.str()
+        Text("${lux.fmt(0)} $lx", style = MaterialTheme.typography.displayLarge)
         LineChart(
             series = listOf(history.map { it.x }),
             colors = listOf(MaterialTheme.colorScheme.primary),
@@ -146,7 +150,7 @@ private fun LightMeterScreen() {
             KeyValueRow("EV (ISO 100)", if (ev.isNaN()) "—" else ev.fmt(1), copyable = false)
             KeyValueRow(Res.string.reference.str(), lightReference(lux).str(), mono = false, copyable = false)
             val recent = history.takeLast(40).map { it.x.toDouble() }
-            if (recent.isNotEmpty()) KeyValueRow("min / avg / max", "${recent.min().fmt(0)} / ${recent.average().fmt(0)} / ${recent.max().fmt(0)} lx", copyable = false)
+            if (recent.isNotEmpty()) KeyValueRow(Res.string.min_avg_max.str(), "${recent.min().fmt(0)} / ${recent.average().fmt(0)} / ${recent.max().fmt(0)} $lx", copyable = false)
         }
     }
 }
@@ -183,7 +187,8 @@ private fun BarometerScreen() {
         val hpa = reading.x.toDouble()
         val p0 = seaLevel.replace(',', '.').toDoubleOrNull() ?: 1013.25
         val altitude = 44330.0 * (1 - (hpa / p0).pow(1 / 5.255))
-        Text("${hpa.fmt(1)} hPa", style = MaterialTheme.typography.displayMedium)
+        val hectopascal = Res.string.unit_hpa.str()
+        Text("${hpa.fmt(1)} $hectopascal", style = MaterialTheme.typography.displayMedium)
         LineChart(
             series = listOf(history.map { it.x }),
             colors = listOf(MaterialTheme.colorScheme.primary),
@@ -192,11 +197,11 @@ private fun BarometerScreen() {
         )
         NumberField(value = seaLevel, onValueChange = { seaLevel = it }, label = Res.string.sea_level_pressure_qnh_hpa.str())
         ResultCard {
-            KeyValueRow("mmHg", (hpa * 0.750062).fmt(1), copyable = false)
-            KeyValueRow("inHg", (hpa * 0.02953).fmt(2), copyable = false)
+            KeyValueRow(Res.string.unit_mmhg.str(), (hpa * 0.750062).fmt(1), copyable = false)
+            KeyValueRow(Res.string.unit_inhg.str(), (hpa * 0.02953).fmt(2), copyable = false)
             KeyValueRow(Res.string.barometric_altitude.str(), "${altitude.fmt(0)} ${Res.string.unit_m.str()}", copyable = false)
             val first = history.firstOrNull()?.x?.toDouble()
-            if (first != null) KeyValueRow(Res.string.change_since_start.str(), "${(hpa - first).fmt(2)} hPa", copyable = false)
+            if (first != null) KeyValueRow(Res.string.change_since_start.str(), "${(hpa - first).fmt(2)} $hectopascal", copyable = false)
         }
     }
 }
@@ -221,7 +226,8 @@ private fun PedometerScreen() {
         return
     }
     val session = rememberSensor(SensorType.STEP_COUNTER)
-    var start by remember { mutableStateOf<Float?>(null) }
+    val sinceOpen = currentPlatform == PlatformKind.IOS
+    var start by remember { mutableStateOf(if (sinceOpen) 0f else null) }
     SensorGate(session) { reading ->
         if (start == null) start = reading.x
         val steps = (reading.x - (start ?: reading.x)).toInt()
@@ -231,7 +237,7 @@ private fun PedometerScreen() {
         ResultCard {
             KeyValueRow(Res.string.distance.str(), "${(steps * strideM / 1000).fmt(2)} ${Res.string.unit_km.str()}", copyable = false)
             KeyValueRow(Res.string.calories.str(), "${(steps * strideM / 1000 * kg * 0.9).fmt(0)} ${Res.string.unit_kcal.str()}", copyable = false)
-            KeyValueRow(Res.string.total_since_reboot.str(), reading.x.toInt().toString(), copyable = false)
+            if (!sinceOpen) KeyValueRow(Res.string.total_since_reboot.str(), reading.x.toInt().toString(), copyable = false)
         }
         NumberField(value = stride, onValueChange = { stride = it }, label = Res.string.stride_length_cm.str())
         NumberField(value = weight, onValueChange = { weight = it }, label = Res.string.weight_kg.str())

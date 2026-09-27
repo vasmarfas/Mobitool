@@ -1,5 +1,6 @@
 package com.vasmarfas.card.tools.time
 
+import kotlinx.datetime.DateTimeArithmeticException
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
@@ -11,9 +12,9 @@ import kotlinx.datetime.plus
 
 enum class DateUnit { DAYS, WEEKS, MONTHS, YEARS }
 
-data class DateDifference(val years: Int, val months: Int, val days: Int, val totalDays: Int, val workingDays: Int) {
-    val weeks: Int get() = totalDays / 7
-    val weekRemainderDays: Int get() = totalDays % 7
+data class DateDifference(val years: Int, val months: Int, val days: Int, val totalDays: Long, val workingDays: Long) {
+    val weeks: Long get() = totalDays / 7
+    val weekRemainderDays: Long get() = totalDays % 7
 }
 
 object DateMath {
@@ -21,11 +22,11 @@ object DateMath {
         val a = minOf(from, to)
         val b = maxOf(from, to)
         val p = a.periodUntil(b)
-        return DateDifference(p.years, p.months, p.days, a.daysUntil(b), workingDays(a, b))
+        return DateDifference(p.years, p.months, p.days, b.toEpochDays() - a.toEpochDays(), workingDays(a, b))
     }
 
-    fun workingDays(from: LocalDate, to: LocalDate): Int {
-        val total = from.daysUntil(to)
+    fun workingDays(from: LocalDate, to: LocalDate): Long {
+        val total = to.toEpochDays() - from.toEpochDays()
         if (total <= 0) return 0
         val fullWeeks = total / 7
         var count = fullWeeks * 5
@@ -37,13 +38,17 @@ object DateMath {
         return count
     }
 
-    fun shift(date: LocalDate, amount: Int, unit: DateUnit, subtract: Boolean): LocalDate {
+    fun shift(date: LocalDate, amount: Int, unit: DateUnit, subtract: Boolean): LocalDate? {
         val n = if (subtract) -amount else amount
-        return when (unit) {
-            DateUnit.DAYS -> date.plus(n, DateTimeUnit.DAY)
-            DateUnit.WEEKS -> date.plus(n, DateTimeUnit.WEEK)
-            DateUnit.MONTHS -> date.plus(n, DateTimeUnit.MONTH)
-            DateUnit.YEARS -> date.plus(n, DateTimeUnit.YEAR)
+        return try {
+            when (unit) {
+                DateUnit.DAYS -> date.plus(n, DateTimeUnit.DAY)
+                DateUnit.WEEKS -> date.plus(n, DateTimeUnit.WEEK)
+                DateUnit.MONTHS -> date.plus(n, DateTimeUnit.MONTH)
+                DateUnit.YEARS -> date.plus(n, DateTimeUnit.YEAR)
+            }
+        } catch (e: DateTimeArithmeticException) {
+            null
         }
     }
 

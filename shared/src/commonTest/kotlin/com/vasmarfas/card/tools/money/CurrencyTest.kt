@@ -19,6 +19,13 @@ class CurrencyTest {
     }
 
     @Test
+    fun copiedAmountMatchesTheShownOne() {
+        assertEquals("0.01234", money(0.01234, grouping = false))
+        assertEquals("1 234.5", money(1234.5))
+        assertEquals("1234.5", money(1234.5, grouping = false))
+    }
+
+    @Test
     fun invalidPayload() {
         assertNull(Currency.parse("not json"))
         assertNull(Currency.parse("""{"rates":{"EUR":0.9}}"""))

@@ -151,7 +151,7 @@ private fun FromVideo(task: TaskState, width: Int, loop: Boolean, options: @Comp
                     info = probed
                     range = 0f..min(1f, 5000f / probed.durationMs.coerceAtLeast(1))
                 }
-                .onFailure { loadError = it.message ?: it.toString() }
+                .onFailure { loadError = errorText(it) }
         }
     }
     loadError?.let { ErrorText(it) }
@@ -166,7 +166,7 @@ private fun FromVideo(task: TaskState, width: Int, loop: Boolean, options: @Comp
         player.seek((moved * probed.durationMs).toLong())
     }
     ToolSection(Res.string.frame_rate.str()) {
-        ChoiceChips(options = listOf(5, 8, 12, 15, 20, 25), selected = fps, onSelect = { fps = it }, label = { "$it fps" })
+        ChoiceChips(options = listOf(5, 8, 12, 15, 20, 25), selected = fps, onSelect = { fps = it }, label = { "$it ${Res.string.unit_frames_per_second.str()}" })
     }
     options()
     Hint(Res.string.gif_size_hint.str())

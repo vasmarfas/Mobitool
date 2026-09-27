@@ -65,13 +65,16 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
     DOCUMENTS(
         "documents", InterestGroup.EVERYDAY, Res.string.interest_documents, Icons.Filled.Description,
         listOf(
-            "pdf-editor", "images-to-pdf", "merge-pdf", "document-converter", "pdf-pages", "pdf-to-images", "pdf-to-text", "unlock-pdf",
-            "zip-archive", "qr-generator", "number-check", "number-to-words", "paper-sizes", "csv-converter",
+            "pdf-editor", "images-to-pdf", "merge-pdf", "compress-pdf", "id-photo", "document-converter", "pdf-pages", "pdf-to-images",
+            "pdf-to-text", "unlock-pdf", "zip-archive", "qr-generator", "number-check", "number-to-words", "paper-sizes", "csv-converter",
         ),
     ),
     PHOTO(
         "photo", InterestGroup.EVERYDAY, Res.string.interest_photo, Icons.Filled.PhotoCamera,
-        listOf("image-compressor", "photo-editor", "image-converter", "exif-viewer", "image-palette", "sunrise-sunset", "light-meter", "aspect-ratio"),
+        listOf(
+            "image-compressor", "photo-editor", "id-photo", "image-converter", "exif-viewer", "image-palette", "sunrise-sunset",
+            "light-meter", "aspect-ratio",
+        ),
     ),
     TIME(
         "time", InterestGroup.EVERYDAY, Res.string.interest_time, Icons.Filled.Schedule,
@@ -226,8 +229,7 @@ object Onboarding {
     private val runsHere: (String) -> Boolean = { id -> ToolRegistry.byId(id)?.availableHere == true }
     private val popular by lazy { ToolRegistry.popular.map { it.id }.toSet() }
 
-    // every chosen interest keeps its leading tools first: three each for up to three interests, two for
-    // up to seven, one beyond that, so several roles stay within BUDGET. The rest goes by scores()
+    // fewer leading tools per interest the more interests there are, so the pick stays within BUDGET
     fun propose(roles: Collection<Role>, interests: Collection<Interest>, available: (String) -> Boolean = runsHere): List<String> {
         if (interests.isEmpty()) return emptyList()
         val lead = when {

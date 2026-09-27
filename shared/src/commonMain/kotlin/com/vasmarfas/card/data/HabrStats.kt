@@ -19,8 +19,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 
-// the Habr API answers any origin, so the site calls it from the browser as well. reach is the number
-// Habr prints under an article, views in profile.json is the fallback until it arrives
+// the Habr API answers any origin, so the site calls it from the browser too, views in profile.json is the fallback
 object HabrStats {
     private const val API = "https://habr.com/kek/v2/articles"
     private const val CACHE_KEY = "habr.views"

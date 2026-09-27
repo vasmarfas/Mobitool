@@ -26,6 +26,7 @@ import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
 import com.vasmarfas.card.ui.components.ToolSection
+import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 
 private enum class ShrinkTab { SHRINK, CUBE }
@@ -112,7 +113,7 @@ private fun ShrinkSection() {
     val factor = Shrinkage.scaleFactor(shrink)
     ResultCard {
         KeyValueRow(Res.string.scale_factor.str(), factor.fmt(5))
-        KeyValueRow(Res.string.scale_in_the_slicer.str(), "${(factor * 100).fmt(3)} %")
+        KeyValueRow(Res.string.scale_in_the_slicer.str(), stringResource(Res.string.percent_value, (factor * 100).fmt(3)))
         KeyValueRow(Res.string.model_dimension.str(), "${(nominal * factor).fmt(3)} ${Res.string.unit_mm.str()}")
         KeyValueRow(Res.string.compensation.str(), "${(nominal * factor - nominal).fmt(3)} ${Res.string.unit_mm.str()}")
     }
@@ -124,7 +125,7 @@ private fun ShrinkSection() {
                 Res.string.scale.str(),
             ),
             rows = typicalShrinkage.map { (m, s) ->
-                listOf(m.title.str(), "${s.fmt(2)} %", "${(Shrinkage.scaleFactor(s) * 100).fmt(3)} %")
+                listOf(m.title.str(), stringResource(Res.string.percent_value, s.fmt(2)), stringResource(Res.string.percent_value, (Shrinkage.scaleFactor(s) * 100).fmt(3)))
             },
             weights = listOf(1.5f, 1f, 1f),
             mono = false,
@@ -179,7 +180,7 @@ private fun CubeSection() {
                 Res.string.new_steps.str(),
             ),
             rows = axes.mapIndexed { i, axis ->
-                listOf(axis, measured[i]!!.fmt(3), "${errors[i].fmt(2)} %", corrected[i].fmt(3))
+                listOf(axis, measured[i]!!.fmt(3), stringResource(Res.string.percent_value, errors[i].fmt(2)), corrected[i].fmt(3))
             },
             weights = listOf(0.6f, 1f, 1f, 1.2f),
         )

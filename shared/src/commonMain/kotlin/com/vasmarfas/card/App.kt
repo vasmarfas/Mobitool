@@ -8,13 +8,13 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -27,11 +27,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.WideNavigationRail
 import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.material3.WideNavigationRailValue
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberWideNavigationRailState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -58,13 +58,12 @@ import androidx.navigation.toRoute
 import com.vasmarfas.card.core.Analytics
 import com.vasmarfas.card.core.AnalyticsEvent
 import com.vasmarfas.card.core.AnalyticsParam
+import com.vasmarfas.card.core.AppConfig
 import com.vasmarfas.card.core.LocalLang
 import com.vasmarfas.card.core.PlatformKind
 import com.vasmarfas.card.core.currentPlatform
 import com.vasmarfas.card.core.initAnalytics
 import com.vasmarfas.card.core.listenForFindShortcut
-import com.vasmarfas.card.core.pullToReload
-import com.vasmarfas.card.core.reloadPage
 import com.vasmarfas.card.core.setWindowTitle
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.data.AppSettings
@@ -130,7 +129,7 @@ fun App(
         profileState.value?.projects?.let { GithubStars.refresh(it) }
     }
     val linkRoute = link?.let { UrlRoutes.parse(it.substringAfter('#', "")) }
-    // A link to a tool opens the tool. The status stays NONE, so the questions are asked on the next cold start.
+    // a tool link skips onboarding but leaves the status NONE, so it runs on the next cold start
     var onboarding by rememberSaveable {
         val firstRun = currentPlatform != PlatformKind.WEB && settings.onboarding == OnboardingStatus.NONE
         mutableStateOf(if (firstRun && linkRoute !is ToolRoute) OnboardingFirstRun else null)
@@ -143,20 +142,22 @@ fun App(
         LocalFind provides find,
     ) {
         val navController = rememberNavController()
+        // above key(lang), so a language switch does not count the screen again
+        val viewed = remember { mutableStateOf<String?>(null) }
         key(settings.lang) {
             MobitoolTheme(settings) {
                 val entry = onboarding
                 if (entry != null) {
                     OnboardingScreen(
                         entry = entry,
-                        onFinish = {
-                            // Before the first run is over the nav host has never been composed and has no graph yet.
-                            if (entry != OnboardingFirstRun) navController.navigateTop(TopDestination.start)
+                        onFinish = { saved ->
+                            // until the first run is over the nav host has no graph
+                            if (saved && entry != OnboardingFirstRun) navController.navigateTop(TopDestination.start)
                             onboarding = null
                         },
                     )
                 } else {
-                    AppShell(navController, linkRoute, onLinkHandled, onNavHostReady, onRunOnboarding = { from -> onboarding = from })
+                    AppShell(navController, viewed, linkRoute, onLinkHandled, onNavHostReady, onRunOnboarding = { from -> onboarding = from })
                 }
             }
         }
@@ -167,6 +168,7 @@ fun App(
 @Composable
 private fun AppShell(
     navController: NavHostController,
+    viewed: MutableState<String?>,
     linkRoute: Any?,
     onLinkHandled: () -> Unit,
     onNavHostReady: suspend (NavController) -> Unit,
@@ -184,24 +186,29 @@ private fun AppShell(
     LaunchedEffect(find) { listenForFindShortcut { find.show() } }
     LaunchedEffect(topDestination, toolId) { find.close() }
 
-    // The site's page view carries the window title, so both come from one effect.
-    var viewed by remember { mutableStateOf<String?>(null) }
+    // the site's page view carries the window title, so both come from one effect
     LaunchedEffect(topDestination, toolId, lang) {
         val page = when {
-            toolId != null -> ToolRegistry.byId(toolId)?.title?.let { getString(it) } ?: getString(Res.string.tools)
-            topDestination == TopDestination.HOME -> null
+            toolId != null -> ToolRegistry.byId(toolId)?.title?.let { getString(it) } ?: getString(Res.string.tools_short)
+            topDestination == TopDestination.HOME && currentPlatform == PlatformKind.WEB -> null
             topDestination != null -> getString(topDestination.label)
             else -> null
         }
+        val brand = when {
+            toolId != null || topDestination == TopDestination.TOOLS || topDestination == TopDestination.MY_TOOLS -> AppConfig.APP_NAME
+            currentPlatform == PlatformKind.WEB -> AppConfig.SITE_NAME
+            topDestination in listOf(TopDestination.HOME, TopDestination.PROJECTS, TopDestination.RESUME) -> AppConfig.SITE_NAME
+            else -> AppConfig.APP_NAME
+        }
         val title = when {
-            page != null -> "$page · vasmarfas"
+            page != null -> "$page · $brand"
             currentPlatform == PlatformKind.WEB -> getString(Res.string.site_title)
-            else -> "vasmarfas"
+            else -> brand
         }
         setWindowTitle(title)
         val screen = toolId?.let { "tool_$it" } ?: topDestination?.screenName ?: return@LaunchedEffect
-        if (screen == viewed) return@LaunchedEffect
-        viewed = screen
+        if (screen == viewed.value) return@LaunchedEffect
+        viewed.value = screen
         val path = toolId?.let(UrlRoutes::fragmentForTool) ?: topDestination?.let(UrlRoutes::fragmentFor).orEmpty()
         Analytics.screen(screen, if (toolId != null) "tool" else "tab", path, title)
     }
@@ -219,13 +226,13 @@ private fun AppShell(
             val compact = layout == LayoutSize.COMPACT
             Row(Modifier.fillMaxSize()) {
                 if (!compact && !chrome.immersive) {
-                    // The expanded rail takes about 200 dp, so it unfolds only in wide windows.
+                    // the expanded rail takes about 200 dp, so it unfolds only in wide windows
                     val expandedRail = layout == LayoutSize.EXPANDED
-                    WideNavigationRail(
-                        state = rememberWideNavigationRailState(
-                            if (expandedRail) WideNavigationRailValue.Expanded else WideNavigationRailValue.Collapsed,
-                        ),
-                    ) {
+                    val railState = rememberWideNavigationRailState(
+                        if (expandedRail) WideNavigationRailValue.Expanded else WideNavigationRailValue.Collapsed,
+                    )
+                    LaunchedEffect(expandedRail) { if (expandedRail) railState.expand() else railState.collapse() }
+                    WideNavigationRail(state = railState) {
                         TopDestination.visible.forEach { tab ->
                             WideNavigationRailItem(
                                 selected = tab == topDestination,
@@ -250,31 +257,21 @@ private fun AppShell(
                                 exit = fadeOut(tween(NavFadeOut + NavFadeIn)) + slideOutVertically(tween(NavFadeOut + NavFadeIn)) { it },
                             ) {
                                 ShortNavigationBar {
-                                TopDestination.visible.forEach { tab ->
-                                    ShortNavigationBarItem(
-                                        selected = tab == topDestination,
-                                        onClick = { navigateTop(tab) },
-                                        icon = { Icon(if (tab == topDestination) tab.selectedIcon else tab.icon, contentDescription = null) },
-                                        // At a 2.0 font scale a wrapped label spills out of the bar.
-                                        label = { Text(tab.label.str(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                    )
-                                }
+                                    TopDestination.visible.forEach { tab ->
+                                        ShortNavigationBarItem(
+                                            selected = tab == topDestination,
+                                            onClick = { navigateTop(tab) },
+                                            icon = { Icon(if (tab == topDestination) tab.selectedIcon else tab.icon, contentDescription = null) },
+                                            // at a 2.0 font scale a wrapped label spills out of the bar
+                                            label = { Text(tab.label.str(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                        )
+                                    }
                                 }
                             }
                         }
                     },
                 ) { padding ->
-                    var reloading by remember { mutableStateOf(false) }
-                    PullToRefreshBox(
-                        isRefreshing = reloading,
-                        onRefresh = {
-                            reloading = true
-                            reloadPage()
-                        },
-                        modifier = Modifier.padding(padding).consumeWindowInsets(padding).fillMaxSize(),
-//                        enabled = pullToReload,
-                        enabled = false,
-                    ) {
+                    Box(Modifier.padding(padding).consumeWindowInsets(padding).fillMaxSize()) {
                         AppNavHost(navController, navigateTop, linkRoute, onLinkHandled, onNavHostReady, onRunOnboarding, Modifier.fillMaxSize())
                         if (find.open) FindBar(find, Modifier.align(Alignment.TopEnd).padding(12.dp))
                     }
@@ -284,23 +281,19 @@ private fun AppShell(
     }
 }
 
-// Material fade-through: the outgoing screen is gone in 90 ms, the incoming one settles from 92 % over the next 210.
+// Material fade-through
 private const val NavFadeOut = 90
 private const val NavFadeIn = 210
 
 private fun fadeThroughIn() = fadeIn(tween(NavFadeIn, delayMillis = NavFadeOut)) +
     scaleIn(initialScale = 0.92f, animationSpec = tween(NavFadeIn, delayMillis = NavFadeOut))
 
-// The start tab is rebuilt from scratch, every other tab keeps its own back stack between visits.
+// the tab being left keeps its back stack, the start tab opens on its first screen and the others where they were left
 private fun NavController.navigateTop(tab: TopDestination) {
-    val start = tab == TopDestination.start
     navigate(tab.route) {
-        popUpTo(graph.findStartDestination().id) {
-            inclusive = start
-            saveState = !start
-        }
+        popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
-        restoreState = !start
+        restoreState = tab != TopDestination.start
     }
 }
 
@@ -314,10 +307,21 @@ private fun AppNavHost(
     onRunOnboarding: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val openTool: (String) -> Unit = { id -> navController.navigate(ToolRoute(id)) }
+    val openTool: (String, String) -> Unit = { id, source ->
+        val shown = navController.currentBackStackEntry?.takeIf { it.destination.hasRoute(ToolRoute::class) }?.toRoute<ToolRoute>()
+        if (shown?.id != id) {
+            ToolRegistry.byId(id)?.let { tool ->
+                Analytics.log(
+                    AnalyticsEvent.TOOL_OPEN,
+                    mapOf(AnalyticsParam.TOOL to tool.id, AnalyticsParam.CATEGORY to tool.category.id, AnalyticsParam.SOURCE to source),
+                )
+            }
+            navController.navigate(ToolRoute(id))
+        }
+    }
     val switchTool: (String) -> Unit = { id ->
         val behind = navController.previousBackStackEntry?.takeIf { it.destination.hasRoute(ToolRoute::class) }?.toRoute<ToolRoute>()
-        if (behind?.id == id) navController.popBackStack() else openTool(id)
+        if (behind?.id == id) navController.popBackStack() else navController.navigate(ToolRoute(id))
     }
     var projectsTab by rememberSaveable { mutableStateOf(ProjectsTab.PROJECTS) }
     Surface(modifier = modifier, color = MaterialTheme.colorScheme.background) {
@@ -350,7 +354,6 @@ private fun AppNavHost(
                 composable<ProjectsRoute> { ProjectsScreen(projectsTab) { projectsTab = it } }
                 composable<ResumeRoute> { ResumeScreen() }
                 composable<ToolsRoute> { ToolsScreen(onOpenTool = openTool) }
-                // A tool rises out of the card that opened it and sinks back on the way out.
                 composable<ToolRoute>(
                     enterTransition = {
                         fadeIn(tween(NavFadeIn, delayMillis = NavFadeOut)) +
@@ -371,16 +374,7 @@ private fun AppNavHost(
         LaunchedEffect(navController, linkRoute) {
             if (linkRoute == null) return@LaunchedEffect
             if (linkRoute is ToolRoute) {
-                val shown = navController.currentBackStackEntry?.takeIf { it.destination.hasRoute(ToolRoute::class) }?.toRoute<ToolRoute>()
-                if (shown != linkRoute) {
-                    ToolRegistry.byId(linkRoute.id)?.let { tool ->
-                        Analytics.log(
-                            AnalyticsEvent.TOOL_OPEN,
-                            mapOf(AnalyticsParam.TOOL to tool.id, AnalyticsParam.CATEGORY to tool.category.id, AnalyticsParam.SOURCE to "link"),
-                        )
-                    }
-                    openTool(linkRoute.id)
-                }
+                openTool(linkRoute.id, "link")
             } else {
                 TopDestination.entries.firstOrNull { it.route == linkRoute }?.let(onNavigateTop)
             }

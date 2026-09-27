@@ -70,7 +70,7 @@ private fun CalorieBurnScreen() {
         selected = activity,
         onSelect = { activityKey = it.title.key },
         label = Res.string.activity.str(),
-        text = { "${it.title.str()} · ${it.met.fmt(1)} MET" },
+        text = { "${it.title.str()} · ${it.met.fmt(1)} ${Res.string.mets.str()}" },
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         NumberField(
@@ -102,13 +102,13 @@ private fun CalorieBurnScreen() {
     ResultCard(Res.string.by_met.str()) {
         KeyValueRow(Res.string.per_minute.str(), "${(kcal / minutes).fmt(1)} ${Res.string.unit_kcal.str()}")
         KeyValueRow(Res.string.per_hour.str(), "${(kcal / minutes * 60).fmt(0)} ${Res.string.unit_kcal.str()}")
-        KeyValueRow("MET", activity.met.fmt(1))
+        KeyValueRow(Res.string.mets.str(), activity.met.fmt(1))
     }
     ResultCard(Res.string.same_session_other_activities.str()) {
         SimpleTable(
             header = listOf(
                 Res.string.activity.str(),
-                "MET",
+                Res.string.mets.str(),
                 Res.string.unit_kcal.str(),
             ),
             rows = filtered.take(20).map {

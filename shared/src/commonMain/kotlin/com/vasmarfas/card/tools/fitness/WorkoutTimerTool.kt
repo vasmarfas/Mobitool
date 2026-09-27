@@ -145,8 +145,8 @@ private fun WorkoutTimerScreen() {
             NumberField(restText, { restText = it }, Res.string.rest.str(), Modifier.weight(1f), suffix = Res.string.unit_s.str(), isError = restText.toIntOrZero() < 0)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            NumberField(roundsText, { roundsText = it }, Res.string.rounds.str(), Modifier.weight(1f), isError = roundsText.toIntOrZero() <= 0)
-            NumberField(setsText, { setsText = it }, Res.string.workout_timer_sets.str(), Modifier.weight(1f), isError = setsText.toIntOrZero() <= 0)
+            NumberField(roundsText, { roundsText = it }, Res.string.rounds.str(), Modifier.weight(1f), isError = roundsText.toIntOrZero() !in 1..WorkoutSteps.MAX_ROUNDS)
+            NumberField(setsText, { setsText = it }, Res.string.workout_timer_sets.str(), Modifier.weight(1f), isError = setsText.toIntOrZero() !in 1..WorkoutSteps.MAX_SETS)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             NumberField(setRestText, { setRestText = it }, Res.string.rest_between_sets.str(), Modifier.weight(1f), suffix = Res.string.unit_s.str(), isError = setRestText.toIntOrZero() < 0)

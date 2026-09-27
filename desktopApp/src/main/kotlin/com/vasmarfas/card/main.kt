@@ -8,6 +8,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import com.vasmarfas.card.core.windowTitle
 import com.vasmarfas.card.resources.Res
 import com.vasmarfas.card.resources.app_icon
 import com.vasmarfas.card.ui.components.FindState
@@ -18,7 +19,7 @@ fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         onPreviewKeyEvent = find::shortcut,
-        title = "vasmarfas",
+        title = windowTitle.value,
         icon = painterResource(Res.drawable.app_icon),
         state = rememberWindowState(size = DpSize(1180.dp, 820.dp), position = WindowPosition.Aligned(Alignment.Center)),
     ) {

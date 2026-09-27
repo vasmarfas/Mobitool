@@ -53,10 +53,11 @@ private class EditWriter(
     private val appearances = FieldAppearance(writer, painter)
     private val fields: List<FormField> = main?.let { PdfForms.read(it) }.orEmpty()
     private val acro: PdfDict? = main?.catalog?.dict("AcroForm", main)
+    private val needAppearances = acro?.boolean("NeedAppearances", main) == true
     private val keepForm = acro != null && fields.isNotEmpty() && !options.flattenForm
     private val flattenForm = fields.isNotEmpty() && options.flattenForm
     private val widgets: Map<Int, Pair<FormField, FormWidget>> = fields.flatMap { field -> field.widgets.mapNotNull { w -> w.ref?.let { it.number to (field to w) } } }.toMap()
-    private val copier = PageCopier(writer, if (keepForm) main else null, ::keepAnnotation, replacements)
+    private val copier = PageCopier(writer, ::keepAnnotation, replacements)
     private val catalog = writer.reserve()
     private val tree = writer.reserve()
     private val targets: List<PdfRef> = edit.pages.map { writer.reserve() }
@@ -83,10 +84,12 @@ private class EditWriter(
         return writer.toByteArray(catalog, info, encryptor)
     }
 
+    // an annotation without an appearance has nothing to paint into the page, flattening leaves it as it is
     private fun keepAnnotation(doc: PdfDocument, annotation: PdfDict): Boolean = when (annotation.name("Subtype", doc)) {
         "Link" -> true
         "Widget" -> !(flattenForm && doc === main)
-        else -> !(options.flattenAnnotations || options.removeAnnotations)
+        "Popup" -> !(options.flattenAnnotations || options.removeAnnotations)
+        else -> !options.removeAnnotations && (!options.flattenAnnotations || annotation.dict("AP", doc)?.get("N") == null)
     }
 
     private fun page(index: Int, page: EditPage): PdfDict {
@@ -168,9 +171,11 @@ private class EditWriter(
             var state: String? = null
             if (widget) {
                 val (field, formWidget) = (item as? PdfRef)?.let { widgets[it.number] } ?: (null to null)
-                val value = field?.let { edit.fields[it.name] }
+                val edited = field?.let { edit.fields[it.name] }
+                val value = edited ?: field?.value
                 if (field != null && formWidget != null && value != null) {
-                    val generated = appearances.form(field, formWidget, value, doc)
+                    val stale = edited != null || needAppearances || annotation.dict("AP", doc)?.get("N") == null
+                    val generated = if (stale) appearances.form(field, formWidget, value, doc) else null
                     if (generated != null) {
                         paint(canvas, generated, rect)
                         continue
@@ -214,16 +219,18 @@ private class EditWriter(
                 is FieldValue.Check -> PdfName(value.state ?: "Off")
             }
             for (widget in field.widgets) {
-                val out = widget.ref?.let { copier.annotationTarget(doc, it.number) }?.let { writer[it] as? PdfDict } ?: continue
-                when (field.kind) {
-                    FieldKind.TEXT, FieldKind.COMBO, FieldKind.LIST -> appearances.form(field, widget, value, doc)?.let { out["AP"] = PdfDict("N" to it) }
-                    FieldKind.CHECKBOX, FieldKind.RADIO -> {
-                        val chosen = (value as? FieldValue.Check)?.state
-                        val on = widget.onState ?: "Yes"
-                        out["AS"] = PdfName(if (chosen != null && chosen == on) on else "Off")
-                        if (out["AP"] == null) out["AP"] = PdfDict("N" to appearances.checkStates(widget, field.textColor))
+                for (target in widget.ref?.let { copier.copiesOfAnnotation(doc, it.number) }.orEmpty()) {
+                    val out = writer[target] as? PdfDict ?: continue
+                    when (field.kind) {
+                        FieldKind.TEXT, FieldKind.COMBO, FieldKind.LIST -> appearances.form(field, widget, value, doc)?.let { out["AP"] = PdfDict("N" to it) }
+                        FieldKind.CHECKBOX, FieldKind.RADIO -> {
+                            val chosen = (value as? FieldValue.Check)?.state
+                            val on = widget.onState ?: "Yes"
+                            out["AS"] = PdfName(if (chosen != null && chosen == on) on else "Off")
+                            if (out["AP"] == null) out["AP"] = PdfDict("N" to appearances.checkStates(widget, field.textColor))
+                        }
+                        FieldKind.BUTTON, FieldKind.SIGNATURE -> Unit
                     }
-                    FieldKind.BUTTON, FieldKind.SIGNATURE -> Unit
                 }
             }
         }

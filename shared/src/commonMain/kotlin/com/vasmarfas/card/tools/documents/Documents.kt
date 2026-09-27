@@ -2,7 +2,9 @@ package com.vasmarfas.card.tools.documents
 
 import com.vasmarfas.card.core.TextDecoding
 import com.vasmarfas.card.core.ZipArchive
+import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.developer.hexToBytes
+import org.jetbrains.compose.resources.StringResource
 import kotlin.math.min
 
 enum class DocFormat(val extension: String, val mimeType: String, val readable: Boolean, val writable: Boolean) {
@@ -16,7 +18,7 @@ enum class DocFormat(val extension: String, val mimeType: String, val readable: 
     TXT("txt", "text/plain", true, true),
 }
 
-class DocumentFormatException(message: String) : Exception(message)
+class DocumentFormatException(message: String, val reason: StringResource = Res.string.document_damaged) : Exception(message)
 
 object Documents {
     fun detect(bytes: ByteArray, fileName: String): DocFormat? {

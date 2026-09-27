@@ -16,7 +16,7 @@ enum class EncodedFormat { JPEG, PNG, WEBP }
 
 class RawImage(val bitmap: ImageBitmap, val oriented: Boolean)
 
-expect suspend fun decodeRawImage(bytes: ByteArray): RawImage?
+expect suspend fun decodeRawImage(bytes: ByteArray, maxSide: Int = 0): RawImage?
 
 expect fun ImageBitmap.encode(format: EncodedFormat, quality: Int): ByteArray
 

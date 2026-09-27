@@ -48,8 +48,7 @@ actual fun supportsDynamicColor(): Boolean = false
 
 actual fun currentEpochMillis(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
 
-// arc4random_buf is the platform CSPRNG and has no failure mode; SecRandomCopyBytes returns a
-// status that has to be checked, and an unchecked one hands back a buffer of zeroes
+// arc4random_buf is the platform CSPRNG and cannot fail
 @OptIn(ExperimentalForeignApi::class)
 actual fun secureRandomBytes(count: Int): ByteArray {
     val bytes = ByteArray(count)

@@ -67,21 +67,22 @@ private fun PercentageScreen() {
     when (form) {
         PercentForm.OF -> AnswerCard(Percentage.percentOf(x, y).fmtSig(), stringResource(Res.string.percent_of_caption, x.fmtSig(), y.fmtSig()))
         PercentForm.RATIO -> AnswerCard(
-            if (y == 0.0) "—" else "${Percentage.whatPercent(x, y).fmtSig()}%",
+            if (y == 0.0) "—" else stringResource(Res.string.percent_value, Percentage.whatPercent(x, y).fmtSig()),
             stringResource(Res.string.part_of_caption, x.fmtSig(), y.fmtSig()),
         )
         PercentForm.CHANGE -> {
             val change = Percentage.change(x, y)
             AnswerCard(
-                if (x == 0.0) "—" else "${if (change > 0) "+" else ""}${change.fmtSig()}%",
+                if (x == 0.0) "—" else stringResource(Res.string.percent_value, (if (change > 0) "+" else "") + change.fmtSig()),
                 stringResource(Res.string.change_caption, x.fmtSig(), y.fmtSig()),
             )
             ResultCard { KeyValueRow(Res.string.difference.str(), (y - x).fmtSig()) }
         }
         PercentForm.ADJUST -> {
-            AnswerCard(Percentage.addPercent(y, x).fmtSig(), "${y.fmtSig()} + ${x.fmtSig()}%")
-            AnswerCard(Percentage.subtractPercent(y, x).fmtSig(), "${y.fmtSig()} − ${x.fmtSig()}%")
-            ResultCard { KeyValueRow("${x.fmtSig()}% × ${y.fmtSig()}", Percentage.percentOf(x, y).fmtSig()) }
+            val percent = stringResource(Res.string.percent_value, x.fmtSig())
+            AnswerCard(Percentage.addPercent(y, x).fmtSig(), "${y.fmtSig()} + $percent")
+            AnswerCard(Percentage.subtractPercent(y, x).fmtSig(), "${y.fmtSig()} − $percent")
+            ResultCard { KeyValueRow("$percent × ${y.fmtSig()}", Percentage.percentOf(x, y).fmtSig()) }
         }
     }
 }

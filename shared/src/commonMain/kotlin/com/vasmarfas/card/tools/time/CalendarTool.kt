@@ -44,6 +44,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.number
+import org.jetbrains.compose.resources.pluralStringResource
 
 val calendarTool = Tool(
     id = "calendar",
@@ -137,8 +138,8 @@ private fun CalendarScreen() {
                 Res.string.relative_to_today.str(),
                 when {
                     fromToday == 0 -> Res.string.today_relative.str()
-                    fromToday > 0 -> "$fromToday ${Res.string.days_ahead.str()}"
-                    else -> "${-fromToday} ${Res.string.days_ago.str()}"
+                    fromToday > 0 -> pluralStringResource(Res.plurals.days_ahead, fromToday, fromToday)
+                    else -> pluralStringResource(Res.plurals.days_ago, -fromToday, -fromToday)
                 },
                 mono = false,
                 copyable = false,

@@ -17,6 +17,8 @@ class FitnessMathTest {
         assertEquals(116.5825, results.getValue("Wathan"), 0.0001)
         assertEquals(114.9034, OneRepMax.average(100.0, 5), 0.0001)
         assertEquals(100.0, OneRepMax.all(100.0, 1).toMap().getValue("Brzycki"), 1e-9)
+        assertEquals(80.0, OneRepMax.average(80.0, 1), 1e-9)
+        assertTrue(OneRepMax.all(80.0, 1).all { it.second == 80.0 })
     }
 
     @Test

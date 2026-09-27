@@ -2,7 +2,9 @@ package com.vasmarfas.card.core
 
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.ImageBitmap
+import com.vasmarfas.card.resources.*
 import io.github.vinceglb.filekit.PlatformFile
+import org.jetbrains.compose.resources.StringResource
 import kotlin.math.roundToInt
 
 enum class MediaFormat(val extension: String, val mimeType: String, val video: Boolean) {
@@ -162,7 +164,7 @@ fun PcmAudio.asSource(): PcmSource {
     }
 }
 
-class MediaException(message: String) : Exception(message)
+class MediaException(message: String, val reason: StringResource = Res.string.media_failed) : Exception(message)
 
 expect class MediaResult {
     val size: Long

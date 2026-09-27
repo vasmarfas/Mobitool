@@ -16,9 +16,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.vasmarfas.card.core.CertTrust
 import com.vasmarfas.card.core.PlatformKind
 import com.vasmarfas.card.core.TlsInfo
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.core.tlsHandshake
 import com.vasmarfas.card.resources.*
@@ -32,6 +32,7 @@ import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.ToolInputField
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.pluralStringResource
 
 val tlsCertificateTool = Tool(
     id = "tls-certificate",
@@ -60,7 +61,7 @@ private fun TlsCertificateScreen() {
         scope.launch {
             runCatching { tlsHandshake(h, p, 8000) }
                 .onSuccess { info = it }
-                .onFailure { error = it.message ?: it.toString() }
+                .onFailure { error = networkErrorText(it) }
             loading = false
         }
     }
@@ -78,11 +79,22 @@ private fun TlsCertificateScreen() {
             if (leaf != null) {
                 val status = when {
                     leaf.expired -> Res.string.expired.str()
-                    leaf.daysLeft < 14 -> Tr("expires in ${leaf.daysLeft} days", "истекает через ${leaf.daysLeft} дн.").str()
-                    else -> Tr("valid, ${leaf.daysLeft} days left", "действителен, осталось ${leaf.daysLeft} дн.").str()
+                    leaf.daysLeft < 14 -> pluralStringResource(Res.plurals.tls_expires_in_days, leaf.daysLeft.toInt(), leaf.daysLeft)
+                    else -> pluralStringResource(Res.plurals.tls_days_left, pluralQuantity(leaf.daysLeft), leaf.daysLeft)
                 }
                 Text(status, color = if (leaf.expired || leaf.daysLeft < 14) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
             }
+            val verdict = when (tls.trust) {
+                CertTrust.TRUSTED -> Res.string.tls_trusted
+                CertTrust.EXPIRED -> Res.string.tls_untrusted_expired
+                CertTrust.NOT_YET_VALID -> Res.string.tls_untrusted_not_yet_valid
+                CertTrust.UNTRUSTED -> Res.string.tls_untrusted
+            }
+            Text(
+                verdict.str(),
+                color = if (tls.trust == CertTrust.TRUSTED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
         tls.chain.forEachIndexed { index, cert ->
             ResultCard(title = if (index == 0) Res.string.leaf_certificate.str() else Res.string.intermediate_root.str() + " #$index") {

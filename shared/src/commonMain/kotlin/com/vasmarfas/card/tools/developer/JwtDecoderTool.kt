@@ -10,7 +10,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.currentEpochMillis
 import com.vasmarfas.card.core.formatDurationMs
 import com.vasmarfas.card.core.str
@@ -23,6 +22,8 @@ import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.ToolInputField
 import kotlinx.serialization.json.JsonPrimitive
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 
 val jwtDecoderTool = Tool(
     id = "jwt-decoder",
@@ -58,9 +59,9 @@ private fun JwtDecoderScreen() {
     val nbf = parts.payload["nbf"]?.let { Jwt.epochSeconds(it) }
     ResultCard(Res.string.status.str()) {
         val status = when {
-            exp != null && exp < now -> Tr("Expired ${formatDurationMs((now - exp) * 1000)} ago", "Истёк ${formatDurationMs((now - exp) * 1000)} назад").str()
-            nbf != null && nbf > now -> Tr("Not valid yet, becomes valid in ${formatDurationMs((nbf - now) * 1000)}", "Ещё не действует, начнёт через ${formatDurationMs((nbf - now) * 1000)}").str()
-            exp != null -> Tr("Valid for ${formatDurationMs((exp - now) * 1000)}", "Действителен ещё ${formatDurationMs((exp - now) * 1000)}").str()
+            exp != null && exp < now -> stringResource(Res.string.jwt_expired_ago, formatDurationMs((now - exp) * 1000))
+            nbf != null && nbf > now -> stringResource(Res.string.jwt_not_valid_yet, formatDurationMs((nbf - now) * 1000))
+            exp != null -> stringResource(Res.string.jwt_valid_for, formatDurationMs((exp - now) * 1000))
             else -> Res.string.no_expiration_claim.str()
         }
         KeyValueRow(Res.string.validity.str(), status, mono = false, copyable = false)
@@ -69,7 +70,8 @@ private fun JwtDecoderScreen() {
         if (alg.equals("none", ignoreCase = true)) {
             ErrorText(Res.string.alg_none_the_token_is_unsigned.str())
         }
-        KeyValueRow(Res.string.signature.str(), if (parts.signature.isEmpty()) "—" else "${parts.signature.length} ${Res.string.chars_base64url.str()}", copyable = false)
+        val signature = parts.signature.length
+        KeyValueRow(Res.string.signature.str(), if (signature == 0) "—" else pluralStringResource(Res.plurals.jwt_signature_chars, signature, signature), copyable = false)
         Text(
             Res.string.jwt_signature_is_not_verified.str(),
             style = MaterialTheme.typography.bodySmall,

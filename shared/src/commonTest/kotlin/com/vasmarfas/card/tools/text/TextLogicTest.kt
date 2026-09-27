@@ -71,6 +71,27 @@ class TextStatsTest {
         assertEquals(0, stats.words)
         assertEquals(0, stats.sentences)
         assertEquals(0, stats.paragraphs)
+        assertEquals(0, stats.lines)
+    }
+
+    @Test
+    fun countsCodePointsAndLetterWords() {
+        val stats = TextStats.analyze("Hello,  world\nsecond line")
+        assertEquals(25, stats.chars)
+        assertEquals(21, stats.charsNoSpaces)
+        assertEquals(4, stats.words)
+        assertEquals(2, stats.lines)
+        val emoji = TextStats.analyze("Привет 👋 — мир")
+        assertEquals(14, emoji.chars)
+        assertEquals(2, emoji.words)
+    }
+
+    @Test
+    fun trailingLineBreakEndsTheLastLine() {
+        assertEquals(2, TextStats.analyze("a\nb\n").lines)
+        assertEquals(2, TextStats.analyze("a\r\nb\r\n").lines)
+        assertEquals(2, TextStats.analyze("a\n\n").lines)
+        assertEquals(1, TextStats.analyze("\n").lines)
     }
 }
 
@@ -81,6 +102,14 @@ class LineOpsTest {
         assertEquals("c\nb\na", LineOps.apply("c\na\nb", LineOp.SORT_DESC))
         assertEquals("a\nb", LineOps.apply("a\nb\na", LineOp.DEDUPE))
         assertEquals("a\nB", LineOps.apply("a\nB\nA", LineOp.DEDUPE, LineOptions(ignoreCase = true)))
+    }
+
+    @Test
+    fun sortsLikeADictionary() {
+        assertEquals("ель\nёж\nжук\nяма", LineOps.apply("яма\nёж\nжук\nель", LineOp.SORT_ASC))
+        assertEquals("банан\nЯблоко", LineOps.apply("Яблоко\nбанан", LineOp.SORT_ASC))
+        assertEquals("Яблоко\nбанан", LineOps.apply("банан\nЯблоко", LineOp.SORT_DESC))
+        assertEquals("ёж2\nёж10\nжук", LineOps.apply("жук\nёж10\nёж2", LineOp.SORT_NATURAL))
     }
 
     @Test
@@ -167,6 +196,11 @@ class TranslitTest {
     fun backToCyrillic() {
         assertEquals("холод", Translit.toCyrillic("kholod", TranslitScheme.READABLE))
         assertEquals("привет", Translit.toCyrillic("privet", TranslitScheme.READABLE))
+        assertEquals("Дмитриев", Translit.toCyrillic("Dmitriev", TranslitScheme.PASSPORT))
+        assertEquals("Гордиенко", Translit.toCyrillic("Gordienko", TranslitScheme.PASSPORT))
+        assertEquals("Анна Йегорова", Translit.toCyrillic("Anna Yegorova", TranslitScheme.READABLE))
+        assertEquals("Ксениа", Translit.toCyrillic("Xenia", TranslitScheme.READABLE))
+        assertEquals("КСЕНИА", Translit.toCyrillic("XENIA", TranslitScheme.READABLE))
     }
 
     @Test
@@ -406,6 +440,11 @@ class TextCleanerToolTest {
         assertEquals("Cafe", cleanText("Café", CleanOptions(removeDiacritics = true)))
         assertEquals("\"q\" - dash", cleanText("«q» — dash", CleanOptions(normalizePunctuation = true)))
     }
+
+    @Test
+    fun removesKeycapsClocksStarsAndFlagTags() {
+        assertEquals("1 ok", TextCleaner.removeEmoji("1\uFE0F\u20E3 ok\u2B50\u23F0\u231A\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62\uDB40\uDC73\uDB40\uDC63\uDB40\uDC74\uDB40\uDC7F"))
+    }
 }
 
 class UnicodeInfoTest {
@@ -465,6 +504,13 @@ class AsciiTableTest {
         assertTrue(AsciiTable.search("tilde", false).any { it.symbol == "~" })
         assertTrue(AsciiTable.search("", false).none { it.isControl })
         assertTrue(AsciiTable.search("", true).any { it.symbol == "ESC" })
+    }
+
+    @Test
+    fun searchReadsRussianNames() {
+        assertTrue(AsciiTable.search("тильда", false).any { it.symbol == "~" })
+        assertEquals("5", AsciiTable.search("цифра 5", false).single().symbol)
+        assertEquals("LF", AsciiTable.search("перевод строки", true).single().symbol)
     }
 }
 

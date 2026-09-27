@@ -7,7 +7,8 @@ import org.jetbrains.compose.resources.StringResource
 
 enum class EscapeTarget(val title: StringResource) {
     JSON(Res.string.json),
-    JAVA(Res.string.java_kotlin),
+    JAVA(Res.string.java),
+    KOTLIN(Res.string.kotlin),
     C(Res.string.c),
     JAVASCRIPT(Res.string.javascript),
     HTML(Res.string.html_entities),
@@ -34,9 +35,8 @@ object StringEscapes {
 
     fun escape(text: String, target: EscapeTarget): String = when (target) {
         EscapeTarget.JSON -> JsonTools.escapeString(text)
-        EscapeTarget.JAVA -> backslash(text, unicodeEscapes = true, dollar = true)
-        EscapeTarget.C -> backslash(text, unicodeEscapes = true, dollar = false)
-        EscapeTarget.JAVASCRIPT -> backslash(text, unicodeEscapes = false, dollar = true)
+        EscapeTarget.JAVA, EscapeTarget.KOTLIN, EscapeTarget.JAVASCRIPT -> backslash(text, target)
+        EscapeTarget.C -> cString(text)
         EscapeTarget.HTML -> buildString {
             for (c in text) append(htmlEntities[c] ?: c.toString())
         }
@@ -57,7 +57,7 @@ object StringEscapes {
         EscapeTarget.URI -> UrlCodec.encodeComponent(text)
     }
 
-    private fun backslash(text: String, unicodeEscapes: Boolean, dollar: Boolean): String = buildString {
+    private fun backslash(text: String, target: EscapeTarget): String = buildString {
         for (c in text) {
             when {
                 c == '\\' -> append("\\\\")
@@ -66,19 +66,36 @@ object StringEscapes {
                 c == '\r' -> append("\\r")
                 c == '\t' -> append("\\t")
                 c == '\b' -> append("\\b")
-                c == '\u000C' -> append("\\f")
-                c == '\u0000' -> append("\\u0000")
-                c == '$' && dollar -> append("\\$")
-                c.code < 0x20 || c.code == 0x7F -> append("\\u").append(c.code.toString(16).uppercase().padStart(4, '0'))
-                unicodeEscapes && c.code > 0x7E -> append("\\u").append(c.code.toString(16).uppercase().padStart(4, '0'))
+                c == '\u000C' && target != EscapeTarget.KOTLIN -> append("\\f")
+                c == '$' && target != EscapeTarget.JAVA -> append("\\$")
+                c.code < 0x20 || c.code == 0x7F || c.code > 0x7E && target != EscapeTarget.JAVASCRIPT ->
+                    append("\\u").append(c.code.toString(16).uppercase().padStart(4, '0'))
                 else -> append(c)
+            }
+        }
+    }
+
+    private fun cString(text: String): String = buildString {
+        for (cp in text.codePointList()) {
+            when {
+                cp == '\\'.code -> append("\\\\")
+                cp == '"'.code -> append("\\\"")
+                cp == '\n'.code -> append("\\n")
+                cp == '\r'.code -> append("\\r")
+                cp == '\t'.code -> append("\\t")
+                cp == '\b'.code -> append("\\b")
+                cp == 0x0C -> append("\\f")
+                cp < 0x20 || cp in 0x7F..0x9F -> append('\\').append(cp.toString(8).padStart(3, '0'))
+                cp > 0xFFFF -> append("\\U").append(cp.toString(16).uppercase().padStart(8, '0'))
+                cp > 0x7E -> append("\\u").append(cp.toString(16).uppercase().padStart(4, '0'))
+                else -> appendCodePoint(cp)
             }
         }
     }
 
     fun unescape(text: String, target: EscapeTarget): String? = when (target) {
         EscapeTarget.JSON -> JsonTools.unescapeString(text)
-        EscapeTarget.JAVA, EscapeTarget.C, EscapeTarget.JAVASCRIPT -> unescapeBackslash(text)
+        EscapeTarget.JAVA, EscapeTarget.KOTLIN, EscapeTarget.C, EscapeTarget.JAVASCRIPT -> unescapeBackslash(text)
         EscapeTarget.HTML, EscapeTarget.XML -> unescapeEntities(text)
         EscapeTarget.SHELL -> {
             val t = text.trim()
@@ -109,7 +126,22 @@ object StringEscapes {
                 't' -> sb.append('\t')
                 'b' -> sb.append('\b')
                 'f' -> sb.append('\u000C')
-                '0' -> sb.append('\u0000')
+                in '0'..'7' -> {
+                    var code = next - '0'
+                    var digits = 1
+                    while (digits < 3 && text.getOrNull(i) in '0'..'7') {
+                        code = code * 8 + (text[i] - '0')
+                        i++
+                        digits++
+                    }
+                    sb.append(code.toChar())
+                }
+                'U' -> {
+                    if (i + 8 > text.length) return null
+                    val cp = text.substring(i, i + 8).toIntOrNull(16)?.takeIf { it <= 0x10FFFF } ?: return null
+                    sb.appendCodePoint(cp)
+                    i += 8
+                }
                 '\\' -> sb.append('\\')
                 '"' -> sb.append('"')
                 '\'' -> sb.append('\'')

@@ -19,7 +19,8 @@ class FilamentTest {
     fun printCostSplitsMaterialAndEnergy() {
         val cost = PrintEconomics.printCost(
             grams = 100.0,
-            pricePerKg = 1500.0,
+            spoolPrice = 1500.0,
+            spoolGrams = 1000.0,
             hours = 4.0,
             powerW = 100.0,
             pricePerKwh = 5.0,
@@ -33,6 +34,8 @@ class FilamentTest {
         assertEquals(152.0 / 0.9, cost.total, 1e-9)
         assertEquals(cost.total / 100.0, cost.perGram, 1e-9)
         assertEquals(cost.total * 2, cost.salePrice, 1e-9)
+        val smallSpool = PrintEconomics.printCost(42.0, 1500.0, 750.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        assertEquals(84.0, smallSpool.material, 1e-9)
     }
 
     @Test

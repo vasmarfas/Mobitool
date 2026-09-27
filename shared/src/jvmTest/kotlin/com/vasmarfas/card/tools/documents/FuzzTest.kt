@@ -2,8 +2,10 @@ package com.vasmarfas.card.tools.documents
 
 import com.vasmarfas.card.core.ZipArchive
 import com.vasmarfas.card.core.ZipWriter
+import com.vasmarfas.card.resources.*
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.test.fail
@@ -145,7 +147,7 @@ class FuzzTest {
         for (i in chapters) bomb.add("c$i.xhtml", spaces)
         val packed = bomb.toByteArray()
         assertTrue(packed.size < 2 * 1024 * 1024)
-        assertFailsWith<DocumentFormatException> { Documents.read(packed, DocFormat.EPUB) }
+        assertEquals(Res.string.document_too_large, assertFailsWith<DocumentFormatException> { Documents.read(packed, DocFormat.EPUB) }.reason)
     }
 
     private fun patchUncompressedSize(zip: ByteArray, size: Int): ByteArray {

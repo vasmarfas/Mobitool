@@ -97,7 +97,7 @@ private fun ImagePaletteScreen() {
     PickButton(Res.string.open_photo.str(), imageExtensions, PickKind.IMAGE, icon = Icons.Filled.ImageSearch, empty = image == null) { files ->
         error = null
         scope.launch {
-            val decoded = runCatching { decodeImage(files.first().readBytes())?.limitedTo(640) }.getOrNull()
+            val decoded = runCatching { decodeImage(files.first().readBytes(), 640) }.getOrNull()
             if (decoded == null) error = unreadable else image = decoded
         }
     }

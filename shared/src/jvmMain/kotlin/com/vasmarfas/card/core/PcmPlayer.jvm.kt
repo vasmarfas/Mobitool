@@ -18,8 +18,7 @@ actual class PcmPlayer actual constructor() {
     actual fun start(sampleRate: Int, channels: Int, source: (ShortArray) -> Int) {
         stop()
         val format = AudioFormat(sampleRate.toFloat(), 16, channels, true, false)
-        val output = AudioSystem.getSourceDataLine(format)
-        output.open(format, sampleRate * channels * 2 / 5)
+        val output = runCatching { AudioSystem.getSourceDataLine(format).apply { open(format, sampleRate * channels * 2 / 5) } }.getOrNull() ?: return
         line = output
         written = 0
         worker = thread(isDaemon = true, name = "pcm-player") {

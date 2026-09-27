@@ -91,7 +91,7 @@ private fun TypographyScaleScreen() {
                 steps.forEach { (step, size) ->
                     KeyValueRow(
                         if (step == 0) "${Res.string.base.str()} (0)" else (if (step > 0) "+$step" else step.toString()),
-                        "${size.fmt(2)} sp · line-height ${ModularScale.lineHeight(size).fmt(1)} sp",
+                        "${size.fmt(2)} sp · ${Res.string.type_scale_line_height.str()} ${ModularScale.lineHeight(size).fmt(1)} sp",
                     )
                 }
             }

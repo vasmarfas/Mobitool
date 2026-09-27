@@ -223,8 +223,7 @@ fun InteractiveChart(
             }
 
             if (active != null) {
-                // Keep the card out of the way of the point it describes: away from it horizontally,
-                // and on the opposite half vertically, so a peak is never covered by its own reading.
+                // the card goes to the other half from its point, so a peak is never covered by its own reading
                 val point = series.firstNotNullOfOrNull { it.points.getOrNull(active) }
                 val high = point != null && yOf(point) < inset + plotHeight / 2f
                 ChartTooltip(

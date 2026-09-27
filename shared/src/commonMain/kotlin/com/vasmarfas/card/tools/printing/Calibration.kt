@@ -1,9 +1,10 @@
 package com.vasmarfas.card.tools.printing
 
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.fmt
+import com.vasmarfas.card.resources.*
 import kotlin.math.ceil
 import kotlin.math.round
+import org.jetbrains.compose.resources.StringResource
 
 class LayerAdvice(
     val minLayer: Double,
@@ -15,7 +16,7 @@ class LayerAdvice(
     val firstLayerWidth: Double,
     val layerCount: Int,
     val exactHeight: Double,
-    val warnings: List<Tr>,
+    val warnings: List<StringResource>,
 )
 
 class TowerSegment(
@@ -32,43 +33,13 @@ object LayerSettings {
         val minLayer = nozzleMm * 0.25
         val maxLayer = nozzleMm * 0.75
         val firstLayer = round(maxLayer * 50.0) / 50.0
-        val count = if (targetHeightMm <= firstLayer) 1 else 1 + ceil((targetHeightMm - firstLayer) / layerMm).toInt()
+        val count = if (targetHeightMm <= firstLayer) 1 else 1 + ceil((targetHeightMm - firstLayer) / layerMm - 1e-9).toInt()
+        val exact = firstLayer + (count - 1) * layerMm
         val warnings = buildList {
-            if (layerMm < minLayer) {
-                add(
-                    Tr(
-                        "Layer height is below 25 % of the nozzle — the extruder cannot keep a stable flow.",
-                        "Высота слоя ниже 25 % от сопла — экструдер не удержит стабильный поток.",
-                    ),
-                )
-            }
-            if (layerMm > maxLayer) {
-                add(
-                    Tr(
-                        "Layer height is above 75 % of the nozzle — layers will not bond properly.",
-                        "Высота слоя выше 75 % от сопла — слои не спекутся как надо.",
-                    ),
-                )
-            }
-            if (layerMm < 0.04) {
-                add(
-                    Tr(
-                        "Below 0.04 mm most Z axes cannot position repeatably.",
-                        "Ниже 0,04 мм большинство осей Z не позиционируются повторяемо.",
-                    ),
-                )
-            }
-            if (targetHeightMm > 0) {
-                val exact = firstLayer + (count - 1) * layerMm
-                if (exact - targetHeightMm > 1e-6) {
-                    add(
-                        Tr(
-                            "The height is not a whole number of layers: the model ends at ${exact.fmt(3)} mm.",
-                            "Высота не кратна слоям: модель закончится на ${exact.fmt(3)} мм.",
-                        ),
-                    )
-                }
-            }
+            if (layerMm < minLayer) add(Res.string.layer_below_quarter_nozzle)
+            if (layerMm > maxLayer) add(Res.string.layer_above_three_quarters_nozzle)
+            if (layerMm < 0.04) add(Res.string.layer_below_z_resolution)
+            if (targetHeightMm > 0 && exact - targetHeightMm > 1e-6) add(Res.string.layer_height_not_whole)
         }
         return LayerAdvice(
             minLayer = minLayer,
@@ -79,7 +50,7 @@ object LayerSettings {
             firstLayerHeight = firstLayer,
             firstLayerWidth = nozzleMm * 1.4,
             layerCount = count,
-            exactHeight = firstLayer + (count - 1) * layerMm,
+            exactHeight = exact,
             warnings = warnings,
         )
     }

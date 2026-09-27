@@ -2,6 +2,7 @@ package com.vasmarfas.card.tools.developer
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class PunycodeTest {
     @Test
@@ -34,5 +35,12 @@ class PunycodeTest {
         assertEquals("xn--e1afmkfd.xn--p1ai", Punycode.toAscii("пример.рф"))
         assertEquals("пример.рф", Punycode.toUnicode("xn--e1afmkfd.xn--p1ai"))
         assertEquals("example.com", Punycode.toAscii("example.com"))
+    }
+
+    @Test
+    fun overflowIsInvalid() {
+        assertNull(Punycode.toUnicode("xn--7zw896697766a"))
+        assertNull(Punycode.toUnicode("xn--zwx86866778zya"))
+        assertNull(Punycode.decode("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz9"))
     }
 }

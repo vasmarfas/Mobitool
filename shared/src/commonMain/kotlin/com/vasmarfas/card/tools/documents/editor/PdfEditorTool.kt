@@ -192,12 +192,14 @@ private suspend fun openSession(name: String, bytes: ByteArray, password: String
             document = PdfDocument.parse(data)
         }
         val fields = runCatching { PdfForms.read(document) }.getOrDefault(emptyList())
-        val signed = ((document.catalog.dict("AcroForm", document)?.int("SigFlags", document) ?: 0) and 1) != 0
-        EditorSession(name, document, fonts, startingEdit(document), fields, signed).also { it.addSource(document, data) }
+        EditorSession(name, document, fonts, startingEdit(document), fields, hasSignature(document)).also { it.addSource(document, data) }
     }
 }
 
-private fun startingEdit(document: PdfDocument): DocumentEdit {
+internal fun hasSignature(document: PdfDocument): Boolean =
+    ((document.catalog.dict("AcroForm", document)?.int("SigFlags", document) ?: 0) and 1) != 0
+
+internal fun startingEdit(document: PdfDocument): DocumentEdit {
     val pages = document.pages.mapIndexed { i, page -> EditPage(i + 1L, SourcePage(page)) }
     val outline = runCatching { PdfOutline.read(document) { pages.getOrNull(it)?.id } }.getOrDefault(emptyList())
     return DocumentEdit(pages, outline = outline)
@@ -264,7 +266,7 @@ private fun Editor(session: EditorSession, onClose: () -> Unit) {
         val chosen = options
         saved = null
         task.launch(scope) { progress ->
-            val bytes = buildPdf(session, renderer, chosen, progress)
+            val bytes = buildPdf(session, renderer, edit, chosen, progress)
             if (saveBytes(bytes, renamed(session.name, "pdf", if (session.main == null) "" else "-edited"))) {
                 savedEdit = edit
                 saved = Saved(edit.pages.size, bytes.size)
@@ -352,7 +354,7 @@ private fun Editor(session: EditorSession, onClose: () -> Unit) {
         if (tool == EditTool.IMAGE && session.pendingImage == null) pickImage()
     }
     OptionsRow(
-        session, input, signatures,
+        session, input, renderer, signatures,
         onDrawSignature = { drawing = true },
         onPickImage = ::pickImage,
         onApplyCrop = { all ->
@@ -423,7 +425,7 @@ private fun Editor(session: EditorSession, onClose: () -> Unit) {
         },
     )
     when (panel) {
-        Panel.PAGES -> PagesPanel(session, picked) { picked = it }
+        Panel.PAGES -> PagesPanel(session, renderer, picked) { picked = it }
         Panel.SEARCH -> SearchPanel(session, renderer)
         Panel.FORM -> FormPanel(session)
         Panel.OUTLINE -> OutlinePanel(session)

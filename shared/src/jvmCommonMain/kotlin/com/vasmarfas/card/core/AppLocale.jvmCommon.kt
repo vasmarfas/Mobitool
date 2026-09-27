@@ -2,8 +2,14 @@ package com.vasmarfas.card.core
 
 import java.util.Locale
 
+private var chosen: Locale? = null
+
 actual fun applyPlatformLocale(tag: String) {
-    Locale.setDefault(Locale.forLanguageTag(tag))
+    chosen = Locale.forLanguageTag(tag).also(Locale::setDefault)
+}
+
+fun reapplyPlatformLocale() {
+    chosen?.let(Locale::setDefault)
 }
 
 actual fun regionName(code: String, lang: Lang): String? =

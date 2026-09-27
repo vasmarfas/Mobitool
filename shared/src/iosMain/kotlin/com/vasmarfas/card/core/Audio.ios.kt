@@ -24,9 +24,7 @@ import platform.AVFAudio.AVAudioSessionModeDefault
 import platform.AVFAudio.AVAudioSessionModeMeasurement
 import platform.AVFAudio.setActive
 
-// the default SoloAmbient session is muted by the ring switch and cannot record. Playback for sound
-// the user asked for, PlayAndRecord in Measurement mode for the mic: it turns off the voice processing
-// and gain control that would flatten a meter or a spectrum
+// Measurement mode turns off the voice processing and gain control that would flatten a meter
 internal object AudioSessions {
     fun playback() = configure(AVAudioSessionCategoryPlayback, AVAudioSessionModeDefault, 0u)
 
@@ -87,7 +85,7 @@ internal object ClickPlayer {
         }
         if (!engine.running) {
             AudioSessions.playback()
-            engine.startAndReturnError(null)
+            if (!engine.startAndReturnError(null)) return
         }
         node.scheduleBuffer(buffer, null)
         if (!node.playing) node.play()

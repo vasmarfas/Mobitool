@@ -55,6 +55,11 @@ internal class MarkRenderer(private val fonts: MarkFonts) {
 
     fun layout(mark: TextMark): TextLayout = layoutText(faces, fonts, mark)
 
+    fun fitted(mark: TextMark): TextMark {
+        val (width, height) = Affine.frameSize(mark.box, mark.angle)
+        return mark.copy(box = Affine.frameOf(mark.box, mark.angle).bounds(PdfRect(0.0, height - layout(mark).height, width, height)))
+    }
+
     private fun glyph(font: TrueTypeFont, id: Int): Path = glyphs.getOrPut(font) { HashMap() }.getOrPut(id) { outlinePath(font.outline(id)) }
 
     private fun textPaths(mark: TextMark): Map<Int?, Path> = cached(mark) { paths ->

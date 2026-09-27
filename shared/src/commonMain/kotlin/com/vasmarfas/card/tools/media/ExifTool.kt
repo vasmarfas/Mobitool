@@ -17,7 +17,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import com.vasmarfas.card.core.PickKind
 import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.formatBytes
-import com.vasmarfas.card.core.limitedTo
 import com.vasmarfas.card.core.openUrl
 import com.vasmarfas.card.core.renamed
 import com.vasmarfas.card.core.saveBytes
@@ -59,6 +58,7 @@ private fun ExifScreen() {
     var showAll by rememberSaveable { mutableStateOf(false) }
     var keepOrientation by rememberSaveable { mutableStateOf(true) }
     var keepProfile by rememberSaveable { mutableStateOf(true) }
+    val unreadable = Res.string.image_not_readable.str()
 
     PickButton(Res.string.open_photo.str(), imageExtensions, PickKind.IMAGE, icon = Icons.Filled.ImageSearch, empty = photo == null) { files ->
         val file = files.first()
@@ -67,11 +67,11 @@ private fun ExifScreen() {
             runCatching {
                 val bytes = file.readBytes()
                 withContext(Dispatchers.Default) {
-                    Inspected(file.name, bytes, ImageMetadata.detect(bytes), Exif.read(bytes), decodeImage(bytes)?.limitedTo(640))
+                    Inspected(file.name, bytes, ImageMetadata.detect(bytes), Exif.read(bytes), decodeImage(bytes, 640))
                 }
             }
                 .onSuccess { photo = it }
-                .onFailure { loadError = it.message ?: it.toString() }
+                .onFailure { loadError = unreadable }
         }
     }
     loadError?.let { ErrorText(it) }
@@ -109,7 +109,7 @@ private fun ExifScreen() {
                 } else {
                     decodeImage(current.bytes)?.let { encodeImage(it, ImageTarget.JPEG, 95) }
                 }
-            } ?: return@SaveButton false
+            } ?: throw IllegalStateException(unreadable)
             val extension = if (inPlace) current.name.substringAfterLast('.', "jpg") else "jpg"
             saveBytes(clean, renamed(current.name, extension, "-clean"))
         }
@@ -142,7 +142,7 @@ private fun ExifSummary(photo: Inspected, exif: ExifData) {
         val lat = gps.latitude.fmt(6)
         val lon = gps.longitude.fmt(6)
         KeyValueRow(Res.string.location.str(), "$lat, $lon")
-        gps.altitudeMeters?.let { KeyValueRow(Res.string.altitude.str(), it.fmt(1) + " m", copyable = false) }
+        gps.altitudeMeters?.let { KeyValueRow(Res.string.altitude.str(), "${it.fmt(1)} ${Res.string.unit_m.str()}", copyable = false) }
         TextButton(onClick = { openUrl("https://www.openstreetmap.org/?mlat=$lat&mlon=$lon#map=16/$lat/$lon") }) {
             Text(Res.string.open_in_openstreetmap.str())
         }

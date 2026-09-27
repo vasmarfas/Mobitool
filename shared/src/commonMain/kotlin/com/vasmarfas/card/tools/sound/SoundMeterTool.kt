@@ -83,7 +83,7 @@ private fun SoundMeterScreen() {
             running = true
         }
     }
-    error?.let { ErrorText(it) }
+    error?.let { ErrorText(micErrorLabel(it).str()) }
     level?.let { db ->
         Text("${db.fmt(0)} ${Res.string.unit_db.str()}", style = MaterialTheme.typography.displayLarge)
         LineChart(

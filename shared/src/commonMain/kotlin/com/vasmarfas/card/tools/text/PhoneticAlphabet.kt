@@ -7,10 +7,10 @@ class SpelledChar(val char: Char, val word: String?)
 object PhoneticAlphabet {
     private val nato = listOf(
         "Alfa" to "Альфа", "Bravo" to "Браво", "Charlie" to "Чарли", "Delta" to "Дельта", "Echo" to "Эхо",
-        "Foxtrot" to "Фокстрот", "Golf" to "Гольф", "Hotel" to "Отель", "India" to "Индия", "Juliett" to "Джульетта",
-        "Kilo" to "Кило", "Lima" to "Лима", "Mike" to "Майк", "November" to "Ноябрь", "Oscar" to "Оскар",
+        "Foxtrot" to "Фокстрот", "Golf" to "Гольф", "Hotel" to "Хотел", "India" to "Индия", "Juliett" to "Джульетта",
+        "Kilo" to "Кило", "Lima" to "Лима", "Mike" to "Майк", "November" to "Новембер", "Oscar" to "Оскар",
         "Papa" to "Папа", "Quebec" to "Квебек", "Romeo" to "Ромео", "Sierra" to "Сьерра", "Tango" to "Танго",
-        "Uniform" to "Униформ", "Victor" to "Виктор", "Whiskey" to "Виски", "X-ray" to "Икс-рей", "Yankee" to "Янки",
+        "Uniform" to "Юниформ", "Victor" to "Виктор", "Whiskey" to "Виски", "X-ray" to "Экс-рей", "Yankee" to "Янки",
         "Zulu" to "Зулу",
     )
 

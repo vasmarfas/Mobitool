@@ -1,6 +1,7 @@
 package com.vasmarfas.card.tools.documents
 
 import com.vasmarfas.card.core.ZipWriter
+import com.vasmarfas.card.resources.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -82,12 +83,12 @@ class EpubReaderTest {
         Documents.read(epub(fonts), DocFormat.EPUB)
         val drm = "<encryption xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\" xmlns:enc=\"http://www.w3.org/2001/04/xmlenc#\">" +
             "<enc:EncryptedData><enc:EncryptionMethod Algorithm=\"http://www.w3.org/2001/04/xmlenc#aes128-cbc\"/><enc:CipherData><enc:CipherReference URI=\"content/text/ch2.xhtml\"/></enc:CipherData></enc:EncryptedData></encryption>"
-        assertFailsWith<DocumentFormatException> { Documents.read(epub(drm), DocFormat.EPUB) }
+        assertEquals(Res.string.document_drm, assertFailsWith<DocumentFormatException> { Documents.read(epub(drm), DocFormat.EPUB) }.reason)
     }
 
     @Test
     fun missingPackageDocument() {
         val zip = ZipWriter().add("mimetype", "application/epub+zip".encodeToByteArray(), compress = false).toByteArray()
-        assertFailsWith<DocumentFormatException> { Documents.read(zip, DocFormat.EPUB) }
+        assertEquals(Res.string.document_damaged, assertFailsWith<DocumentFormatException> { Documents.read(zip, DocFormat.EPUB) }.reason)
     }
 }

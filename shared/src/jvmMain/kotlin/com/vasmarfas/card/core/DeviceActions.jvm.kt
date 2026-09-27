@@ -39,5 +39,5 @@ actual fun vibrate(durationMs: Int) = Unit
 
 actual fun setSystemBarsHidden(hidden: Boolean) = Unit
 
-actual fun setSystemBarsDark(dark: Boolean) = Unit
+actual fun setSystemBarsDark(dark: Boolean, followSystem: Boolean) = Unit
 

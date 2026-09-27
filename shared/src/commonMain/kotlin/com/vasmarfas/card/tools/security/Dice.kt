@@ -5,6 +5,8 @@ data class DiceRoll(val notation: String, val sides: Int, val rolls: List<Int>, 
 }
 
 object Dice {
+    const val MAX_UNIQUE = 10_000
+
     private val notation = Regex("^(\\d*)[dD](\\d+)([+-]\\d+)?$")
 
     fun roll(text: String): DiceRoll? {
@@ -16,18 +18,24 @@ object Dice {
         return DiceRoll(text.trim(), sides, List(count) { PasswordGen.randomInt(sides) + 1 }, modifier)
     }
 
-    fun intInRange(from: Int, to: Int): Int = from + PasswordGen.randomInt(to - from + 1)
+    fun intInRange(from: Int, to: Int): Int = (from + PasswordGen.randomLong(to.toLong() - from + 1)).toInt()
 
     fun uniqueInts(from: Int, to: Int, count: Int): List<Int>? {
-        val size = to - from + 1
+        val size = to.toLong() - from + 1
         if (count > size) return null
-        val pool = (from..to).toMutableList()
-        val out = mutableListOf<Int>()
-        repeat(count) {
-            val index = PasswordGen.randomInt(pool.size)
-            out += pool.removeAt(index)
+        if (count * 2L <= size) {
+            val picked = LinkedHashSet<Int>()
+            while (picked.size < count) picked += intInRange(from, to)
+            return picked.toList()
         }
-        return out
+        val pool = (from..to).toMutableList()
+        for (i in 0 until count) {
+            val j = i + PasswordGen.randomInt(pool.size - i)
+            val tmp = pool[i]
+            pool[i] = pool[j]
+            pool[j] = tmp
+        }
+        return pool.subList(0, count).toList()
     }
 
     fun <T> pick(items: List<T>): T? = if (items.isEmpty()) null else items[PasswordGen.randomInt(items.size)]

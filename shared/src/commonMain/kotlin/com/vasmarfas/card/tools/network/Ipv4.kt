@@ -35,6 +35,10 @@ data class Ipv4Subnet(
     val isLinkLocal: Boolean get() = (address shr 24).toInt() == 169 && ((address shr 16) and 0xFF).toInt() == 254
     val isCgnat: Boolean get() = (address shr 24).toInt() == 100 && ((address shr 16) and 0xFF).toInt() in 64..127
     val isMulticast: Boolean get() = (address shr 24).toInt() in 224..239
+    val isThisNetwork: Boolean get() = (address shr 24).toInt() == 0
+    val isBroadcast: Boolean get() = address == 0xFFFFFFFFL
+    val isReserved: Boolean get() = (address shr 24).toInt() >= 240 && !isBroadcast
+    val isPublic: Boolean get() = !isPrivate && !isLoopback && !isLinkLocal && !isCgnat && !isMulticast && !isThisNetwork && !isBroadcast && !isReserved
 }
 
 object Ipv4 {
@@ -103,6 +107,9 @@ object Ipv4 {
         }
         return Ipv4Subnet(address, prefix)
     }
+
+    // in a list of blocks a bare address is that one host, not its classful network
+    fun parseBlock(text: String): Ipv4Subnet? = parse(text)?.let { Ipv4Subnet(it, 32) } ?: parseSubnet(text)
 
     fun ptrName(value: Long): String =
         (0..3).joinToString(".") { i -> ((value shr (i * 8)) and 0xFF).toString() } + ".in-addr.arpa"

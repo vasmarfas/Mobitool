@@ -106,7 +106,7 @@ private fun ImageCompressorScreen() {
                         options = listOf(1_000L, 1_000_000L),
                         selected = customUnit,
                         onSelect = { customUnit = it },
-                        label = { if (it == 1_000L) "kB" else "MB" },
+                        label = { if (it == 1_000L) Res.string.unit_kb.str() else Res.string.unit_mb.str() },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -143,7 +143,7 @@ private fun ImageCompressorScreen() {
                 val skipped = ArrayList<String>()
                 sources.forEachIndexed { index, file ->
                     val bytes = file.readBytes()
-                    val image = decodeImage(bytes)?.limitedTo(longSide)
+                    val image = decodeImage(bytes)?.limitedTo(longSide)?.limitedFor(format, colors = 256)
                     if (image == null) {
                         skipped += file.name
                     } else {

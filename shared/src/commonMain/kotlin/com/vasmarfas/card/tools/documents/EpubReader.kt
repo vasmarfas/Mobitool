@@ -2,6 +2,7 @@ package com.vasmarfas.card.tools.documents
 
 import com.vasmarfas.card.core.TextDecoding
 import com.vasmarfas.card.core.XmlElement
+import com.vasmarfas.card.resources.*
 
 private val CONTENT_TYPES = setOf("application/xhtml+xml", "text/html", "application/xml", "text/x-oeb1-document")
 
@@ -69,7 +70,7 @@ internal class EpubReader(private val pkg: Package) {
             val uri = it.attr("URI").orEmpty().lowercase()
             uri.endsWith(".ttf") || uri.endsWith(".otf") || uri.endsWith(".woff") || uri.endsWith(".woff2")
         }
-        if (drm && !onlyFonts) throw DocumentFormatException("The EPUB is protected with DRM")
+        if (drm && !onlyFonts) throw DocumentFormatException("The EPUB is protected with DRM", Res.string.document_drm)
     }
 }
 

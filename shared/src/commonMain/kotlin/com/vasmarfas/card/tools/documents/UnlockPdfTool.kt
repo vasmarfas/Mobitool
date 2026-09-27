@@ -16,8 +16,9 @@ import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
-import com.vasmarfas.card.tools.documents.pdf.PageRef
-import com.vasmarfas.card.tools.documents.pdf.PdfAssembler
+import com.vasmarfas.card.tools.documents.editor.MarkFonts
+import com.vasmarfas.card.tools.documents.editor.PdfEditWriter
+import com.vasmarfas.card.tools.documents.editor.startingEdit
 import com.vasmarfas.card.tools.documents.pdf.PdfDocument
 import com.vasmarfas.card.tools.documents.pdf.PdfEncryptedException
 import com.vasmarfas.card.tools.media.PickButton
@@ -76,9 +77,9 @@ private fun UnlockPdfScreen() {
                     throw IllegalStateException(getString(Res.string.not_a_pdf))
                 }
                 if (!document.encrypted) throw IllegalStateException(getString(Res.string.pdf_not_protected))
-                val pages = (0 until document.pageCount).map { PageRef(document, it) }
-                val copy = withContext(Dispatchers.Default) { PdfAssembler.assemble(pages, document.info) }
-                result = PdfResult(renamed(source.name, "pdf", "-unlocked"), copy, pages.size)
+                val fonts = MarkFonts(documentFonts(serif = true))
+                val copy = withContext(Dispatchers.Default) { PdfEditWriter.write(document, startingEdit(document), fonts) }
+                result = PdfResult(renamed(source.name, "pdf", "-unlocked"), copy, document.pageCount)
             }
         },
     )

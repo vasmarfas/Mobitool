@@ -27,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,10 +47,12 @@ import com.vasmarfas.card.core.MediaInfo
 import com.vasmarfas.card.core.MediaResult
 import com.vasmarfas.card.core.MediaSpec
 import com.vasmarfas.card.core.PickKind
+import com.vasmarfas.card.core.PlatformKind
 import com.vasmarfas.card.core.PreviewState
 import com.vasmarfas.card.core.TrackKind
 import com.vasmarfas.card.core.VideoQuality
 import com.vasmarfas.card.core.asFile
+import com.vasmarfas.card.core.currentPlatform
 import com.vasmarfas.card.core.discard
 import com.vasmarfas.card.core.formatBytes
 import com.vasmarfas.card.core.save
@@ -138,6 +141,7 @@ private fun VideoEditorScreen() {
     var quality by rememberSaveable { mutableStateOf(VideoQuality.MEDIUM) }
     var result by remember { mutableStateOf<MediaResult?>(null) }
     val task = remember { TaskState() }
+    DisposableEffect(Unit) { onDispose { result?.discard() } }
 
     val formats = MediaFormat.entries.filter { it.video && it in MediaEngine.formats }
     val target = if (format in formats) format else formats.first()
@@ -165,7 +169,7 @@ private fun VideoEditorScreen() {
         scope.launch {
             val clips = files.mapNotNull { file ->
                 runCatching { cache.probe(file) }
-                    .onFailure { addError = "${file.name}: ${it.message ?: it}" }
+                    .onFailure { addError = "${file.name}: ${errorText(it)}" }
                     .getOrNull()
                     ?.let { info ->
                         when {
@@ -239,7 +243,7 @@ private fun VideoEditorScreen() {
         } else {
             ChoiceChips(options = Aspect.entries, selected = aspect, onSelect = { aspect = it }, label = { if (it == Aspect.SOURCE) Res.string.like_first_clip.str() else it.label })
         }
-        ChoiceChips(options = listOf(24, 25, 30, 50, 60), selected = fps, onSelect = { fps = it }, label = { "$it fps" })
+        ChoiceChips(options = listOf(24, 25, 30, 50, 60), selected = fps, onSelect = { fps = it }, label = { "$it ${Res.string.unit_frames_per_second.str()}" })
         SegmentedChoice(options = VideoQuality.entries, selected = quality, onSelect = { quality = it }, label = { qualityLabel(it) })
         Text("$width × $height · ${formatClock(totalMs)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -304,7 +308,8 @@ private fun ClipInspector(clip: MediaClip, overlay: Boolean, onChange: (MediaCli
                 onChange(clip.copy(endMs = (it * 1000).toLong()))
             }
         } else {
-            LabeledSlider(Res.string.clip_volume.str(), "${(clip.volume * 100).roundToInt()} %", clip.volume, 0f..2f, onDone) { onChange(clip.copy(volume = it)) }
+            val loudest = if (currentPlatform == PlatformKind.IOS) 1f else 2f
+            LabeledSlider(Res.string.clip_volume.str(), "${(clip.volume * 100).roundToInt()} %", clip.volume, 0f..loudest, onDone) { onChange(clip.copy(volume = it)) }
         }
         val fadeLimit = (clip.durationMs / 2000f).coerceIn(0.1f, 5f)
         val (fadeIn, fadeOut) = if (clip.kind == ClipKind.AUDIO) Res.string.fade_in to Res.string.fade_out else Res.string.picture_fade_in to Res.string.picture_fade_out

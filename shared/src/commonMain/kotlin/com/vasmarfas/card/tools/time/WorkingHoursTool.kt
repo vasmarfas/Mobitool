@@ -76,7 +76,7 @@ private fun WorkingHoursScreen() {
                 NumberField(
                     value = shift.breakMinutes,
                     onValueChange = { shifts[index] = shift.copy(breakMinutes = it) },
-                    label = Res.string.break_min.str(),
+                    label = Res.string.break_.str(),
                     modifier = Modifier.weight(1f),
                     suffix = Res.string.unit_min.str(),
                     isError = shift.breakMinutes.trim().ifEmpty { "0" }.toIntOrNull()?.takeIf { it >= 0 } == null,

@@ -51,18 +51,23 @@ class DohRequestTest {
     fun wireRoundTrip() {
         val query = DnsMessage.buildQuery("example.com", 1, 0x1234)
         val encoded = DohRequest.wireUrl("https://dns.example.com/dns-query", query).substringAfter("dns=")
-        val message = base64.decode(encoded)
+        val decoded = base64.decode(encoded)
+        val message = decoded.copyOf(decoded.size - 11)
+        val opt = decoded.copyOfRange(decoded.size - 11, decoded.size)
         message[2] = 0x81.toByte()
-        message[3] = 0x80.toByte()
+        message[3] = 0xA0.toByte()
         message[7] = 1
         val answer = byteArrayOf(0xC0.toByte(), 0x0C, 0, 1, 0, 1, 0, 0, 0x0E, 0x10, 0, 4, 93, 184.toByte(), 216.toByte(), 34)
-        val response = DnsMessage.parse(message + answer)
+        val response = DnsMessage.parse(message + answer + opt)
         assertEquals(0x1234, response.id)
         assertEquals("NOERROR", response.rcodeName)
         assertEquals(1, response.answers.size)
         assertEquals("example.com", response.answers[0].name)
         assertEquals("93.184.216.34", response.answers[0].data)
         assertEquals(3600L, response.answers[0].ttl)
+        assertTrue(response.authenticData)
+        assertFalse(response.authoritative)
+        assertTrue(response.additional.isEmpty())
     }
 
     @Test

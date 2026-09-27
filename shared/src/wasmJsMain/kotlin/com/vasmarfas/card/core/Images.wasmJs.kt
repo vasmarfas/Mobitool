@@ -30,7 +30,7 @@ private fun jsImageHeight(image: JsAny): Int = js("image.height")
 private fun jsImagePixels(image: JsAny): Int32Array = js("image.pixels")
 
 // Skia in wasm knows the common formats, the browser's decoder adds AVIF, and HEIC in Safari
-actual suspend fun decodeRawImage(bytes: ByteArray): RawImage? {
+actual suspend fun decodeRawImage(bytes: ByteArray, maxSide: Int): RawImage? {
     skiaDecode(bytes)?.let { return RawImage(it, oriented = true) }
     val decoded = jsDecodeImage(bytes.toInt8Array()).await<JsAny?>() ?: return null
     return RawImage(rgbaBitmap(jsImagePixels(decoded), jsImageWidth(decoded), jsImageHeight(decoded)), oriented = true)

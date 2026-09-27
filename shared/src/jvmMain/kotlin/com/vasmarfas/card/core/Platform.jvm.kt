@@ -2,6 +2,7 @@ package com.vasmarfas.card.core
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import java.awt.Desktop
 import java.net.URI
 import java.security.SecureRandom
@@ -40,7 +41,11 @@ actual fun openUrl(url: String) {
     runCatching { ProcessBuilder(command).start() }
 }
 
-actual fun setWindowTitle(title: String) = Unit
+val windowTitle = mutableStateOf(AppConfig.APP_NAME)
+
+actual fun setWindowTitle(title: String) {
+    windowTitle.value = title
+}
 
 @Composable
 actual fun platformDynamicColorScheme(dark: Boolean): ColorScheme? = null

@@ -86,7 +86,7 @@ private val OnboardingWidth = 640.dp
 private enum class Step(val id: String) { ROLE("role"), INTERESTS("interests"), RESULT("result") }
 
 @Composable
-fun OnboardingScreen(entry: String, onFinish: () -> Unit) {
+fun OnboardingScreen(entry: String, onFinish: (saved: Boolean) -> Unit) {
     val settings = LocalSettings.current
     val firstRun = entry == OnboardingFirstRun
     val started = remember { TimeSource.Monotonic.markNow() }
@@ -129,13 +129,13 @@ fun OnboardingScreen(entry: String, onFinish: () -> Unit) {
             ),
         )
         settings.finishOnboarding(status, roleIds.toSet(), interestIds.toSet(), tools)
-        onFinish()
+        onFinish(true)
     }
 
     fun skip() {
         Analytics.log(AnalyticsEvent.ONBOARDING_SKIP, mapOf(AnalyticsParam.STEP to step.id, AnalyticsParam.ENTRY to entry))
         when {
-            !firstRun -> onFinish()
+            !firstRun -> onFinish(false)
             settings.myTools.isNotEmpty() -> finish(OnboardingStatus.SKIPPED, settings.myTools)
             else -> finish(OnboardingStatus.SKIPPED, if (interests.isEmpty()) Onboarding.STARTER else Onboarding.propose(roles, interests))
         }

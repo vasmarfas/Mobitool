@@ -20,15 +20,36 @@ data class JsonStats(
     val nulls: Int,
 )
 
+class JsonTooDeepException : Exception()
+
 @OptIn(ExperimentalSerializationApi::class)
 object JsonTools {
+    // the printer and the tree walks recurse per level, and a thousand levels already overflow a 1 MB thread stack
+    const val MAX_DEPTH = 256
+
     private val pretty2 = Json { prettyPrint = true; prettyPrintIndent = "  " }
     private val pretty4 = Json { prettyPrint = true; prettyPrintIndent = "    " }
 
     fun parse(text: String): Result<JsonElement> = try {
-        Result.success(Json.parseToJsonElement(text))
+        if (tooDeep(text)) Result.failure(JsonTooDeepException()) else Result.success(Json.parseToJsonElement(text))
     } catch (e: Exception) {
         Result.failure(e)
+    }
+
+    private fun tooDeep(text: String): Boolean {
+        var depth = 0
+        var inString = false
+        var escaped = false
+        for (c in text) {
+            when {
+                escaped -> escaped = false
+                inString -> if (c == '\\') escaped = true else if (c == '"') inString = false
+                c == '"' -> inString = true
+                c == '[' || c == '{' -> if (++depth > MAX_DEPTH) return true
+                c == ']' || c == '}' -> depth--
+            }
+        }
+        return false
     }
 
     // the parser adds a hint for the Json builder and a dump of the input after the first line, both are noise here

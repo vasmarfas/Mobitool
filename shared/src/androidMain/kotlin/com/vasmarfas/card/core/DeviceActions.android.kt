@@ -88,7 +88,7 @@ actual fun setSystemBarsHidden(hidden: Boolean) {
 private val lightNavigationScrim = Color.argb(0xE6, 0xFF, 0xFF, 0xFF)
 private val darkNavigationScrim = Color.argb(0x80, 0x1B, 0x1B, 0x1B)
 
-actual fun setSystemBarsDark(dark: Boolean) {
+actual fun setSystemBarsDark(dark: Boolean, followSystem: Boolean) {
     val activity = ActivityHolder.activity as? ComponentActivity ?: return
     activity.enableEdgeToEdge(
         statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark },

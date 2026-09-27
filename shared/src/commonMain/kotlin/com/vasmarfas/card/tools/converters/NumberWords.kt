@@ -1,5 +1,6 @@
 package com.vasmarfas.card.tools.converters
 
+import com.vasmarfas.card.core.normalizeNumber
 import kotlin.math.abs
 
 enum class WordsLang { EN, RU }
@@ -45,7 +46,7 @@ object NumberWords {
     private val enScales = listOf("thousand", "million", "billion", "trillion", "quadrillion", "quintillion")
 
     fun parse(text: String): Amount? {
-        val match = amountPattern.find(text.trim().replace(" ", "")) ?: return null
+        val match = amountPattern.find(text.normalizeNumber()) ?: return null
         return Amount(match.groupValues[1] == "-", match.groupValues[2].toLong(), match.groupValues[3])
     }
 

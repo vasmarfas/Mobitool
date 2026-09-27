@@ -26,6 +26,7 @@ class LedResistorTest {
         assertEquals(0.06, result.power, 1e-9)
         assertEquals(0.125, result.ratingW, 1e-9)
         assertNull(LedResistor.compute(3.0, 2.0, 20.0, 2))
+        assertNull(LedResistor.compute(3.6, 1.2, 20.0, 3))
     }
 
     @Test
@@ -34,5 +35,6 @@ class LedResistorTest {
         assertEquals(2, LedResistor.maxInSeries(6.0, 2.0))
         assertEquals(3, LedResistor.maxInSeries(12.0, 3.2))
         assertEquals(0, LedResistor.maxInSeries(1.5, 2.0))
+        assertEquals(2, LedResistor.maxInSeries(3.6, 1.2))
     }
 }

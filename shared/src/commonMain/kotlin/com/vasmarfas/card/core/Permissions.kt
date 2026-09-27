@@ -1,6 +1,6 @@
 package com.vasmarfas.card.core
 
-enum class AppPermission { LOCATION, ACTIVITY_RECOGNITION, MICROPHONE, BLUETOOTH, CAMERA }
+enum class AppPermission { LOCATION, ACTIVITY_RECOGNITION, MICROPHONE, CAMERA }
 
 expect suspend fun ensurePermission(permission: AppPermission): Boolean
 

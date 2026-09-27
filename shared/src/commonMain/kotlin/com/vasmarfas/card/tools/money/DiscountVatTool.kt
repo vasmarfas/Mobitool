@@ -8,7 +8,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.core.toDoubleLenient
@@ -21,6 +20,7 @@ import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
+import org.jetbrains.compose.resources.stringResource
 
 private enum class PriceMode { DISCOUNT, VAT }
 
@@ -91,7 +91,11 @@ private fun DiscountSection() {
             KeyValueRow(Res.string.you_save.str(), (price - final).fmt(2, grouping = true))
             if (extra != 0.0) {
                 KeyValueRow(Res.string.after_first_discount.str(), afterFirst.fmt(2, grouping = true))
-                KeyValueRow(Res.string.effective_discount.str(), if (price == 0.0) "—" else "${((price - final) / price * 100).fmt(2)}%", copyable = false)
+                KeyValueRow(
+                    Res.string.effective_discount.str(),
+                    if (price == 0.0) "—" else stringResource(Res.string.percent_value, ((price - final) / price * 100).fmt(2)),
+                    copyable = false,
+                )
             }
         }
     }
@@ -127,13 +131,13 @@ private fun VatSection() {
         options = vatPresets,
         selected = rate?.toInt()?.takeIf { it.toDouble() == rate },
         onSelect = { rateText = it.toString() },
-        label = { "$it%" },
+        label = { stringResource(Res.string.percent_value, it) },
     )
     if (amount != null && rate != null) {
         val result = if (vatMode == VatMode.ADD) DiscountVat.addVat(amount, rate) else DiscountVat.removeVat(amount, rate)
         ResultCard {
             KeyValueRow(Res.string.net.str(), result.net.fmt(2, grouping = true))
-            KeyValueRow(Tr("VAT ${rate.fmt(2)}%", "НДС ${rate.fmt(2)}%").str(), result.vat.fmt(2, grouping = true))
+            KeyValueRow(stringResource(Res.string.vat_with_rate, rate.fmt(2)), result.vat.fmt(2, grouping = true))
             KeyValueRow(Res.string.gross.str(), result.gross.fmt(2, grouping = true))
         }
     }

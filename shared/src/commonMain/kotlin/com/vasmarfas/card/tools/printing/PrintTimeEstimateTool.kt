@@ -25,6 +25,7 @@ import com.vasmarfas.card.ui.components.ErrorText
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
+import org.jetbrains.compose.resources.stringResource
 
 val printTimeEstimateTool = Tool(
     id = "print-time-estimate",
@@ -119,8 +120,8 @@ private fun PrintTimeEstimateScreen() {
         KeyValueRow(Res.string.material_volume.str(), "${estimate.materialCm3.fmt(2)} ${Res.string.unit_cm3.str()}")
         KeyValueRow(Res.string.weight_in_pla.str(), "${plaGrams.fmt(1)} ${Res.string.unit_g.str()}")
         KeyValueRow(Res.string.filament_1_75.str(), "${Filament.lengthFromVolumeM(estimate.materialCm3, 1.75).fmt(2)} ${Res.string.unit_m.str()}")
-        KeyValueRow(Res.string.solid_fraction.str(), "${(estimate.solidFraction * 100).fmt(1)} %")
-        KeyValueRow(Res.string.shell_share.str(), "${(estimate.shellFraction * 100).fmt(1)} %")
+        KeyValueRow(Res.string.solid_fraction.str(), stringResource(Res.string.percent_value, (estimate.solidFraction * 100).fmt(1)))
+        KeyValueRow(Res.string.shell_share.str(), stringResource(Res.string.percent_value, (estimate.shellFraction * 100).fmt(1)))
         KeyValueRow(Res.string.effective_flow.str(), "${estimate.flowMm3S.fmt(2)} ${Res.string.unit_mm3_s.str()}")
     }
 }

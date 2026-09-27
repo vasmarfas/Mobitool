@@ -22,11 +22,17 @@ fun hexToBytes(text: String): ByteArray? {
     return out
 }
 
-enum class HashAlgorithm(val title: String, val blockSize: Int, val digest: (ByteArray) -> ByteArray) {
+private val NO_PREFIX = ByteArray(0)
+
+enum class HashAlgorithm(val title: String, val blockSize: Int, private val hash: (ByteArray, ByteArray) -> ByteArray) {
     MD5("MD5", 64, Md5::digest),
     SHA1("SHA-1", 64, Sha1::digest),
     SHA256("SHA-256", 64, Sha256::digest),
-    SHA512("SHA-512", 128, Sha512::digest),
+    SHA512("SHA-512", 128, Sha512::digest);
+
+    fun digest(message: ByteArray): ByteArray = hash(NO_PREFIX, message)
+
+    fun digest(prefix: ByteArray, message: ByteArray): ByteArray = hash(prefix, message)
 }
 
 fun hmac(algorithm: HashAlgorithm, key: ByteArray, message: ByteArray): ByteArray {
@@ -36,21 +42,25 @@ fun hmac(algorithm: HashAlgorithm, key: ByteArray, message: ByteArray): ByteArra
     shortKey.copyInto(padded)
     val ipad = ByteArray(blockSize) { (padded[it].toInt() xor 0x36).toByte() }
     val opad = ByteArray(blockSize) { (padded[it].toInt() xor 0x5c).toByte() }
-    return algorithm.digest(opad + algorithm.digest(ipad + message))
+    return algorithm.digest(opad, algorithm.digest(ipad, message))
 }
 
-private fun pad(message: ByteArray, blockSize: Int, lengthBytes: Int, littleEndian: Boolean): ByteArray {
-    val bitLength = message.size.toLong() * 8
-    val total = ((message.size + 1 + lengthBytes + blockSize - 1) / blockSize) * blockSize
-    val out = ByteArray(total)
-    message.copyInto(out)
-    out[message.size] = 0x80.toByte()
+// the message is hashed in place and only the padded tail is copied, the prefix is one whole block or empty
+private inline fun forEachBlock(prefix: ByteArray, message: ByteArray, blockSize: Int, lengthBytes: Int, littleEndian: Boolean, block: (ByteArray, Int) -> Unit) {
+    if (prefix.isNotEmpty()) block(prefix, 0)
+    val whole = message.size / blockSize * blockSize
+    for (offset in 0 until whole step blockSize) block(message, offset)
+    val rest = message.size - whole
+    val tail = ByteArray(if (rest + 1 + lengthBytes <= blockSize) blockSize else blockSize * 2)
+    message.copyInto(tail, 0, whole, message.size)
+    tail[rest] = 0x80.toByte()
+    val bitLength = (prefix.size.toLong() + message.size) * 8
     for (i in 0 until 8) {
         val shift = if (littleEndian) i * 8 else (7 - i) * 8
-        val index = total - lengthBytes + (if (littleEndian) i else lengthBytes - 8 + i)
-        out[index] = (bitLength ushr shift).toByte()
+        val index = tail.size - lengthBytes + (if (littleEndian) i else lengthBytes - 8 + i)
+        tail[index] = (bitLength ushr shift).toByte()
     }
-    return out
+    for (offset in 0 until tail.size step blockSize) block(tail, offset)
 }
 
 private fun readIntBE(b: ByteArray, off: Int): Int =
@@ -102,14 +112,15 @@ object Md5 {
             "6fa87e4f fe2ce6e0 a3014314 4e0811a1 f7537e82 bd3af235 2ad7d2bb eb86d391",
     )
 
-    fun digest(message: ByteArray): ByteArray {
-        val data = pad(message, 64, 8, littleEndian = true)
+    fun digest(message: ByteArray): ByteArray = digest(NO_PREFIX, message)
+
+    fun digest(prefix: ByteArray, message: ByteArray): ByteArray {
         var a0 = 0x67452301
         var b0 = 0xefcdab89.toInt()
         var c0 = 0x98badcfe.toInt()
         var d0 = 0x10325476
         val m = IntArray(16)
-        for (chunk in 0 until data.size step 64) {
+        forEachBlock(prefix, message, 64, 8, littleEndian = true) { data, chunk ->
             for (i in 0 until 16) m[i] = readIntLE(data, chunk + i * 4)
             var a = a0
             var b = b0
@@ -157,15 +168,16 @@ object Md5 {
 }
 
 object Sha1 {
-    fun digest(message: ByteArray): ByteArray {
-        val data = pad(message, 64, 8, littleEndian = false)
+    fun digest(message: ByteArray): ByteArray = digest(NO_PREFIX, message)
+
+    fun digest(prefix: ByteArray, message: ByteArray): ByteArray {
         var h0 = 0x67452301
         var h1 = 0xEFCDAB89.toInt()
         var h2 = 0x98BADCFE.toInt()
         var h3 = 0x10325476
         var h4 = 0xC3D2E1F0.toInt()
         val w = IntArray(80)
-        for (chunk in 0 until data.size step 64) {
+        forEachBlock(prefix, message, 64, 8, littleEndian = false) { data, chunk ->
             for (i in 0 until 16) w[i] = readIntBE(data, chunk + i * 4)
             for (i in 16 until 80) w[i] = (w[i - 3] xor w[i - 8] xor w[i - 14] xor w[i - 16]).rotateLeft(1)
             var a = h0
@@ -231,11 +243,12 @@ object Sha256 {
 
     private val H0 = hexWords("6a09e667 bb67ae85 3c6ef372 a54ff53a 510e527f 9b05688c 1f83d9ab 5be0cd19")
 
-    fun digest(message: ByteArray): ByteArray {
-        val data = pad(message, 64, 8, littleEndian = false)
+    fun digest(message: ByteArray): ByteArray = digest(NO_PREFIX, message)
+
+    fun digest(prefix: ByteArray, message: ByteArray): ByteArray {
         val h = H0.copyOf()
         val w = IntArray(64)
-        for (chunk in 0 until data.size step 64) {
+        forEachBlock(prefix, message, 64, 8, littleEndian = false) { data, chunk ->
             for (i in 0 until 16) w[i] = readIntBE(data, chunk + i * 4)
             for (i in 16 until 64) {
                 val s0 = w[i - 15].rotateRight(7) xor w[i - 15].rotateRight(18) xor (w[i - 15] ushr 3)
@@ -298,13 +311,14 @@ object Sha512 {
     private val H0 = "6a09e667f3bcc908 bb67ae8584caa73b 3c6ef372fe94f82b a54ff53a5f1d36f1 510e527fade682d1 9b05688c2b3e6c1f 1f83d9abfb41bd6b 5be0cd19137e2179"
         .split(' ').map { it.toULong(16).toLong() }.toLongArray()
 
-    fun digest(message: ByteArray): ByteArray = digest(message, H0, 64)
+    fun digest(message: ByteArray): ByteArray = digest(NO_PREFIX, message, H0, 64)
 
-    internal fun digest(message: ByteArray, initial: LongArray, length: Int): ByteArray {
-        val data = pad(message, 128, 16, littleEndian = false)
+    fun digest(prefix: ByteArray, message: ByteArray): ByteArray = digest(prefix, message, H0, 64)
+
+    internal fun digest(prefix: ByteArray, message: ByteArray, initial: LongArray, length: Int): ByteArray {
         val h = initial.copyOf()
         val w = LongArray(80)
-        for (chunk in 0 until data.size step 128) {
+        forEachBlock(prefix, message, 128, 16, littleEndian = false) { data, chunk ->
             for (i in 0 until 16) w[i] = readLongBE(data, chunk + i * 8)
             for (i in 16 until 80) {
                 val s0 = w[i - 15].rotateRight(1) xor w[i - 15].rotateRight(8) xor (w[i - 15] ushr 7)
@@ -374,5 +388,5 @@ object Sha384 {
     private val H0 = "cbbb9d5dc1059ed8 629a292a367cd507 9159015a3070dd17 152fecd8f70e5939 67332667ffc00b31 8eb44a8768581511 db0c2e0d64f98fa7 47b5481dbefa4fa4"
         .split(' ').map { it.toULong(16).toLong() }.toLongArray()
 
-    fun digest(message: ByteArray): ByteArray = Sha512.digest(message, H0, 48)
+    fun digest(message: ByteArray): ByteArray = Sha512.digest(NO_PREFIX, message, H0, 48)
 }

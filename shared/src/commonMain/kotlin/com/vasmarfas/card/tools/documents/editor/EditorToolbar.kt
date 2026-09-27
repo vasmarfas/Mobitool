@@ -174,12 +174,12 @@ internal fun ToolStrip(session: EditorSession, tools: List<EditTool>, onSelect: 
 }
 
 @Composable
-internal fun OptionsRow(session: EditorSession, input: StageInput, signatures: SignatureStore, onDrawSignature: () -> Unit, onPickImage: () -> Unit, onApplyCrop: (Boolean) -> Unit) {
+internal fun OptionsRow(session: EditorSession, input: StageInput, renderer: MarkRenderer, signatures: SignatureStore, onDrawSignature: () -> Unit, onPickImage: () -> Unit, onApplyCrop: (Boolean) -> Unit) {
     Box(Modifier.fillMaxWidth().height(56.dp), contentAlignment = Alignment.CenterStart) {
         val mark = session.mark(session.selected)
         val picked = session.picked
         when {
-            mark != null -> MarkOptions(session, mark)
+            mark != null -> MarkOptions(session, renderer, mark)
             picked is PickedText -> Hint(Res.string.pdf_edit_picked_text.str())
             picked is PickedGraphic -> Hint(Res.string.pdf_edit_picked_graphic.str())
             else -> ToolOptions(session, input, signatures, onDrawSignature, onPickImage, onApplyCrop)
@@ -200,6 +200,7 @@ private fun Controls(content: @Composable RowScope.() -> Unit) {
 @Composable
 private fun ToolOptions(session: EditorSession, input: StageInput, signatures: SignatureStore, onDrawSignature: () -> Unit, onPickImage: () -> Unit, onApplyCrop: (Boolean) -> Unit) {
     val style = session.style
+    val point = Res.string.unit_point.str()
     fun update(change: (ToolStyle) -> ToolStyle) {
         session.style = change(session.style)
     }
@@ -208,11 +209,11 @@ private fun ToolOptions(session: EditorSession, input: StageInput, signatures: S
         EditTool.SELECT -> Hint(Res.string.pdf_edit_hint_select.str())
         EditTool.PEN -> Controls {
             ColorDots(inkColors, style.penColor) { c -> update { it.copy(penColor = c) } }
-            CompactSlider(style.penWidth.toDouble().fmt(1) + " pt", style.penWidth, 0.5f..12f) { w -> update { it.copy(penWidth = w) } }
+            CompactSlider("${style.penWidth.toDouble().fmt(1)} $point", style.penWidth, 0.5f..12f) { w -> update { it.copy(penWidth = w) } }
         }
         EditTool.MARKER -> Controls {
             ColorDots(markerColors, style.markerColor) { c -> update { it.copy(markerColor = c) } }
-            CompactSlider(style.markerWidth.toDouble().fmt(0) + " pt", style.markerWidth, 6f..30f) { w -> update { it.copy(markerWidth = w) } }
+            CompactSlider("${style.markerWidth.toDouble().fmt(0)} $point", style.markerWidth, 6f..30f) { w -> update { it.copy(markerWidth = w) } }
         }
         EditTool.SHAPE -> Controls {
             for (kind in listOf(ShapeKind.RECTANGLE, ShapeKind.ELLIPSE, ShapeKind.LINE, ShapeKind.ARROW)) {
@@ -226,7 +227,7 @@ private fun ToolOptions(session: EditorSession, input: StageInput, signatures: S
                 }
             }
             ColorDots(inkColors, style.shapeColor) { c -> update { it.copy(shapeColor = c) } }
-            CompactSlider(style.shapeWidth.toDouble().fmt(1) + " pt", style.shapeWidth, 0.5f..12f) { w -> update { it.copy(shapeWidth = w) } }
+            CompactSlider("${style.shapeWidth.toDouble().fmt(1)} $point", style.shapeWidth, 0.5f..12f) { w -> update { it.copy(shapeWidth = w) } }
         }
         EditTool.TEXT -> Controls {
             TextOptions(TextLook(style.textColor, style.textSize, style.textFont, style.bold, style.italic, style.align)) { look -> update { look.applyTo(it) } }
@@ -283,21 +284,22 @@ private fun ToolOptions(session: EditorSession, input: StageInput, signatures: S
 }
 
 @Composable
-private fun MarkOptions(session: EditorSession, mark: Mark) {
+private fun MarkOptions(session: EditorSession, renderer: MarkRenderer, mark: Mark) {
+    val point = Res.string.unit_point.str()
     when (mark) {
         is TextMark -> Controls {
             TextOptions(TextLook(mark.color, mark.size, mark.font, mark.bold, mark.italic, mark.align)) { look ->
-                session.replace(mark.restyled(look))
+                session.replace(renderer.fitted(mark.restyled(look)))
                 session.style = look.applyTo(session.style)
             }
         }
         is InkMark -> Controls {
             ColorDots(if (mark.highlighter) markerColors else inkColors, mark.color) { c -> session.replace(mark.copy(color = c)) }
-            CompactSlider(mark.width.toDouble().fmt(1) + " pt", mark.width, if (mark.highlighter) 6f..30f else 0.5f..12f) { w -> session.replace(mark.copy(width = w)) }
+            CompactSlider("${mark.width.toDouble().fmt(1)} $point", mark.width, if (mark.highlighter) 6f..30f else 0.5f..12f) { w -> session.replace(mark.copy(width = w)) }
         }
         is ShapeMark -> Controls {
             ColorDots(inkColors, mark.color) { c -> session.replace(mark.copy(color = c, fill = mark.fill?.let { (c and 0x00FFFFFF) or 0x40000000 })) }
-            CompactSlider(mark.width.toDouble().fmt(1) + " pt", mark.width, 0.5f..12f) { w -> session.replace(mark.copy(width = w)) }
+            CompactSlider("${mark.width.toDouble().fmt(1)} $point", mark.width, 0.5f..12f) { w -> session.replace(mark.copy(width = w)) }
         }
         is SignatureMark -> Controls { ColorDots(signatureColors, mark.color) { c -> session.replace(mark.copy(color = c)) } }
         is MarkupMark -> Controls { ColorDots(markerColors.map { it or 0xFF000000.toInt() }, mark.color) { c -> session.replace(mark.copy(color = c)) } }

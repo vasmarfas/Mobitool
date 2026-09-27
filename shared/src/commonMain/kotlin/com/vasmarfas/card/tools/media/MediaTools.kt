@@ -6,6 +6,7 @@ val mediaTools: List<Tool> = listOf(
     imageConverterTool,
     imageCompressorTool,
     photoEditorTool,
+    idPhotoTool,
     videoConverterTool,
     videoEditorTool,
     audioConverterTool,

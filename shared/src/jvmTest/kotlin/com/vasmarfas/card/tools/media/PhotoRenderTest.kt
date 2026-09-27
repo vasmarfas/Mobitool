@@ -99,6 +99,16 @@ class PhotoRenderTest {
     }
 
     @Test
+    fun formatsBuiltInArraysAreCappedOnTheLongSide() {
+        val wide = flat(4000, 30, 90)
+        assertEquals(3072, wide.limitedFor(ImageTarget.GIF, 0).width)
+        assertEquals(3072, wide.limitedFor(ImageTarget.BMP, 0).width)
+        assertEquals(3072, wide.limitedFor(ImageTarget.PNG, 256).width)
+        assertEquals(4000, wide.limitedFor(ImageTarget.PNG, 0).width)
+        assertEquals(4000, wide.limitedFor(ImageTarget.JPEG, 0).width)
+    }
+
+    @Test
     fun compressionFitsTheLimitAndShrinksWhenQualityIsNotEnough() {
         val noisy = imageBitmapOf(IntArray(1200 * 900) { (0xFF shl 24) or ((it * 2654435761L).toInt() and 0xFFFFFF) }, 1200, 900)
         for (target in listOf(ImageTarget.JPEG, ImageTarget.WEBP)) {
@@ -108,6 +118,13 @@ class PhotoRenderTest {
             assertTrue(tight.bytes.size <= 60_000, "$target at 60 kB: ${tight.bytes.size} B")
             assertTrue(tight.width < 1200, "$target should have shrunk")
         }
+    }
+
+    @Test
+    fun previewDecodeFitsTheAskedSide() = runBlocking {
+        val preview = assertNotNull(decodeImage(encodeImage(marked(800, 600), ImageTarget.PNG), 200))
+        assertEquals(200 to 150, preview.width to preview.height)
+        assertEquals(255, red(preview.at(10, 10)))
     }
 
     @Test

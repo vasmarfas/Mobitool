@@ -29,23 +29,26 @@ actual fun microphoneSpectrumFlow(fftSize: Int): Flow<SpectrumFrame> = flow {
             maxOf(minBuffer, fftSize * 2),
         )
     } catch (e: SecurityException) {
-        return@flow
+        throw IllegalStateException("NotAllowedError")
     }
-    if (record.state != AudioRecord.STATE_INITIALIZED) return@flow
-    record.startRecording()
+    if (record.state != AudioRecord.STATE_INITIALIZED) {
+        record.release()
+        throw IllegalStateException("NotFoundError")
+    }
     val hop = minOf(fftSize, SpectrumHop)
     val pcm = ShortArray(hop)
     val samples = FloatArray(fftSize)
     var collected = 0
     try {
+        record.startRecording()
+        if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) throw IllegalStateException("NotReadableError")
         while (currentCoroutineContext().isActive) {
             var filled = 0
             while (filled < hop) {
                 val read = record.read(pcm, filled, hop - filled)
-                if (read <= 0) break
+                if (read <= 0) throw IllegalStateException("NotReadableError")
                 filled += read
             }
-            if (filled < hop) break
             samples.copyInto(samples, 0, hop, fftSize)
             for (i in 0 until hop) samples[fftSize - hop + i] = pcm[i] / 32768f
             collected = minOf(fftSize, collected + hop)

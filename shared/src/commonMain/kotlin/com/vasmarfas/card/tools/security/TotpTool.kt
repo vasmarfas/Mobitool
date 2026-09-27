@@ -19,7 +19,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.currentEpochMillis
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
@@ -34,6 +33,7 @@ import com.vasmarfas.card.ui.components.SegmentedChoice
 import com.vasmarfas.card.ui.components.ToolInputField
 import com.vasmarfas.card.ui.components.monoFamily
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.stringResource
 
 val totpTool = Tool(
     id = "totp",
@@ -100,7 +100,7 @@ private fun TotpScreen() {
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            Tr("Valid for $remaining s", "Действителен ещё $remaining с").str(),
+            stringResource(Res.string.totp_valid_for, remaining),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

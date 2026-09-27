@@ -9,6 +9,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.vasmarfas.card.core.PlatformKind
+import com.vasmarfas.card.core.currentPlatform
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
@@ -30,6 +32,7 @@ import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.stringResource
 
 private enum class HashOutput { HEX_LOWER, HEX_UPPER, BASE64 }
 
@@ -49,8 +52,8 @@ private fun encodeOutput(bytes: ByteArray, output: HashOutput): String = when (o
     HashOutput.BASE64 -> Base64.Default.encode(bytes)
 }
 
-// the hashes run over a whole copy in memory, a browser tab does not hold much more
-private const val MAX_FILE_BYTES = 256L * 1024 * 1024
+// the file is read whole and kept while the tool is open, an Android app gets a heap of about 256 MB
+internal val wholeFileLimitMb: Int get() = if (currentPlatform == PlatformKind.ANDROID) 100 else 256
 
 @Composable
 private fun HashGeneratorScreen() {
@@ -60,7 +63,7 @@ private fun HashGeneratorScreen() {
     var output by rememberSaveable { mutableStateOf(HashOutput.HEX_LOWER) }
     var file by remember { mutableStateOf<LoadedFile?>(null) }
     var fileError by remember { mutableStateOf<String?>(null) }
-    val tooLarge = Res.string.file_over_256_mb.str()
+    val tooLarge = stringResource(Res.string.hash_file_too_large, wholeFileLimitMb)
     val loaded = file
     if (loaded == null) {
         ToolInputField(
@@ -77,7 +80,7 @@ private fun HashGeneratorScreen() {
     }
     OpenFileButton { picked ->
         fileError = null
-        if (picked.size() > MAX_FILE_BYTES) fileError = tooLarge else file = LoadedFile(picked.name, picked.readBytes())
+        if (picked.size() > wholeFileLimitMb * 1024L * 1024) fileError = tooLarge else file = LoadedFile(picked.name, picked.readBytes())
     }
     fileError?.let { ErrorText(it) }
     ToolInputField(

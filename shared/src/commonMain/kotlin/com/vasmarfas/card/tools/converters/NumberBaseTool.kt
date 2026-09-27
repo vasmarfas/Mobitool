@@ -18,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
@@ -28,6 +27,7 @@ import com.vasmarfas.card.ui.components.DropdownChoice
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.ToolInputField
+import org.jetbrains.compose.resources.stringResource
 
 private val bases = (2..36).toList()
 private val quickBases = listOf(2, 8, 10, 16)
@@ -54,7 +54,7 @@ private fun NumberBaseScreen() {
         placeholder = "1010 · 0xFF · zz",
         keyboardType = KeyboardType.Ascii,
         isError = input.isNotBlank() && result == null,
-        supportingText = if (input.isNotBlank() && result == null) Tr("Invalid digits for base $from", "Недопустимые цифры для основания $from").str() else null,
+        supportingText = if (input.isNotBlank() && result == null) stringResource(Res.string.invalid_digits_for_base, from) else null,
         monospace = true,
     )
     Row(
@@ -93,11 +93,11 @@ private fun NumberBaseScreen() {
         options = quickBases,
         selected = from,
         onSelect = { from = it },
-        label = { Res.string.from__2.str() + baseName(it) },
+        label = { stringResource(Res.string.from__2, baseName(it)) },
     )
     if (result != null) {
         ResultCard {
-            KeyValueRow(Tr("Base $to", "Основание $to").str(), result)
+            KeyValueRow(stringResource(Res.string.base_n, to), result)
         }
         ResultCard(Res.string.common_bases.str()) {
             KeyValueRow("BIN", BaseConvert.convert(input, from, 2) ?: "")

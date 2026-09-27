@@ -70,6 +70,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -119,8 +120,8 @@ fun ContentColumn(
 ) {
     val scroll = rememberScrollState()
     if (scrollable) {
+        var reported by rememberSaveable { mutableStateOf(0) }
         LaunchedEffect(scroll) {
-            var reported = 0
             snapshotFlow { if (scroll.maxValue in 1..<Int.MAX_VALUE) scroll.value * 100 / scroll.maxValue else 0 }
                 .collect { percent ->
                     Analytics.depthsReached(percent, reported).forEach { depth ->
@@ -476,10 +477,11 @@ fun <T> SegmentedChoice(
                 onClick = { onSelect(option) },
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
                 modifier = Modifier.fillMaxHeight(),
-                // The filled container already marks the selection, the check mark would only take 24 dp from the label.
+                // the filled container marks the selection, a check mark would take 24 dp from the label
                 icon = {},
                 label = {
-                    Text(label(option), autoSize = labelSize, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                    val text = label(option)
+                    Text(text, autoSize = labelSize, maxLines = if (' ' in text) 2 else 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                 },
             )
         }
@@ -701,9 +703,6 @@ fun ToolSection(title: String, modifier: Modifier = Modifier, content: @Composab
         content()
     }
 }
-
-@Composable
-fun VSpace(height: Dp = 8.dp) = Spacer(Modifier.height(height))
 
 @Composable
 fun SoftDivider() = HorizontalDivider(Modifier.padding(vertical = 4.dp))

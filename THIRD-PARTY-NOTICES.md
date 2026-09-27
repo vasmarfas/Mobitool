@@ -4,7 +4,8 @@ Components redistributed in official builds of this project, with the license ea
 covered by. This file supplements [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md): the terms below
 apply to those components, not to this project's own code.
 
-Versions are the ones pinned in [gradle/libs.versions.toml](gradle/libs.versions.toml).
+Versions are the ones pinned in [gradle/libs.versions.toml](gradle/libs.versions.toml), the Firebase Apple
+SDK version is pinned in the Xcode project (firebase-ios-sdk 12.19.2).
 
 ## Apache License 2.0
 
@@ -20,7 +21,8 @@ Full text: [licenses/Apache-2.0.txt](licenses/Apache-2.0.txt)
 | androidx.core:core-ktx, androidx.activity:activity-compose | The Android Open Source Project |
 | Ktor (client core, OkHttp, Darwin, JS engines) | JetBrains s.r.o. |
 | OkHttp | Square, Inc. |
-| Firebase Crashlytics, Firebase Performance Monitoring | Google LLC |
+| Firebase Crashlytics, Firebase Performance Monitoring (Android builds) | Google LLC |
+| Firebase Apple SDK: FirebaseCore, FirebaseInstallations, FirebaseCrashlytics, FirebaseSessions, with GoogleUtilities, GoogleDataTransport and Promises (iOS builds) | Google LLC |
 | AndroidX Media3 (transformer, effect, common) | The Android Open Source Project |
 | AndroidX CameraX (camera-camera2, camera-lifecycle, camera-compose) | The Android Open Source Project |
 | ZXing core (Android and desktop builds) | ZXing authors |
@@ -28,6 +30,7 @@ Full text: [licenses/Apache-2.0.txt](licenses/Apache-2.0.txt)
 | Apache PDFBox with FontBox and pdfbox-io (desktop builds) | The Apache Software Foundation |
 | Apache Commons Logging, pulled in by PDFBox (desktop builds) | The Apache Software Foundation |
 | JavaCPP (desktop builds) | Samuel Audet |
+| JNA, Java Native Access (desktop builds), licensed under Apache-2.0 or LGPL-2.1-or-later at the recipient's choice | Timothy Wall and JNA contributors |
 | PDF.js (`pdfjs-dist`, website) | Mozilla Foundation |
 
 ## MIT License
@@ -87,6 +90,11 @@ only to typeset PDF files, which embed subsets of them. The license text sits ne
 **minimp3** by lieff, <https://github.com/lieff/minimp3>. The Huffman tables and the analysis
 window of the MP3 encoder in `Mp3Tables.kt` were taken from it. The encoder itself is not a port.
 
+## zlib License
+
+**nanopb**, pulled in by the Firebase Apple SDK (iOS builds) — Copyright (c) 2011 Petteri Aimonen.
+License text: <https://github.com/nanopb/nanopb/blob/master/LICENSE.txt>.
+
 ## BSD 3-Clause
 
 **Skia** — Copyright (c) 2011 Google Inc. Ships as a native binary inside Skiko; see
@@ -99,6 +107,11 @@ window of the MP3 encoder in `Mp3Tables.kt` were taken from it. The encoder itse
 Agreement, <https://developer.android.com/studio/terms>. It permits building and distributing
 applications; it is not covered by this project's own license, and anyone building from source
 obtains it directly from Google on those terms.
+
+**Firebase Analytics for iOS** (the `FirebaseAnalytics` and `GoogleAppMeasurement` binaries that
+firebase-ios-sdk downloads from Google) is closed source and distributed under the Firebase terms,
+<https://firebase.google.com/terms>. Like the Android SDK above, it is not covered by this project's own
+license.
 
 **Bundled Java runtime.** Desktop installers produced by `jpackage` embed an Eclipse Temurin 21
 runtime image, licensed under GPLv2 with the Classpath Exception,
@@ -132,5 +145,7 @@ published build.
 
 ## Website
 
-vasmarfas.com and vasmarfas.ru load Yandex Metrica from `mc.yandex.ru`. It is a hosted service
-called over the network, not a library bundled into the site.
+vasmarfas.com and vasmarfas.ru load Yandex Metrica from `mc.yandex.ru`. vasmarfas.com also loads the
+Firebase JavaScript SDK (`firebase-app` and `firebase-analytics` 12.19.0, Apache-2.0) from
+`www.gstatic.com`, and the SDK loads the Google tag (`gtag.js`) from `www.googletagmanager.com`. These are
+hosted services and scripts called over the network, not libraries bundled into the site.

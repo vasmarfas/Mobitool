@@ -44,11 +44,11 @@ object LedResistor {
     }
 
     // one chain takes as many LEDs as leave the resistor some voltage of its own
-    fun maxInSeries(supply: Double, forward: Double): Int = ceil(supply / forward).toInt() - 1
+    fun maxInSeries(supply: Double, forward: Double): Int = ceil(supply / forward - 1e-9).toInt() - 1
 
     fun compute(supply: Double, forward: Double, currentMa: Double, ledsInSeries: Int): LedResult? {
         val drop = supply - forward * ledsInSeries
-        if (drop <= 0 || currentMa <= 0) return null
+        if (drop <= 1e-6 * supply || currentMa <= 0) return null
         val current = currentMa / 1000
         val resistance = drop / current
         val e12Value = nextInSeries(resistance, e12)

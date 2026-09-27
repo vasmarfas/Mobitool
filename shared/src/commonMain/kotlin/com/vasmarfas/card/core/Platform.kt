@@ -34,8 +34,7 @@ expect fun platformInfo(): PlatformInfo
 // the browser reports one even when more exist, see parallelWorkers
 expect fun cpuCoreCount(): Int
 
-// Kotlin/Wasm has no worker pool behind Dispatchers.Default, extra coroutines there take turns on
-// the one thread and only add scheduling overhead
+// Kotlin/Wasm has no worker pool behind Dispatchers.Default, extra coroutines only take turns on one thread
 val parallelWorkers: Int get() = if (currentPlatform == PlatformKind.WEB) 1 else cpuCoreCount()
 
 expect fun siteHost(): String?
@@ -43,10 +42,6 @@ expect fun siteHost(): String?
 expect fun openUrl(url: String)
 
 expect fun setWindowTitle(title: String)
-
-expect val pullToReload: Boolean
-
-expect fun reloadPage()
 
 expect fun listenForFindShortcut(open: () -> Boolean)
 
@@ -59,4 +54,4 @@ expect fun currentEpochMillis(): Long
 
 expect fun secureRandomBytes(count: Int): ByteArray
 
-val currentPlatform: PlatformKind get() = platformInfo().kind
+val currentPlatform: PlatformKind by lazy { platformInfo().kind }

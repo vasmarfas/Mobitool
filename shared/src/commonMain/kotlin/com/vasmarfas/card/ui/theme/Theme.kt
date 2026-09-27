@@ -16,11 +16,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamicColorScheme
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.platformDynamicColorScheme
 import com.vasmarfas.card.core.setSystemBarsDark
 import com.vasmarfas.card.data.AppSettings
 import com.vasmarfas.card.data.ThemeMode
+import com.vasmarfas.card.resources.*
+import org.jetbrains.compose.resources.StringResource
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -30,7 +31,8 @@ fun MobitoolTheme(settings: AppSettings, content: @Composable () -> Unit) {
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    LaunchedEffect(dark) { setSystemBarsDark(dark) }
+    val followSystem = settings.themeMode == ThemeMode.SYSTEM
+    LaunchedEffect(dark, followSystem) { setSystemBarsDark(dark, followSystem) }
     val dynamic = if (settings.dynamicColor) platformDynamicColorScheme(dark) else null
     val generated = remember(settings.seedColor, dark) { appColorScheme(settings.seedColor, dark) }
     CompositionLocalProvider(LocalStatusColors provides statusColors(dark)) {
@@ -52,15 +54,15 @@ fun appColorScheme(seed: Long, dark: Boolean): ColorScheme = dynamicColorScheme(
     style = PaletteStyle.Vibrant,
 )
 
-val seedPresets: List<Pair<Long, Tr>> = listOf(
-    AppSettings.DEFAULT_SEED to Tr("Teal", "Бирюзовый"),
-    0xFF3F51B5 to Tr("Indigo", "Индиго"),
-    0xFF6750A4 to Tr("Violet", "Фиолетовый"),
-    0xFF006E1C to Tr("Green", "Зелёный"),
-    0xFFB3261E to Tr("Red", "Красный"),
-    0xFF9C4400 to Tr("Orange", "Оранжевый"),
-    0xFF00629E to Tr("Blue", "Синий"),
-    0xFF7B4E7F to Tr("Plum", "Сливовый"),
+val seedPresets: List<Pair<Long, StringResource>> = listOf(
+    AppSettings.DEFAULT_SEED to Res.string.teal,
+    0xFF3F51B5 to Res.string.indigo,
+    0xFF6750A4 to Res.string.violet,
+    0xFF006E1C to Res.string.green,
+    0xFFB3261E to Res.string.red,
+    0xFF9C4400 to Res.string.orange,
+    0xFF00629E to Res.string.blue,
+    0xFF7B4E7F to Res.string.plum,
 )
 
 private fun TextStyle.emphasised(tracking: Float) = copy(

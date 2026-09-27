@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -19,6 +20,7 @@ import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
+import com.vasmarfas.card.tools.text.TextStats
 import com.vasmarfas.card.ui.components.ActionButton
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.ResultCard
@@ -69,7 +71,7 @@ private fun ScratchpadScreen() {
             modifier = Modifier.weight(1f),
         )
     }
-    val stats = textStats(text)
+    val stats = remember(text) { TextStats.analyze(text) }
     ResultCard {
         KeyValueRow(Res.string.characters_count.str(), stats.chars.toString(), copyable = false)
         KeyValueRow(Res.string.without_spaces.str(), stats.charsNoSpaces.toString(), copyable = false)

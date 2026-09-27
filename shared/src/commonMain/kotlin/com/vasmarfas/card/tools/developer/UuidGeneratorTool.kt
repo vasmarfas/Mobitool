@@ -94,7 +94,7 @@ private fun UuidGeneratorScreen() {
                     KeyValueRow(Res.string.version.str(), versionText, copyable = false)
                     KeyValueRow(Res.string.variant.str(), info.variant, mono = false, copyable = false)
                     if (info.timestampMs != null) {
-                        KeyValueRow(Res.string.embedded_time.str(), "${localDateTime(info.timestampMs).formatted()}  (${info.timestampMs} ms)")
+                        KeyValueRow(Res.string.embedded_time.str(), "${localDateTime(info.timestampMs).formatted()}  (${info.timestampMs} ${Res.string.unit_ms.str()})")
                     }
                     KeyValueRow("Hex", info.canonical.replace("-", ""))
                     KeyValueRow("URN", "urn:uuid:" + info.canonical)

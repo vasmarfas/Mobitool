@@ -39,6 +39,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import org.jetbrains.compose.resources.stringResource
 
 val portScannerTool = Tool(
     id = "port-scanner",
@@ -55,9 +56,9 @@ fun parsePorts(spec: String): List<Int> {
     val out = LinkedHashSet<Int>()
     spec.split(Regex("[,;\\s]+")).filter { it.isNotBlank() }.forEach { part ->
         if (part.contains('-')) {
-            val a = part.substringBefore('-').toIntOrNull()
-            val b = part.substringAfter('-').toIntOrNull()
-            if (a != null && b != null && a <= b) (a..b).filter { it in 1..65535 }.take(20_000).forEach { out += it }
+            val a = part.substringBefore('-').toIntOrNull()?.coerceAtLeast(1)
+            val b = part.substringAfter('-').toIntOrNull()?.coerceAtMost(65535)
+            if (a != null && b != null && a <= b) out.addAll(a..b)
         } else {
             part.toIntOrNull()?.takeIf { it in 1..65535 }?.let { out += it }
         }
@@ -125,7 +126,7 @@ private fun PortScannerScreen() {
     error?.let { ErrorText(it) }
     if (running) LoadingRow("${Res.string.scanning.str()} $done / $total")
     if (results.isNotEmpty() || (!running && total > 0)) {
-        ResultCard(title = "${results.size} " + Res.string.net_open.str() + " · $done / $total") {
+        ResultCard(title = stringResource(Res.string.ports_open_count, results.size) + " · $done / $total") {
             results.sortedBy { it.port }.forEach { p ->
                 KeyValueRow("${p.port}/tcp", "${WellKnownPorts.service(p.port) ?: "?"} · ${p.timeMs} ${Res.string.unit_ms.str()}", mono = false, copyable = false)
             }

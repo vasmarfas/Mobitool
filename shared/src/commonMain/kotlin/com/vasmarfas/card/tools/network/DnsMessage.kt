@@ -13,6 +13,7 @@ data class DnsResponse(
     val id: Int,
     val rcode: Int,
     val authoritative: Boolean,
+    val authenticData: Boolean,
     val truncated: Boolean,
     val answers: List<DnsRecord>,
     val authority: List<DnsRecord>,
@@ -45,14 +46,16 @@ object DnsTypes {
 }
 
 object DnsMessage {
+    private const val OPT = 41
+
     fun buildQuery(name: String, type: Int, id: Int = 0x1234, recursion: Boolean = true): ByteArray {
         val out = ArrayList<Byte>(64)
         fun u16(v: Int) {
             out.add((v shr 8).toByte()); out.add(v.toByte())
         }
         u16(id)
-        u16(if (recursion) 0x0100 else 0x0000)
-        u16(1); u16(0); u16(0); u16(0)
+        u16(if (recursion) 0x0120 else 0x0020)
+        u16(1); u16(0); u16(0); u16(1)
         name.trimEnd('.').split('.').filter { it.isNotEmpty() }.forEach { label ->
             val bytes = label.encodeToByteArray()
             out.add(bytes.size.toByte())
@@ -61,6 +64,8 @@ object DnsMessage {
         out.add(0)
         u16(type)
         u16(1)
+        out.add(0)
+        u16(OPT); u16(1232); u16(0); u16(0); u16(0)
         return out.toByteArray()
     }
 
@@ -131,7 +136,7 @@ object DnsMessage {
                         p += 4
                         return v
                     }
-                    "$mname $rname serial=${n32()} refresh=${n32()} retry=${n32()} expire=${n32()} minimum=${n32()}"
+                    "$mname $rname ${n32()} ${n32()} ${n32()} ${n32()} ${n32()}"
                 }
                 33 -> {
                     fun n16(o: Int) = ((bytes[dataStart + o].toInt() and 0xFF) shl 8) or (bytes[dataStart + o + 1].toInt() and 0xFF)
@@ -142,7 +147,7 @@ object DnsMessage {
                     val tagLen = bytes[dataStart + 1].toInt() and 0xFF
                     val tag = bytes.decodeToString(dataStart + 2, dataStart + 2 + tagLen)
                     val value = bytes.decodeToString(dataStart + 2 + tagLen, dataStart + length)
-                    "$flags $tag \"$value\""
+                    "$flags $tag $value"
                 }
                 else -> hex(bytes, dataStart, length)
             }
@@ -158,11 +163,12 @@ object DnsMessage {
         }
         val answers = List(an) { readRecord() }
         val authority = List(ns) { readRecord() }
-        val additional = runCatching { List(ar) { readRecord() } }.getOrDefault(emptyList())
+        val additional = runCatching { List(ar) { readRecord() } }.getOrDefault(emptyList()).filter { it.type != OPT }
         return DnsResponse(
             id = id,
             rcode = flags and 0xF,
             authoritative = flags and 0x0400 != 0,
+            authenticData = flags and 0x0020 != 0,
             truncated = flags and 0x0200 != 0,
             answers = answers,
             authority = authority,

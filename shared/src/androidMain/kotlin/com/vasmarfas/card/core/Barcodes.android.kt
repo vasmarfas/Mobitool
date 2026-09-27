@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -29,8 +30,12 @@ import com.google.zxing.BinaryBitmap
 import com.google.zxing.MultiFormatReader
 import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.HybridBinarizer
+import com.vasmarfas.card.resources.*
+import com.vasmarfas.card.ui.components.ErrorText
 import java.util.concurrent.Executors
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.awaitCancellation
+import org.jetbrains.compose.resources.stringResource
 
 actual val cameraScanning: Boolean
     get() = AppContextHolder.context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
@@ -45,6 +50,7 @@ actual fun CameraScanner(onFound: (ScannedCode) -> Unit, modifier: Modifier) {
     val owner = LocalLifecycleOwner.current
     val found by rememberUpdatedState(onFound)
     var request by remember { mutableStateOf<SurfaceRequest?>(null) }
+    var failed by remember { mutableStateOf(false) }
     LaunchedEffect(owner) {
         val provider = ProcessCameraProvider.awaitInstance(context)
         val preview = Preview.Builder().build().apply { setSurfaceProvider { request = it } }
@@ -60,16 +66,25 @@ actual fun CameraScanner(onFound: (ScannedCode) -> Unit, modifier: Modifier) {
             if (code != null) main.execute { found(code) }
         }
         try {
-            provider.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
+            val camera = if (provider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA)) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
+            provider.bindToLifecycle(owner, camera, preview, analysis)
             awaitCancellation()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            failed = true
         } finally {
             provider.unbind(preview, analysis)
             analysis.clearAnalyzer()
             worker.shutdown()
         }
     }
-    Box(modifier) {
-        request?.let { CameraXViewfinder(surfaceRequest = it, modifier = Modifier.fillMaxSize()) }
+    Box(modifier, contentAlignment = Alignment.Center) {
+        if (failed) {
+            ErrorText(stringResource(Res.string.scan_camera_failed))
+        } else {
+            request?.let { CameraXViewfinder(surfaceRequest = it, modifier = Modifier.fillMaxSize()) }
+        }
     }
 }
 

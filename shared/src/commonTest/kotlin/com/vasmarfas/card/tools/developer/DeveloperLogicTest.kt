@@ -1,5 +1,6 @@
 package com.vasmarfas.card.tools.developer
 
+import com.vasmarfas.card.core.Lang
 import com.vasmarfas.card.resources.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,6 +30,24 @@ class UrlCodecTest {
         assertEquals(listOf("x" to "1", "y" to "два"), url.params)
         assertEquals("frag", url.fragment)
         assertEquals(443, assertNotNull(UrlCodec.parse("https://example.com/")).defaultPort)
+    }
+
+    @Test
+    fun hostWithPortIsNotAScheme() {
+        val api = assertNotNull(UrlCodec.parse("example.com:8080/api"))
+        assertEquals("example.com", api.host)
+        assertEquals(8080, api.port)
+        assertEquals("/api", api.path)
+        assertEquals(3000, assertNotNull(UrlCodec.parse("localhost:3000")).port)
+        assertEquals("192.168.1.1", assertNotNull(UrlCodec.parse("192.168.1.1:8080/admin")).host)
+        assertEquals("tel", assertNotNull(UrlCodec.parse("tel:5551234")).scheme)
+    }
+
+    @Test
+    fun barePercentIsEncoded() {
+        assertEquals("50%25%20off", UrlCodec.encodeFull("50% off"))
+        assertEquals("a%20b", UrlCodec.encodeFull("a%20b"))
+        assertEquals("100%25", UrlCodec.encodeFull("100%"))
     }
 }
 
@@ -91,6 +110,20 @@ class CronTest {
         assertEquals(29, Cron.daysInMonth(2024, 2))
         assertEquals(28, Cron.daysInMonth(2023, 2))
     }
+
+    @Test
+    fun steppedDayFieldJoinsWithAnd() {
+        val stepped = assertNotNull(Cron.parse("0 0 */2 * 1").getOrNull())
+        assertTrue(Cron.describe(stepped, Lang.EN).endsWith("every 2nd day and on Monday"))
+        val listed = assertNotNull(Cron.parse("0 0 1 * 1").getOrNull())
+        assertTrue(Cron.describe(listed, Lang.EN).endsWith("on day-of-month 1 or on Monday"))
+    }
+
+    @Test
+    fun reversedSteppedRangeIsAnError() {
+        assertTrue(Cron.parse("50-10/5 * * * *").isFailure)
+        assertEquals(setOf(10, 25, 40), assertNotNull(Cron.parse("10-50/15 * * * *").getOrNull()).minute.values)
+    }
 }
 
 class CsvTest {
@@ -107,6 +140,8 @@ class CsvTest {
         assertEquals(';', Csv.detectDelimiter("a;b;c\n1;2;3"))
         assertEquals('\t', Csv.detectDelimiter("a\tb\n1\t2"))
         assertEquals(',', Csv.detectDelimiter("a,b\n1,2"))
+        assertEquals(';', Csv.detectDelimiter("1,5;2,5\n3,5;4,5\n"))
+        assertEquals(',', Csv.detectDelimiter("name,note\nAnn,\"a; b\"\nBob,\"c; d\""))
     }
 
     @Test
@@ -119,10 +154,31 @@ class CsvTest {
     }
 
     @Test
+    fun keepsIdentifiersAsText() {
+        val table = Csv.parse("account,phone,zip,share,x,big,price\n40817810099910004312,+79161234567,007,0.5,NaN,1e400,1.50", ',')
+        val json = Csv.toJson(table, hasHeader = true)
+        assertEquals(
+            """[{"account":"40817810099910004312","phone":"+79161234567","zip":"007","share":0.5,"x":"NaN","big":"1e400","price":1.50}]""",
+            JsonTools.minify(json),
+        )
+        assertTrue(JsonTools.format(json, 2).contains("\"price\": 1.50"))
+    }
+
+    @Test
     fun markdownTableHasSeparator() {
         val md = Csv.toMarkdown(Csv.parse("a,b\n1,2", ','), hasHeader = true)
         assertEquals(3, md.lines().size)
         assertTrue(md.lines()[1].contains("---"))
+    }
+}
+
+class JsonToolsTest {
+    @Test
+    fun rejectsDeepNesting() {
+        assertTrue(JsonTools.parse("[".repeat(1000) + "]".repeat(1000)).exceptionOrNull() is JsonTooDeepException)
+        assertTrue(JsonTools.parse("{\"a\":".repeat(5000)).exceptionOrNull() is JsonTooDeepException)
+        assertTrue(JsonTools.parse("[".repeat(JsonTools.MAX_DEPTH) + "]".repeat(JsonTools.MAX_DEPTH)).isSuccess)
+        assertTrue(JsonTools.parse("{\"a\":\"\\\"" + "[".repeat(1000) + "\"}").isSuccess)
     }
 }
 
@@ -142,10 +198,13 @@ class StringEscapesTest {
     @Test
     fun escapeRoundTrip() {
         val text = "line1\nline2\t\"quoted\" \\ back 'single' <tag> & дом"
-        listOf(EscapeTarget.JSON, EscapeTarget.JAVA, EscapeTarget.C, EscapeTarget.JAVASCRIPT, EscapeTarget.HTML, EscapeTarget.XML, EscapeTarget.SHELL, EscapeTarget.SQL, EscapeTarget.URI)
-            .forEach { target ->
-                assertEquals(text, StringEscapes.unescape(StringEscapes.escape(text, target), target), target.title.english())
-            }
+        EscapeTarget.entries.forEach { target ->
+            assertEquals(text, StringEscapes.unescape(StringEscapes.escape(text, target), target), target.title.english())
+        }
+        val controls = "\u0001\u0085\u000C $5 😀"
+        listOf(EscapeTarget.JAVA, EscapeTarget.KOTLIN, EscapeTarget.C, EscapeTarget.JAVASCRIPT).forEach { target ->
+            assertEquals(controls, StringEscapes.unescape(StringEscapes.escape(controls, target), target), target.title.english())
+        }
     }
 
     @Test
@@ -155,6 +214,9 @@ class StringEscapesTest {
         assertEquals("'it'\\''s'", StringEscapes.escape("it's", EscapeTarget.SHELL))
         assertEquals("'it''s'", StringEscapes.escape("it's", EscapeTarget.SQL))
         assertEquals("\\u0414", StringEscapes.escape("Д", EscapeTarget.JAVA))
+        assertEquals("\$5\\f", StringEscapes.escape("\$5\u000C", EscapeTarget.JAVA))
+        assertEquals("\\\$5\\u000C", StringEscapes.escape("\$5\u000C", EscapeTarget.KOTLIN))
+        assertEquals("\\001\\205\\u0414\\U0001F600", StringEscapes.escape("\u0001\u0085Д😀", EscapeTarget.C))
     }
 }
 
@@ -238,5 +300,19 @@ class Base64ToolsTest {
         assertEquals("привет", Base64Tools.decode("0L/RgNC40LLQtdGC")?.decodeToString())
         assertEquals(3, assertNotNull(Base64Tools.decode("-_AA")).size)
         assertNull(Base64Tools.decode("!!!"))
+    }
+}
+
+class MimeTypesTest {
+    @Test
+    fun searchReadsBothLanguages() {
+        assertEquals(listOf("image/png"), MimeTypes.search(".png").map { it.type })
+        assertTrue(MimeTypes.search("archive").any { it.type == "application/zip" })
+        assertTrue(MimeTypes.search("архив").any { it.type == "application/zip" })
+    }
+
+    @Test
+    fun everyDescriptionIsTranslated() {
+        MimeTypes.all.forEach { assertNotNull(it.description.russian(), it.type) }
     }
 }

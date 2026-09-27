@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -27,6 +28,9 @@ import com.vasmarfas.card.ui.components.SwitchRow
 import com.vasmarfas.card.ui.components.ToolInputField
 import com.vasmarfas.card.ui.components.monoFamily
 import com.vasmarfas.card.ui.theme.LocalStatusColors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.stringResource
 
 private enum class RegexTab { TEST, BUILD }
 
@@ -90,16 +94,15 @@ private fun RegexTest(
     var replacement by rememberSaveable { mutableStateOf("") }
     var dotAll by rememberSaveable { mutableStateOf(false) }
     var showCheatSheet by rememberSaveable { mutableStateOf(false) }
-    val result = remember(pattern, text, replacement, ignoreCase, multiline, dotAll) {
-        RegexTester.run(pattern, text, ignoreCase, multiline, dotAll, replacement.ifEmpty { null })
-    }
+    val result = rememberRegexRun(pattern, text, ignoreCase, multiline, dotAll, replacement.ifEmpty { null })
+    val error = result?.errorText()
     ToolInputField(
         value = pattern,
         onValueChange = onPattern,
         label = Res.string.pattern.str(),
         placeholder = "(\\w+)@(\\w+)\\.com",
-        isError = result.error != null,
-        supportingText = result.error,
+        isError = error != null,
+        supportingText = error,
         monospace = true,
     )
     SwitchRow(Res.string.ignore_case_i.str(), ignoreCase, onIgnoreCase)
@@ -124,23 +127,24 @@ private fun RegexTest(
             RegexTester.cheatSheet.forEach { (token, description) -> KeyValueRow(token, description.str(), mono = false, copyable = false) }
         }
     }
-    if (pattern.isEmpty() || result.error != null) return
+    if (pattern.isEmpty() || result == null || error != null) return
     val matches = result.matches
     KeyValueRow(Res.string.matches.str(), if (matches.size >= RegexTester.MAX_MATCHES) "${matches.size}+" else matches.size.toString(), copyable = false)
     if (matches.isEmpty()) return
     val status = LocalStatusColors.current
     val colors = listOf(status.series[2].copy(alpha = 0.3f), status.warn.copy(alpha = 0.35f))
-    val highlighted = remember(text, matches) {
+    val highlighted = remember(result) {
+        val source = result.text
         buildAnnotatedString {
             var pos = 0
             matches.forEachIndexed { i, m ->
-                if (m.start > pos) append(text.substring(pos, m.start))
+                if (m.start > pos) append(source.substring(pos, m.start))
                 if (m.end > m.start) {
-                    withStyle(SpanStyle(background = colors[i % 2])) { append(text.substring(m.start, m.end)) }
+                    withStyle(SpanStyle(background = colors[i % 2])) { append(source.substring(m.start, m.end)) }
                 }
                 pos = maxOf(pos, m.end)
             }
-            if (pos < text.length) append(text.substring(pos))
+            if (pos < source.length) append(source.substring(pos))
         }
     }
     ResultCard(Res.string.highlighted.str()) {
@@ -157,4 +161,19 @@ private fun RegexTest(
         )
     }
     if (result.replaced != null) OutputCard(result.replaced, title = Res.string.replacement_preview.str())
+}
+
+@Composable
+fun rememberRegexRun(pattern: String, text: String, ignoreCase: Boolean, multiline: Boolean, dotAll: Boolean, replacement: String?): RegexRunResult? {
+    val result by produceState<RegexRunResult?>(null, pattern, text, ignoreCase, multiline, dotAll, replacement) {
+        value = withContext(Dispatchers.Default) { RegexTester.run(pattern, text, ignoreCase, multiline, dotAll, replacement) }
+    }
+    return result
+}
+
+@Composable
+fun RegexRunResult.errorText(): String? = when {
+    timedOut -> stringResource(Res.string.regex_timeout, RegexTester.TIME_LIMIT_MS / 1000)
+    error != null -> stringResource(Res.string.invalid_regex, error)
+    else -> null
 }

@@ -48,8 +48,8 @@
       },
       "bullets": [
         { "en": "Android: Jetpack Compose, Room, Koin, Firebase Analytics / Crashlytics / Cloud Messaging", "ru": "Android: Jetpack Compose, Room, Koin, Firebase Analytics / Crashlytics / Cloud Messaging" },
-        { "en": "iOS: Ktor client, Room, CrashKiOS; desktop: Compose Desktop, SQLite; web: Compose for Web (Wasm)", "ru": "iOS: Ktor client, Room, CrashKiOS; десктоп: Compose Desktop, SQLite; веб: Compose for Web (Wasm)" },
-        { "en": "Packaging and signing: AAB/APK, IPA, MSI/EXE/MSIX, DMG/PKG, DEB; GitLab CI runners on Windows and macOS", "ru": "Сборка и подпись: AAB/APK, IPA, MSI/EXE/MSIX, DMG/PKG, DEB; раннеры GitLab CI на Windows и macOS" }
+        { "en": "iOS: Ktor client, Room, CrashKiOS. Desktop: Compose Desktop, SQLite. Web: Compose for Web (Wasm)", "ru": "iOS: Ktor client, Room, CrashKiOS. Десктоп: Compose Desktop, SQLite. Веб: Compose for Web (Wasm)" },
+        { "en": "Packaging and signing: AAB/APK, IPA, MSI/EXE/MSIX, DMG/PKG, DEB. GitLab CI runners on Windows and macOS", "ru": "Сборка и подпись: AAB/APK, IPA, MSI/EXE/MSIX, DMG/PKG, DEB. Раннеры GitLab CI на Windows и macOS" }
       ],
       "tags": ["Kotlin Multiplatform", "Compose Multiplatform", "Ktor", "Koin", "Room", "CI/CD"]
     },

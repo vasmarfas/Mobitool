@@ -22,6 +22,7 @@ import com.vasmarfas.card.core.whoisQuery
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
+import com.vasmarfas.card.tools.developer.Punycode
 import com.vasmarfas.card.ui.components.ActionButton
 import com.vasmarfas.card.ui.components.ErrorText
 import com.vasmarfas.card.ui.components.KeyValueRow
@@ -85,7 +86,7 @@ object Rdap {
             q.startsWith("as") && q.drop(2).all { it.isDigit() } -> "https://rdap.org/autnum/${q.drop(2)}"
             q.all { it.isDigit() } -> "https://rdap.org/autnum/$q"
             looksLikeIp(q) || q.contains('/') -> "https://rdap.org/ip/$q"
-            else -> "https://rdap.org/domain/$q"
+            else -> "https://rdap.org/domain/${Punycode.toAscii(q)}"
         }
     }
 
@@ -165,13 +166,13 @@ private fun WhoisScreen() {
                 if (response.status.value >= 400) error("HTTP ${response.status.value}: ${text.take(200)}")
                 val json = Net.json.parseToJsonElement(text).jsonObject
                 WhoisFacts(Rdap.facts(json), prettyJson.encodeToString(JsonElement.serializer(), json))
-            }.onSuccess { rdap = it }.onFailure { error = it.message ?: it.toString() }
+            }.onSuccess { rdap = it }.onFailure { error = networkErrorText(it) }
             loading = false
         }
     }
 
     fun runWhois() {
-        val q = hostFrom(query)
+        val q = hostFrom(query).let { if (it.all { c -> c.code < 0x80 }) it else Punycode.toAscii(it) }
         if (q.isEmpty()) return
         loading = true; error = null; whois = null
         scope.launch {
@@ -185,7 +186,7 @@ private fun WhoisScreen() {
                         "% $referral\n$detail\n\n% $second\n" + runCatching { whoisQuery(second, q, 8000) }.getOrDefault("")
                     } else "% $referral\n$detail"
                 } else "% whois.iana.org\n$first"
-            }.onSuccess { whois = it }.onFailure { error = it.message ?: it.toString() }
+            }.onSuccess { whois = it }.onFailure { error = networkErrorText(it) }
             loading = false
         }
     }
@@ -208,7 +209,7 @@ private fun WhoisScreen() {
     error?.let { ErrorText(it) }
     rdap?.let { facts ->
         ResultCard(title = "RDAP") {
-            facts.rows.forEach { (k, v) -> KeyValueRow(rdapLabels[k]?.str() ?: k, v, mono = false) }
+            facts.rows.forEach { (k, v) -> KeyValueRow(rdapLabels.entries.firstOrNull { it.key.equals(k, ignoreCase = true) }?.value?.str() ?: k, v, mono = false) }
         }
         ResultCard(title = Res.string.raw_response.str()) { MonoText(facts.raw) }
     }

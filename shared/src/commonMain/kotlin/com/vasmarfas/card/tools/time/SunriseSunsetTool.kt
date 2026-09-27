@@ -46,17 +46,17 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import org.jetbrains.compose.resources.StringResource
 
-private class City(val name: StringResource, val lat: Double, val lon: Double)
+private class City(val name: StringResource, val lat: Double, val lon: Double, val zone: String)
 
 private const val LOCATE_TIMEOUT_MS = 20_000L
 
 private val cities = listOf(
-    City(Res.string.city_simferopol, 44.95, 34.10),
-    City(Res.string.city_moscow, 55.7558, 37.6173),
-    City(Res.string.city_saint_petersburg, 59.9343, 30.3351),
-    City(Res.string.city_london, 51.5074, -0.1278),
-    City(Res.string.city_new_york, 40.7128, -74.0060),
-    City(Res.string.city_tokyo, 35.6762, 139.6503),
+    City(Res.string.city_simferopol, 44.95, 34.10, "Europe/Simferopol"),
+    City(Res.string.city_moscow, 55.7558, 37.6173, "Europe/Moscow"),
+    City(Res.string.city_saint_petersburg, 59.9343, 30.3351, "Europe/Moscow"),
+    City(Res.string.city_london, 51.5074, -0.1278, "Europe/London"),
+    City(Res.string.city_new_york, 40.7128, -74.0060, "America/New_York"),
+    City(Res.string.city_tokyo, 35.6762, 139.6503, "Asia/Tokyo"),
 )
 
 val sunriseSunsetTool = Tool(
@@ -73,13 +73,15 @@ private fun SunriseSunsetScreen() {
     var latText by rememberSaveable { mutableStateOf("44.95") }
     var lonText by rememberSaveable { mutableStateOf("34.10") }
     var dateText by rememberSaveable { mutableStateOf(today().iso()) }
+    var zone by rememberSaveable { mutableStateOf(systemTimeZoneId()) }
+    var typedOffset by rememberSaveable { mutableStateOf<String?>(null) }
     val date = parseDate(dateText)
-    val systemOffsetHours = remember(date) {
+    val zoneOffsetHours = remember(date, zone) {
         val d = date ?: today()
         val noonUtc = LocalDateTime(d, LocalTime(12, 0)).toInstant(TimeZone.UTC).epochSeconds
-        (timeZoneOffsetSeconds(systemTimeZoneId(), noonUtc) ?: 0) / 3600.0
+        (timeZoneOffsetSeconds(zone, noonUtc) ?: 0) / 3600.0
     }
-    var offsetText by rememberSaveable { mutableStateOf(systemOffsetHours.fmt(2)) }
+    val offsetText = typedOffset ?: zoneOffsetHours.fmt(2)
     var locating by remember { mutableStateOf(false) }
     var locateError by remember { mutableStateOf<String?>(null) }
     var refused by remember { mutableStateOf(false) }
@@ -97,7 +99,8 @@ private fun SunriseSunsetScreen() {
                     .onSuccess {
                         latText = it.latitude.fmt(4)
                         lonText = it.longitude.fmt(4)
-                        offsetText = systemOffsetHours.fmt(2)
+                        zone = systemTimeZoneId()
+                        typedOffset = null
                     }
                     .onFailure { locateError = if (it is TimeoutCancellationException) noFix else it.message ?: noFix }
             }
@@ -111,6 +114,8 @@ private fun SunriseSunsetScreen() {
         onSelect = {
             latText = it.lat.toString()
             lonText = it.lon.toString()
+            zone = it.zone
+            typedOffset = null
         },
         label = { it.name.str() },
     )
@@ -135,7 +140,7 @@ private fun SunriseSunsetScreen() {
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         DateField(dateText, { dateText = it }, Res.string.date.str(), Modifier.weight(1f), isError = date == null)
-        NumberField(offsetText, { offsetText = it }, Res.string.utc_offset_h.str(), Modifier.weight(1f))
+        NumberField(offsetText, { typedOffset = it }, Res.string.utc_offset_h.str(), Modifier.weight(1f))
     }
 
     val lat = latText.toDoubleLenient()

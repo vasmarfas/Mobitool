@@ -2,10 +2,9 @@ package com.vasmarfas.card.core
 
 import android.media.AudioAttributes
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioTrack
 import kotlin.concurrent.thread
-
-private val candidateRates = intArrayOf(192_000, 96_000, 48_000, 44_100)
 
 private fun buildTrack(sampleRate: Int, bufferBytes: Int): AudioTrack = AudioTrack.Builder()
     .setAudioAttributes(
@@ -25,15 +24,8 @@ private fun buildTrack(sampleRate: Int, bufferBytes: Int): AudioTrack = AudioTra
     .setTransferMode(AudioTrack.MODE_STREAM)
     .build()
 
-private val negotiatedRate: Int by lazy {
-    candidateRates.firstOrNull { rate ->
-        val minimum = AudioTrack.getMinBufferSize(
-            rate,
-            AudioFormat.CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-        )
-        minimum > 0 && runCatching { buildTrack(rate, minimum).release() }.isSuccess
-    } ?: 44_100
+private val outputRate: Int by lazy {
+    AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC).takeIf { it > 0 } ?: 48_000
 }
 
 private val state = OscillatorState()
@@ -41,14 +33,14 @@ private val state = OscillatorState()
 @Volatile
 private var worker: Thread? = null
 
-actual fun toneSampleRate(): Int = negotiatedRate
+actual fun toneSampleRate(): Int = outputRate
 
 actual fun startTone(frequencyHz: Double, waveform: Waveform, volume: Float) {
     state.set(frequencyHz, waveform, volume)
     if (worker != null) return
     worker = thread(isDaemon = true, name = "oscillator") {
         runCatching {
-            val rate = negotiatedRate
+            val rate = outputRate
             val minimum = AudioTrack.getMinBufferSize(
                 rate,
                 AudioFormat.CHANNEL_OUT_MONO,

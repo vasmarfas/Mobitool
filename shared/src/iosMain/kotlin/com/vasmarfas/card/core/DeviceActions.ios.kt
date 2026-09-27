@@ -36,7 +36,10 @@ actual fun setSystemBarsHidden(hidden: Boolean) {
     SystemBarsBridge.onChange?.invoke(hidden)
 }
 
-actual fun setSystemBarsDark(dark: Boolean) {
-    UIApplication.sharedApplication.keyWindow?.overrideUserInterfaceStyle =
-        if (dark) UIUserInterfaceStyle.UIUserInterfaceStyleDark else UIUserInterfaceStyle.UIUserInterfaceStyleLight
+actual fun setSystemBarsDark(dark: Boolean, followSystem: Boolean) {
+    UIApplication.sharedApplication.keyWindow?.overrideUserInterfaceStyle = when {
+        followSystem -> UIUserInterfaceStyle.UIUserInterfaceStyleUnspecified
+        dark -> UIUserInterfaceStyle.UIUserInterfaceStyleDark
+        else -> UIUserInterfaceStyle.UIUserInterfaceStyleLight
+    }
 }

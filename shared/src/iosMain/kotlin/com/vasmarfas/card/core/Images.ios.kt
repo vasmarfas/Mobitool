@@ -23,7 +23,7 @@ import platform.UIKit.UIGraphicsPushContext
 import platform.UIKit.UIImage
 
 @OptIn(ExperimentalForeignApi::class)
-actual suspend fun decodeRawImage(bytes: ByteArray): RawImage? = withContext(Dispatchers.Default) {
+actual suspend fun decodeRawImage(bytes: ByteArray, maxSide: Int): RawImage? = withContext(Dispatchers.Default) {
     skiaDecode(bytes)?.let { return@withContext RawImage(it, oriented = true) }
     val data = bytes.usePinned { NSData.dataWithBytes(it.addressOf(0), bytes.size.convert()) }
     val image = UIImage.imageWithData(data) ?: return@withContext null

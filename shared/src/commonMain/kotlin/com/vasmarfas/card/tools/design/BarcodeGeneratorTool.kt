@@ -94,7 +94,7 @@ private fun BarcodeCreator() {
         ErrorText(error.str())
         return
     }
-    val value = data.trim()
+    val value = data.trim().let { if (type == BarcodeType.Code39) it.uppercase() else it }
     val painter = rememberBarcodePainter(
         data = value,
         type = type,

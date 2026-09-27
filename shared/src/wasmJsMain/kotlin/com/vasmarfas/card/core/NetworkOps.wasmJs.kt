@@ -8,7 +8,6 @@ actual fun platformNetCapabilities() = PlatformNetCapabilities(
     tcp = false,
     udp = false,
     interfaces = false,
-    tls = false,
 )
 
 actual suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: Int?): PingReply =
@@ -39,8 +38,10 @@ actual suspend fun whoisQuery(server: String, query: String, timeoutMs: Int): St
 
 actual suspend fun udpQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray? = null
 
+actual suspend fun tcpDnsQuery(host: String, payload: ByteArray, timeoutMs: Int): ByteArray? = null
+
 actual suspend fun ssdpDiscover(timeoutMs: Int): List<DiscoveredDevice> = emptyList()
 
 actual suspend fun mdnsQuery(serviceName: String, timeoutMs: Int): List<ByteArray> = emptyList()
 
-actual fun wifiDetails(): Map<String, String> = emptyMap()
+actual suspend fun wifiDetails(): Map<String, String> = emptyMap()

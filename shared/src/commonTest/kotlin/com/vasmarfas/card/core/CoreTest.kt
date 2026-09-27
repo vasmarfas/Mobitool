@@ -18,6 +18,8 @@ class FormatTest {
         assertEquals("-0.5", (-0.5).fmt(1))
         assertEquals("1 234 567.5", 1234567.5.fmt(1, grouping = true))
         assertEquals("NaN", Double.NaN.fmt())
+        assertEquals("92 000 000 000 000 000", 9.2e16.fmt(2, grouping = true))
+        assertEquals("2.25e18", 2.25e18.fmt(2, grouping = true))
     }
 
     @Test
@@ -33,6 +35,14 @@ class FormatTest {
         assertEquals("1 KiB", formatBytes(1024))
         assertEquals("1.5 MiB", formatBytes(1572864))
         assertEquals("1 kB", formatBytes(1000, binary = false))
+        appLang = Lang.RU
+        try {
+            assertEquals("512 Б", formatBytes(512))
+            assertEquals("1.5 МиБ", formatBytes(1572864))
+            assertEquals("2.87 МБ", formatBytes(2_874_855, binary = false))
+        } finally {
+            appLang = Lang.EN
+        }
     }
 
     @Test
@@ -51,6 +61,14 @@ class FormatTest {
         assertEquals("71K", formatCount(70826))
         assertEquals("1M", formatCount(999_600))
         assertEquals("1.2M", formatCount(1_234_567))
+        appLang = Lang.RU
+        try {
+            assertEquals("8.4\u00A0тыс.", formatCount(8442))
+            assertEquals("71\u00A0тыс.", formatCount(70826))
+            assertEquals("1.2\u00A0млн", formatCount(1_234_567))
+        } finally {
+            appLang = Lang.EN
+        }
         assertEquals(10_000, parseCount("10K+"))
         assertEquals(8_400, parseCount("8,4K"))
         assertEquals(1_200_000, parseCount("1.2M"))
@@ -63,7 +81,18 @@ class FormatTest {
     fun lenientDouble() {
         assertEquals(1.5, "1,5".toDoubleLenient())
         assertEquals(1000.0, "1 000".toDoubleLenient())
+        assertEquals(250_000.0, "250,000".toDoubleLenient())
+        assertEquals(0.125, "0,125".toDoubleLenient())
+        assertEquals(-1_234_567.5, "-1,234,567.5".toDoubleLenient())
+        assertEquals(1_234_567.89, "1\u00A0234\u202F567,89".toDoubleLenient())
         assertNull("abc".toDoubleLenient())
+        appLang = Lang.RU
+        try {
+            assertEquals(250.0, "250,000".toDoubleLenient())
+            assertEquals(1_234_567.89, "1\u00A0234\u00A0567,89".toDoubleLenient())
+        } finally {
+            appLang = Lang.EN
+        }
     }
 }
 

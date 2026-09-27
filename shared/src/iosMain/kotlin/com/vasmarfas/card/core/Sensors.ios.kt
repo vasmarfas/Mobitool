@@ -2,6 +2,7 @@ package com.vasmarfas.card.core
 
 import kotlin.math.PI
 import kotlin.math.log10
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.alloc
@@ -43,6 +44,7 @@ import platform.posix.utsname
 
 private val motionManager = CMMotionManager()
 
+// Core Motion reports -1 g on z for a phone lying face up, Android and the W3C report +9.81 m/s²
 private const val GRAVITY = 9.80665
 
 @OptIn(ExperimentalForeignApi::class)
@@ -70,7 +72,7 @@ actual fun sensorFlow(type: SensorType): Flow<SensorReading> = callbackFlow {
             motionManager.accelerometerUpdateInterval = 0.05
             motionManager.startAccelerometerUpdatesToQueue(queue) { data, _ ->
                 data?.acceleration?.useContents {
-                    trySend(SensorReading(floatArrayOf((x * GRAVITY).toFloat(), (y * GRAVITY).toFloat(), (z * GRAVITY).toFloat()), currentEpochMillis()))
+                    trySend(SensorReading(floatArrayOf((-x * GRAVITY).toFloat(), (-y * GRAVITY).toFloat(), (-z * GRAVITY).toFloat()), currentEpochMillis()))
                 }
             }
             awaitClose { motionManager.stopAccelerometerUpdates() }
@@ -117,11 +119,11 @@ actual fun sensorFlow(type: SensorType): Flow<SensorReading> = callbackFlow {
                 if (motion == null) return@startDeviceMotionUpdatesUsingReferenceFrame
                 if (type == SensorType.GRAVITY) {
                     motion.gravity.useContents {
-                        trySend(SensorReading(floatArrayOf((x * GRAVITY).toFloat(), (y * GRAVITY).toFloat(), (z * GRAVITY).toFloat()), currentEpochMillis()))
+                        trySend(SensorReading(floatArrayOf((-x * GRAVITY).toFloat(), (-y * GRAVITY).toFloat(), (-z * GRAVITY).toFloat()), currentEpochMillis()))
                     }
                 } else {
                     val attitude = motion.attitude
-                    val azimuth = ((-attitude.yaw * 180.0 / PI) + 360.0) % 360.0
+                    val azimuth = (270.0 - attitude.yaw * 180.0 / PI) % 360.0
                     val pitch = attitude.pitch * 180.0 / PI
                     val roll = attitude.roll * 180.0 / PI
                     trySend(SensorReading(floatArrayOf(azimuth.toFloat(), pitch.toFloat(), roll.toFloat()), currentEpochMillis()))
@@ -210,7 +212,7 @@ actual suspend fun batteryInfo(): BatteryInfo? {
         UIDeviceBatteryState.UIDeviceBatteryStateUnplugged -> "discharging"
         else -> "unknown"
     }
-    return BatteryInfo((level * 100).toInt(), charging, listOf("Status" to status))
+    return BatteryInfo((level * 100).roundToInt(), charging, listOf("Status" to status))
 }
 
 private fun torchDevice(): AVCaptureDevice? =
@@ -269,6 +271,15 @@ actual fun microphoneLevelFlow(): Flow<Double> = microphoneChunks().map { chunk 
     20 * log10(rms.coerceAtLeast(1e-9)) + 90
 }
 
+private var brightnessBefore: Double? = null
+
 actual fun setScreenBrightness(value: Float?) {
-    if (value != null) UIScreen.mainScreen.brightness = value.toDouble()
+    val screen = UIScreen.mainScreen
+    if (value == null) {
+        brightnessBefore?.let { screen.brightness = it }
+        brightnessBefore = null
+    } else {
+        if (brightnessBefore == null) brightnessBefore = screen.brightness
+        screen.brightness = value.toDouble()
+    }
 }

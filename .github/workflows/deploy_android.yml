@@ -9,7 +9,7 @@ on:
         required: true
         default: '1.0.0'
       version_code:
-        description: 'versionCode (empty = from the version, 1.4.12 is 10412)'
+        description: 'versionCode (empty = from the version, 1.4.12 is 1041299, 1.4.12-rc2 is 1041202)'
         required: false
         default: ''
       publish_google_play:
@@ -117,7 +117,13 @@ jobs:
               *) name="0.0.0-dev" ;;
             esac
           fi
-          derived=$(printf '%s' "${name%%-*}" | awk -F. '{ print ($1 * 100 + $2) * 100 + $3 }')
+          derived=$(printf '%s' "$name" | awk '{
+            split($0, part, "-")
+            split(part[1], v, ".")
+            stage = 99
+            if (index($0, "-")) { stage = 0; if (match($0, /[0-9]+$/)) stage = substr($0, RSTART) }
+            print ((v[1] * 100 + v[2]) * 100 + v[3]) * 100 + stage
+          }')
           code="${INPUT_CODE:-$derived}"
           [ "$code" != 0 ] || code="$RUN_NUMBER"
           {

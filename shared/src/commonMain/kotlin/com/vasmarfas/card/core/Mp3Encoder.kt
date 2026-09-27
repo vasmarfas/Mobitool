@@ -30,9 +30,7 @@ private val CRC16 = IntArray(256) { byte ->
     crc
 }
 
-// CBR, MPEG-1 and MPEG-2 LSF Layer III. Frame and byte counts for the Info frame are known only after
-// finish(), so the stream starts with a silent frame of the same size and infoFrame() goes over it.
-// Output lags the input by DELAY samples, the LAME tag carries it with the end padding
+// the first frame is a silent placeholder, infoFrame() overwrites it once finish() knows the totals
 class Mp3Encoder(private val sampleRate: Int, private val channels: Int, private val bitrateKbps: Int) {
     init {
         require(channels == 1 || channels == 2) { "MP3 supports 1 or 2 channels, got $channels" }
@@ -179,9 +177,7 @@ class Mp3Encoder(private val sampleRate: Int, private val channels: Int, private
         return tag
     }
 
-    // an attack at input time t lands on subband sample (t + 225) / 32, 225 being the centre of the analysis
-    // window. Short windows cover the first 12 subband samples of the granule, a later attack needs short
-    // blocks in the next one
+    // an attack at t hits subband sample (t + 225) / 32, short windows cover only the first 12 of a granule
     private fun analyzeGranule() {
         val g = analyzed++
         shortNeeded[(g + 1) and 3] = false

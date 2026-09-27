@@ -141,7 +141,7 @@ private fun CountdownTimerScreen() {
             options = TimerMode.entries,
             selected = mode,
             onSelect = { mode = it },
-            label = { if (it == TimerMode.TIMER) Res.string.timer.str() else "Pomodoro" },
+            label = { if (it == TimerMode.TIMER) Res.string.timer.str() else Res.string.pomodoro.str() },
         )
         if (mode == TimerMode.TIMER) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -161,9 +161,10 @@ private fun CountdownTimerScreen() {
             )
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                NumberField(workText, { workText = it }, Res.string.work_min.str(), Modifier.weight(1f), isError = workMs <= 0)
-                NumberField(breakText, { breakText = it }, Res.string.break_min.str(), Modifier.weight(1f), isError = breakMs <= 0)
-                NumberField(longText, { longText = it }, Res.string.long_break_min.str(), Modifier.weight(1f), isError = longMs < 0)
+                val min = Res.string.unit_min.str()
+                NumberField(workText, { workText = it }, Res.string.work.str(), Modifier.weight(1f), suffix = min, isError = workMs <= 0)
+                NumberField(breakText, { breakText = it }, Res.string.break_.str(), Modifier.weight(1f), suffix = min, isError = breakMs <= 0)
+                NumberField(longText, { longText = it }, Res.string.long_break.str(), Modifier.weight(1f), suffix = min, isError = longMs < 0)
             }
             Text(Res.string.long_break_hint.str(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

@@ -22,6 +22,7 @@ import kotlinx.cinterop.sizeOf
 import kotlinx.cinterop.toKString
 import kotlinx.cinterop.value
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import platform.darwin.freeifaddrs
 import platform.darwin.getifaddrs
@@ -78,7 +79,6 @@ actual fun platformNetCapabilities() = PlatformNetCapabilities(
     tcp = true,
     udp = true,
     interfaces = true,
-    tls = false,
 )
 
 @OptIn(ExperimentalForeignApi::class)
@@ -234,7 +234,7 @@ private fun awaitIcmpReply(descriptor: Int, sequence: Int, timeoutMs: Int, targe
 }
 
 @OptIn(ExperimentalForeignApi::class)
-actual suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: Int?): PingReply = withContext(Dispatchers.Default) {
+actual suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: Int?): PingReply = withContext(Dispatchers.IO) {
     var reply = PingReply(sequence, null, null, null, null)
     resolveFirst(host, 0, SOCK_DGRAM, AF_INET) { info ->
         val target = info.pointed.ai_addr?.let { numericHost(it, info.pointed.ai_addrlen.convert()) }
@@ -264,7 +264,7 @@ actual suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: In
 }
 
 @OptIn(ExperimentalForeignApi::class)
-actual suspend fun tcpConnect(host: String, port: Int, timeoutMs: Int): Long? = withContext(Dispatchers.Default) {
+actual suspend fun tcpConnect(host: String, port: Int, timeoutMs: Int): Long? = withContext(Dispatchers.IO) {
     var result: Long? = null
     val started = currentEpochMillis()
     resolveFirst(host, port, SOCK_STREAM) { info ->
@@ -281,7 +281,7 @@ actual suspend fun tcpConnect(host: String, port: Int, timeoutMs: Int): Long? = 
 }
 
 @OptIn(ExperimentalForeignApi::class)
-actual suspend fun resolveHost(host: String): List<String> = withContext(Dispatchers.Default) {
+actual suspend fun resolveHost(host: String): List<String> = withContext(Dispatchers.IO) {
     val addresses = mutableListOf<String>()
     memScoped {
         val hints = alloc<addrinfo>()
@@ -306,7 +306,7 @@ actual suspend fun resolveHost(host: String): List<String> = withContext(Dispatc
 }
 
 @OptIn(ExperimentalForeignApi::class)
-actual suspend fun reverseLookup(address: String): String? = withContext(Dispatchers.Default) {
+actual suspend fun reverseLookup(address: String): String? = withContext(Dispatchers.IO) {
     var name: String? = null
     resolveFirst(address, 0, SOCK_STREAM) { info ->
         memScoped {
@@ -321,7 +321,7 @@ actual suspend fun reverseLookup(address: String): String? = withContext(Dispatc
 }
 
 @OptIn(ExperimentalForeignApi::class)
-actual suspend fun wakeOnLan(mac: String, broadcast: String, port: Int): Boolean = withContext(Dispatchers.Default) {
+actual suspend fun wakeOnLan(mac: String, broadcast: String, port: Int): Boolean = withContext(Dispatchers.IO) {
     val bytes = mac.replace(Regex("[^0-9A-Fa-f]"), "").chunked(2).mapNotNull { it.toIntOrNull(16)?.toByte() }
     if (bytes.size != 6) return@withContext false
     val packet = ByteArray(6 + 16 * 6) { i -> if (i < 6) 0xFF.toByte() else bytes[(i - 6) % 6] }
@@ -388,7 +388,7 @@ actual suspend fun tlsHandshake(host: String, port: Int, timeoutMs: Int): TlsInf
     throw UnsupportedOperationException("unsupported")
 
 @OptIn(ExperimentalForeignApi::class)
-actual suspend fun whoisQuery(server: String, query: String, timeoutMs: Int): String = withContext(Dispatchers.Default) {
+actual suspend fun whoisQuery(server: String, query: String, timeoutMs: Int): String = withContext(Dispatchers.IO) {
     var response = ""
     resolveFirst(server, 43, SOCK_STREAM) { info ->
         val descriptor = socket(info.pointed.ai_family, info.pointed.ai_socktype, info.pointed.ai_protocol)
@@ -413,7 +413,7 @@ actual suspend fun whoisQuery(server: String, query: String, timeoutMs: Int): St
 }
 
 @OptIn(ExperimentalForeignApi::class)
-actual suspend fun udpQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray? = withContext(Dispatchers.Default) {
+actual suspend fun udpQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray? = withContext(Dispatchers.IO) {
     var result: ByteArray? = null
     resolveFirst(host, port, SOCK_DGRAM) { info ->
         val descriptor = socket(info.pointed.ai_family, info.pointed.ai_socktype, info.pointed.ai_protocol)
@@ -431,8 +431,39 @@ actual suspend fun udpQuery(host: String, port: Int, payload: ByteArray, timeout
     result
 }
 
+@OptIn(ExperimentalForeignApi::class)
+private fun receiveExactly(descriptor: Int, count: Int): ByteArray? {
+    val buffer = ByteArray(count)
+    var filled = 0
+    while (filled < count) {
+        val read = recv(descriptor, buffer.refTo(filled), (count - filled).convert(), 0)
+        if (read <= 0) return null
+        filled += read.toInt()
+    }
+    return buffer
+}
+
+@OptIn(ExperimentalForeignApi::class)
+actual suspend fun tcpDnsQuery(host: String, payload: ByteArray, timeoutMs: Int): ByteArray? = withContext(Dispatchers.IO) {
+    var result: ByteArray? = null
+    resolveFirst(host, 53, SOCK_STREAM) { info ->
+        val descriptor = socket(info.pointed.ai_family, info.pointed.ai_socktype, info.pointed.ai_protocol)
+        if (descriptor >= 0) {
+            setTimeout(descriptor, timeoutMs)
+            if (connectWithin(descriptor, info.pointed.ai_addr, info.pointed.ai_addrlen, timeoutMs)) {
+                val request = byteArrayOf((payload.size shr 8).toByte(), payload.size.toByte()) + payload
+                send(descriptor, request.refTo(0), request.size.convert(), 0)
+                val length = receiveExactly(descriptor, 2)
+                if (length != null) result = receiveExactly(descriptor, ((length[0].toInt() and 0xFF) shl 8) or (length[1].toInt() and 0xFF))
+            }
+            close(descriptor)
+        }
+    }
+    result
+}
+
 actual suspend fun ssdpDiscover(timeoutMs: Int): List<DiscoveredDevice> = emptyList()
 
 actual suspend fun mdnsQuery(serviceName: String, timeoutMs: Int): List<ByteArray> = emptyList()
 
-actual fun wifiDetails(): Map<String, String> = emptyMap()
+actual suspend fun wifiDetails(): Map<String, String> = emptyMap()

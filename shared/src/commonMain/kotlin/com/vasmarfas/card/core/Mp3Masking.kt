@@ -36,9 +36,7 @@ private fun spreading(dz: Double): Double {
     return if (db < -100) 0.0 else 10.0.pow(db / 10)
 }
 
-// Johnston: band energies spread over Bark with the Schroeder function and lowered by 5.5 dB for noise
-// up to 14.5 dB + z for tones, tonality from the spectral flatness. Short blocks use a fixed offset
-// and spread within each window, Terhardt's threshold is the floor
+// Johnston's model with Schroeder spreading, Terhardt's threshold is the floor
 internal class Mp3Masking(sampleRate: Int, private val longEdges: IntArray, shortEdges: IntArray) {
     private val longBands = longEdges.size - 1
     private val shortBands = shortEdges.size - 1

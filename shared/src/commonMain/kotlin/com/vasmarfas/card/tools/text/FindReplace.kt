@@ -23,7 +23,7 @@ object FindReplace {
         val regex = try {
             Regex(if (useRegex) find else Regex.escape(find), options)
         } catch (e: Exception) {
-            return FindReplaceResult(text, 0, e.message ?: "Invalid regular expression")
+            return FindReplaceResult(text, 0, e.message.orEmpty())
         }
         var count = 0
         val output = try {
@@ -36,7 +36,7 @@ object FindReplace {
                 }
             }
         } catch (e: Exception) {
-            return FindReplaceResult(text, 0, e.message ?: "Invalid regular expression")
+            return FindReplaceResult(text, 0, e.message.orEmpty())
         }
         return FindReplaceResult(output, count)
     }

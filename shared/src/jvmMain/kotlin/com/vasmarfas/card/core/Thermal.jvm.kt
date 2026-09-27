@@ -2,8 +2,7 @@ package com.vasmarfas.card.core
 
 import java.io.File
 
-// Linux has sensors under /sys/class/hwmon in millidegrees, readable without privileges. Windows needs
-// WMI through a driver normal processes cannot load and macOS the private SMC, so both report nothing
+// only Linux lets a normal process read sensors, hwmon gives millidegrees
 private val hwmonRoot = File("/sys/class/hwmon")
 
 private fun hwmonSensors(): List<Pair<File, String>> = hwmonRoot.listFiles().orEmpty()
@@ -17,7 +16,7 @@ private fun hwmonSensors(): List<Pair<File, String>> = hwmonRoot.listFiles().orE
             }
     }
 
-// package and die sensors track the SoC; anything else can be a chipset or drive probe
+// package and die sensors track the SoC, anything else can be a chipset or drive probe
 private val preferred = listOf("package", "tctl", "tdie", "cpu", "die", "core")
 
 actual fun thermalSupported(): Boolean = hwmonRoot.isDirectory && hwmonSensors().isNotEmpty()

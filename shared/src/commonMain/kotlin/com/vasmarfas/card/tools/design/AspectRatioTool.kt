@@ -102,7 +102,7 @@ private fun RatioSection() {
             KeyValueRow(Res.string.ratio.str(), "$w:$h")
             KeyValueRow(Res.string.decimal.str(), "${ratio.fmt(4)}:1")
             KeyValueRow(Res.string.closest_common.str(), Ratios.closest(ratio) ?: "—", copyable = false)
-            KeyValueRow(Res.string.pixels.str(), "${(width.toLong() * height / 1e6).fmt(2)} MP", copyable = false)
+            KeyValueRow(Res.string.pixels.str(), "${(width.toLong() * height / 1e6).fmt(2)} ${Res.string.unit_megapixel.str()}", copyable = false)
         }
         Row(
             modifier = Modifier.fillMaxWidth(),

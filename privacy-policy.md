@@ -1,11 +1,11 @@
 # Privacy Policy
 
-**Effective Date:** 2026-09-26
+**Effective Date:** 2026-09-27
 
-**vasmarfas** ("we," "our," or "us") is a personal website and a free multitool published as a
-web app at vasmarfas.com and vasmarfas.ru and as native applications for Android, iOS, Windows,
-macOS and Linux (together, the "App"). This Privacy Policy explains what the App does with your
-information.
+**Mobitool** is a free multitool by vasmarfas ("we," "our," or "us"). It is published as native
+applications for Android, iOS, Windows, macOS and Linux and, together with the personal website
+vasmarfas, as a web app at vasmarfas.com and vasmarfas.ru (together, the "App"). This Privacy Policy
+explains what the App does with your information.
 
 ## 1. What we collect
 
@@ -55,9 +55,11 @@ The statistics are collected and processed by their operators, not by us:
 
 - **Google, Firebase Analytics** (Android, iOS) and **Firebase Analytics for the web** (vasmarfas.com only,
   vasmarfas.ru does not load it). Collects an app instance identifier, device model, OS and application
-  version, the country derived from the IP address, and session data. On iOS the build carries no
-  advertising identifier support: the IDFA is not read, the identifier for vendor is not collected and
-  no App Tracking Transparency prompt is shown. https://policies.google.com/privacy
+  version, the country derived from the IP address, and session data. On vasmarfas.com it also records
+  the address and title of the page, sets the `_ga` and `_ga_*` cookies and keeps its installation data
+  in the browser's IndexedDB. On iOS the build carries no advertising identifier support: the IDFA is not
+  read, the identifier for vendor is not collected and no App Tracking Transparency prompt is shown.
+  https://policies.google.com/privacy
 - **Google, Firebase Crashlytics** (Android, iOS). On a crash it sends the stack trace, the device model,
   the OS and application version and an installation identifier.
 - **Google, Firebase Performance Monitoring** (Android). Measures startup time, screen rendering, memory
@@ -82,8 +84,12 @@ The App keeps a small amount of data locally so that it works the way you left i
 - the answers to the first-start questions, so that asking again starts from them
 - data you enter into tools that offer to remember it: saved Wake-on-LAN devices, world clock
   zones, counters, the scratchpad, countdown events, the running stopwatch and timer, workout plans,
-  calibration values, speed test sources
-- a cached copy of the profile file (`profile.json`) that describes the site's content
+  calibration values, speed test sources, custom DNS resolvers and HTTP requests you save
+- the last 20 HTTP requests, kept without their bodies, form fields, credentials and a login written into
+  the address, and with the values of headers and query parameters whose names mention auth, cookie, key,
+  token, secret, pass, session or signature left empty
+- cached copies of the profile and résumé files (`profile.json`, `resume.json`) that describe the
+  site's content
 - a cached copy of currency exchange rates
 
 On Android this lives in the App's private storage, on iOS in the App's user defaults, on desktop in
@@ -102,9 +108,10 @@ open a tool that needs them or explicitly start an action. Each request goes dir
 device to the third party named below. We operate none of these services and receive nothing from
 them.
 
-- **Profile refresh.** On start the App downloads the latest `profile.json` from
-  `raw.githubusercontent.com` (the project's public repository) so that the site's text can be
-  updated without a release. The request contains no personal data.
+- **Profile refresh.** On start the App downloads the latest `profile.json` and `resume.json` so that
+  the site's text can be updated without a release. The apps and vasmarfas.com take them from
+  `raw.githubusercontent.com` (the project's public repository), vasmarfas.ru from the same site at
+  `vasmarfas.ru/content/`. The requests contain no personal data.
 - **Project and article numbers.** On start the App asks `api.github.com` for the star count of each
   listed repository, and when the profile or projects page is open it asks `habr.com` for the view
   count of each listed article. Both are repeated at most once every six hours and contain no
@@ -152,7 +159,7 @@ requires it, after you grant the permission:
   short history shown in the chart.
 - **Microphone.** The sound meter, the spectrum analyzer and the tuner analyse the audio input on
   the fly. No audio is recorded or saved.
-- **Camera** (Android, browser). The QR code and barcode scanner shows the camera picture on screen
+- **Camera** (Android, iOS, browser). The QR code and barcode scanner shows the camera picture on screen
   and reads the codes in it on the device. No image is stored or transmitted. A picture you pick for
   the scanner is read the same way.
 - **Camera flash.** The torch tool toggles the LED without taking any image.
@@ -178,9 +185,10 @@ analytics raw data beyond the aggregated reports in the Firebase and Yandex.Metr
 consoles, which carry no name, e-mail or any other detail that identifies you.
 
 The App has no switch that stops the collection. In the browser you can block the counters with an
-extension, or clear the site's cookies and `localStorage`, which removes the Yandex.Metrica
-identifier. On Android the analytics identifier belongs to the installation: clearing the App's data
-or reinstalling it starts a new one. The App does not read the Android advertising identifier. Events that
+extension, or clear the site's cookies, `localStorage` and IndexedDB, which removes the Yandex.Metrica
+identifier and, on vasmarfas.com, the Google Analytics one (the `_ga` cookies). On Android the
+analytics identifier belongs to the installation: clearing the App's data or reinstalling it starts a
+new one. The App does not read the Android advertising identifier. Events that
 were already sent are stored by Google and Yandex under their own terms, and you can request access
 or deletion from them directly through the links in section 1.
 

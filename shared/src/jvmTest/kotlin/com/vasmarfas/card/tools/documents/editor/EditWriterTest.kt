@@ -6,6 +6,7 @@ import com.vasmarfas.card.tools.documents.pdf.PageContent
 import com.vasmarfas.card.tools.documents.pdf.PdfDocument
 import com.vasmarfas.card.tools.documents.pdf.PdfRect
 import com.vasmarfas.card.tools.documents.pdf.PdfText
+import com.vasmarfas.card.tools.documents.pdf.SaveMode
 import com.vasmarfas.card.tools.documents.pdf.TrueTypeFont
 import com.vasmarfas.card.tools.documents.pdf.arial
 import com.vasmarfas.card.tools.documents.pdf.helvetica
@@ -13,6 +14,7 @@ import com.vasmarfas.card.tools.documents.pdf.loadCleanly
 import com.vasmarfas.card.tools.documents.pdf.normalize
 import com.vasmarfas.card.tools.documents.pdf.pdf
 import com.vasmarfas.card.tools.documents.pdf.pdfboxText
+import com.vasmarfas.card.tools.documents.pdf.save
 import com.vasmarfas.card.tools.documents.pdf.squeeze
 import com.vasmarfas.card.tools.documents.pdf.textPage
 import java.awt.image.BufferedImage
@@ -21,7 +23,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.apache.pdfbox.Loader
 import org.apache.pdfbox.cos.COSDictionary
@@ -31,8 +35,14 @@ import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
 import org.apache.pdfbox.pdmodel.PDResources
 import org.apache.pdfbox.pdmodel.common.PDRectangle
+import org.apache.pdfbox.pdmodel.encryption.AccessPermission
 import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException
+import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy
+import org.apache.pdfbox.pdmodel.graphics.color.PDColor
+import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceRGB
 import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationSquare
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationText
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationWidget
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAppearanceStream
 import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDPageDestination
@@ -141,6 +151,18 @@ class EditWriterTest {
         }
     }
 
+    @Test
+    fun shapeFillStaysTranslucent() {
+        val shape = ShapeMark(id(), ShapeKind.RECTANGLE, 100.0, 600.0, 300.0, 700.0, 0xFF00AA00.toInt(), 2f, fill = 0x4000AA00)
+        val page = EditPage(id(), BlankPage(595.0, 842.0), marks = listOf(shape))
+        for (options in listOf(SaveOptions(), SaveOptions(keepMarksEditable = true))) {
+            loadCleanly(write(null, DocumentEdit(listOf(page)), options)) { doc ->
+                val inside = pixel(doc, 0, 200.0, 650.0)
+                assertTrue(inside shr 16 in 0xB0..0xD0 && (inside shr 8 and 0xFF) > 0xE0, Integer.toHexString(inside))
+            }
+        }
+    }
+
     private fun widget(doc: PDDocument, page: PDPage, rect: PDRectangle, state: String? = null): PDAnnotationWidget {
         val widget = PDAnnotationWidget()
         widget.rectangle = rect
@@ -228,6 +250,26 @@ class EditWriterTest {
     }
 
     @Test
+    fun duplicatedFormPagesGetTheirOwnWidgets() {
+        val source = PdfDocument.parse(formDocument())
+        val first = pages(source).first()
+        val edit = DocumentEdit(listOf(first, first.copy(id = id())), fields = mapOf("name" to FieldValue.Text("Иван Петров")))
+        loadCleanly(write(source, edit)) { doc ->
+            val one = doc.getPage(0).annotations
+            val two = doc.getPage(1).annotations
+            assertEquals(5, two.size)
+            for ((a, b) in one.zip(two)) assertNotSame(a.cosObject, b.cosObject)
+            for (i in 0..1) {
+                for (annotation in doc.getPage(i).annotations) assertSame(doc.getPage(i).cosObject, annotation.cosObject.getCOSDictionary(COSName.P))
+            }
+            val name = assertNotNull(doc.documentCatalog.acroForm).getField("name")
+            assertEquals("Иван Петров", name.valueAsString)
+            assertEquals(listOf(doc.getPage(0).cosObject), name.widgets.map { it.page.cosObject })
+            assertNotNull(two[0].normalAppearanceStream)
+        }
+    }
+
+    @Test
     fun flattenedFormBecomesText() {
         val source = PdfDocument.parse(formDocument())
         val edit = DocumentEdit(pages(source), fields = mapOf("name" to FieldValue.Text("Мария")))
@@ -235,6 +277,46 @@ class EditWriterTest {
             assertNull(doc.documentCatalog.acroForm)
             assertTrue(doc.getPage(0).annotations.isEmpty())
             assertEquals("Мария", normalize(pdfboxText(doc, 0)))
+        }
+    }
+
+    @Test
+    fun flatteningKeepsNotesThatHaveNothingToPaint() {
+        val bytes = pdf { doc ->
+            val page = doc.textPage(helvetica(), listOf("Annotated"))
+            val note = PDAnnotationText().apply {
+                rectangle = PDRectangle(300f, 700f, 20f, 20f)
+                contents = "Remember this"
+            }
+            val square = PDAnnotationSquare().apply {
+                rectangle = PDRectangle(100f, 100f, 100f, 100f)
+                color = PDColor(floatArrayOf(1f, 0f, 0f), PDDeviceRGB.INSTANCE)
+                constructAppearances(doc)
+            }
+            page.annotations = listOf(note, square)
+        }
+        val source = PdfDocument.parse(bytes)
+        loadCleanly(write(source, DocumentEdit(pages(source)), SaveOptions(flattenAnnotations = true))) { doc ->
+            val kept = doc.getPage(0).annotations.single()
+            assertEquals("Text", kept.subtype)
+            assertEquals("Remember this", kept.contents)
+        }
+    }
+
+    @Test
+    fun flatteningDrawsValuesFilledElsewhere() {
+        val bytes = Loader.loadPDF(formDocument()).use { doc ->
+            val form = doc.documentCatalog.acroForm
+            (form.getField("name") as PDTextField).value = "Stale"
+            form.getField("name").cosObject.setString(COSName.V, "Fresh")
+            form.getField("other").cosObject.setString(COSName.V, "No appearance")
+            form.setNeedAppearances(true)
+            save(doc, SaveMode.CLASSIC)
+        }
+        val source = PdfDocument.parse(bytes)
+        loadCleanly(write(source, DocumentEdit(pages(source)), SaveOptions(flattenForm = true))) { doc ->
+            assertEquals("Fresh", normalize(pdfboxText(doc, 0)))
+            assertEquals("No appearance", normalize(pdfboxText(doc, 1)))
         }
     }
 
@@ -265,6 +347,22 @@ class EditWriterTest {
             assertEquals(listOf("Глава 1", "Глава 2", "Глава 3"), items.map { it.title })
             fun pageOf(item: PDOutlineItem) = (item.destination as? PDPageDestination)?.page?.let { doc.pages.indexOf(it) }
             assertEquals(listOf(1, null, 0), items.map { pageOf(it) })
+        }
+    }
+
+    @Test
+    fun unlockedCopyKeepsBookmarksAndTitle() {
+        val bytes = Loader.loadPDF(outlined()).use { doc ->
+            doc.documentInformation.title = "Locked"
+            doc.protect(StandardProtectionPolicy("owner", "", AccessPermission()).apply { encryptionKeyLength = 128 })
+            save(doc, SaveMode.CLASSIC)
+        }
+        val source = PdfDocument.parse(bytes)
+        assertTrue(source.encrypted)
+        loadCleanly(write(source, startingEdit(source))) { doc ->
+            assertTrue(!doc.isEncrypted)
+            assertEquals("Locked", doc.documentInformation.title)
+            assertEquals(listOf("Глава 1", "Глава 2", "Глава 3"), doc.documentCatalog.documentOutline.children().map { it.title })
         }
     }
 
@@ -390,6 +488,35 @@ class EditWriterTest {
         assertEquals("Boldplainred", glyphs.joinToString("") { it.text })
         val looks = List(4) { Look(true, false, black) } + List(5) { Look(false, false, black) } + List(3) { Look(false, false, red) }
         assertEquals(looks, glyphs.map { Look(it.style.bold, it.style.italic, it.color) })
+    }
+
+    @Test
+    fun missingCharactersCopyAsTheQuestionMarkTheyShowAs() {
+        val mark = TextMark(id(), PdfRect(50.0, 700.0, 500.0, 730.0), "Готово ✅ ок?", 14f, 0xFF000000.toInt())
+        val bytes = write(null, DocumentEdit(listOf(EditPage(id(), BlankPage(595.0, 842.0), marks = listOf(mark)))))
+        assertEquals("Готово ? ок?", normalize(pdfboxText(bytes, 0)))
+    }
+
+    @Test
+    fun textBoxesTakeTheHeightOfTheirLinesAtAnyAngle() {
+        val renderer = MarkRenderer(fonts)
+        val black = 0xFF000000.toInt()
+        val start = PdfRect(100.0, 500.0, 300.0, 700.0)
+        for (angle in listOf(0, 90, 180, 270)) {
+            val small = renderer.fitted(TextMark(id(), start, "one\ntwo\nthree", 12f, black, angle = angle))
+            val large = renderer.fitted(small.restyled(TextLook(black, 16f, MarkFont.SANS, bold = false, italic = false, MarkAlign.START)))
+            for (mark in listOf(small, large)) assertEquals(renderer.layout(mark).height.toDouble(), Affine.frameSize(mark.box, angle).second, 1e-9)
+            assertTrue(Affine.frameSize(large.box, angle).second > Affine.frameSize(small.box, angle).second)
+            val top = { box: PdfRect ->
+                when (angle) {
+                    90 -> box.left
+                    180 -> box.bottom
+                    270 -> box.right
+                    else -> box.top
+                }
+            }
+            assertEquals(top(start), top(large.box), 1e-9)
+        }
     }
 
     @Test

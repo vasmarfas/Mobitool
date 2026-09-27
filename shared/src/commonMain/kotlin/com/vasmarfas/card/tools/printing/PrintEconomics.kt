@@ -32,14 +32,15 @@ private const val FLOW_EFFICIENCY = 0.75
 object PrintEconomics {
     fun printCost(
         grams: Double,
-        pricePerKg: Double,
+        spoolPrice: Double,
+        spoolGrams: Double,
         hours: Double,
         powerW: Double,
         pricePerKwh: Double,
         failurePercent: Double,
         markupPercent: Double,
     ): PrintCost {
-        val material = grams / 1000.0 * pricePerKg
+        val material = grams / spoolGrams * spoolPrice
         val energyKwh = powerW / 1000.0 * hours
         val energy = energyKwh * pricePerKwh
         val before = material + energy

@@ -34,7 +34,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.vasmarfas.card.core.LocalLang
 import com.vasmarfas.card.core.TextDecoding
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.fmtGrouped
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
@@ -61,6 +60,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 
 private enum class JsonMode { FORMAT, TREE, MINIFY, ESCAPE, UNESCAPE }
 
@@ -170,7 +170,7 @@ private fun JsonFormatterScreen() {
             options = listOf(2, 4),
             selected = indent,
             onSelect = { indent = it },
-            label = { Tr("$it spaces", "$it пробела").str() },
+            label = { pluralStringResource(Res.plurals.json_indent_spaces, it, it) },
         )
     }
     if (mode == JsonMode.FORMAT || mode == JsonMode.MINIFY || mode == JsonMode.TREE) {
@@ -241,10 +241,7 @@ private fun CappedOutput(text: String) {
         MonoText(if (text.length > MAX_VISIBLE_CHARS) text.take(MAX_VISIBLE_CHARS) else text)
         if (text.length > MAX_VISIBLE_CHARS) {
             Text(
-                Tr(
-                    "Showing the first ${MAX_VISIBLE_CHARS.fmtGrouped()} characters of ${text.length.fmtGrouped()}. Copy gives the whole document.",
-                    "Показаны первые ${MAX_VISIBLE_CHARS.fmtGrouped()} символов из ${text.length.fmtGrouped()}. Кнопка копирования отдаёт документ целиком.",
-                ).str(),
+                stringResource(Res.string.output_shown_first, MAX_VISIBLE_CHARS.fmtGrouped(), text.length.fmtGrouped()),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -301,10 +298,7 @@ private fun JsonTreeView(outcome: JsonOutcome) {
         }
         if (result.truncated) {
             Text(
-                Tr(
-                    "Only the first ${JsonTree.MAX_ROWS.fmtGrouped()} rows are shown. Collapse a branch or narrow the filter.",
-                    "Показаны только первые ${JsonTree.MAX_ROWS.fmtGrouped()} строк. Сверните ветку или сузьте фильтр.",
-                ).str(),
+                stringResource(Res.string.json_tree_rows_capped, JsonTree.MAX_ROWS),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -332,7 +326,7 @@ private fun JsonTreeRow(row: JsonRow, selected: Boolean, onClick: () -> Unit) {
         if (row.more > 0) {
             Spacer(Modifier.width(16.dp))
             Text(
-                Tr("Show more, ${row.more.fmtGrouped()} left", "Показать ещё, осталось ${row.more.fmtGrouped()}").str(),
+                stringResource(Res.string.json_tree_show_more, row.more.fmtGrouped()),
                 style = mono,
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
@@ -352,8 +346,8 @@ private fun JsonTreeRow(row: JsonRow, selected: Boolean, onClick: () -> Unit) {
         Text(row.label, style = mono, maxLines = 1)
         Text(
             text = when (row.kind) {
-                JsonKind.OBJECT -> "  {…} ${row.childCount.fmtGrouped()} " + Res.string.json_keys.str()
-                JsonKind.ARRAY -> "  […] ${row.childCount.fmtGrouped()} " + Res.string.items.str()
+                JsonKind.OBJECT -> "  {…} " + pluralStringResource(Res.plurals.json_key_count, row.childCount, row.childCount.fmtGrouped())
+                JsonKind.ARRAY -> "  […] " + pluralStringResource(Res.plurals.json_item_count, row.childCount, row.childCount.fmtGrouped())
                 else -> "  ${row.value}"
             },
             style = mono,
@@ -392,8 +386,13 @@ private suspend fun process(text: String, mode: JsonMode, indent: Int, sortKeys:
         val parsed = JsonTools.parse(text)
         val element = parsed.getOrNull()
         if (element == null) {
-            val reason = JsonTools.errorMessage(parsed.exceptionOrNull()!!)
-            JsonOutcome(null, "", null, 0, 0, getString(Res.string.invalid_json) + reason)
+            val failure = parsed.exceptionOrNull()!!
+            val message = if (failure is JsonTooDeepException) {
+                getString(Res.string.json_too_deep, JsonTools.MAX_DEPTH)
+            } else {
+                getString(Res.string.invalid_json, JsonTools.errorMessage(failure))
+            }
+            JsonOutcome(null, "", null, 0, 0, message)
         } else {
             val prepared = if (sortKeys) JsonTools.sortKeys(element) else element
             val output = when (mode) {

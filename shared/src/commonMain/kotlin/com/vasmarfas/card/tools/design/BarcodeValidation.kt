@@ -6,6 +6,8 @@ import io.github.alexzhirkevich.qrose.oned.BarcodeType
 private const val CODE39_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. \$/+%"
 private const val CODABAR_ALPHABET = "0123456789-\$:/.+"
 
+private const val MAX_LENGTH = 80
+
 val supportedBarcodes: List<BarcodeType> = listOf(
     BarcodeType.EAN13,
     BarcodeType.EAN8,
@@ -50,13 +52,16 @@ fun validateBarcode(type: BarcodeType, data: String): Tr? {
         BarcodeType.ITF -> when {
             value.any { !it.isDigit() } -> Tr("Only digits are allowed.", "Допустимы только цифры.")
             value.length % 2 != 0 -> Tr("ITF needs an even number of digits.", "ITF требует чётное количество цифр.")
+            value.length > MAX_LENGTH -> tooLong(value.length)
             else -> null
         }
 
-        BarcodeType.Code39 -> if (value.uppercase().any { it !in CODE39_ALPHABET }) {
-            Tr("Code 39 allows A–Z, 0–9 and - . space \$ / + %.", "Code 39 допускает A–Z, 0–9 и - . пробел \$ / + %.")
-        } else {
-            null
+        BarcodeType.Code39 -> when {
+            value.uppercase().any { it !in CODE39_ALPHABET } ->
+                Tr("Code 39 allows A–Z, 0–9 and - . space \$ / + %.", "Code 39 допускает A–Z, 0–9 и - . пробел \$ / + %.")
+
+            value.length > MAX_LENGTH -> tooLong(value.length)
+            else -> null
         }
 
         BarcodeType.Codabar -> when {
@@ -77,3 +82,5 @@ fun validateBarcode(type: BarcodeType, data: String): Tr? {
         }
     }
 }
+
+private fun tooLong(length: Int) = Tr("At most $MAX_LENGTH characters, got $length.", "Не больше $MAX_LENGTH символов, введено $length.")

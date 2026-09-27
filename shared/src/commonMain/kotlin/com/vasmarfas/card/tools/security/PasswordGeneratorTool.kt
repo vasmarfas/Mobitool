@@ -32,6 +32,8 @@ import com.vasmarfas.card.ui.components.SwitchRow
 import com.vasmarfas.card.ui.components.ToolInputField
 import com.vasmarfas.card.ui.components.monoFamily
 import kotlin.math.roundToInt
+import org.jetbrains.compose.resources.PluralStringResource
+import org.jetbrains.compose.resources.pluralStringResource
 
 private enum class GenMode { PASSWORD, PASSPHRASE }
 
@@ -161,15 +163,32 @@ private fun PasswordGeneratorScreen() {
         }
         KeyValueRow(
             Res.string.offline_attack_10_12_guesses_s.str(),
-            PasswordGen.crackTimeLabel(PasswordGen.crackTimeSeconds(bits, 1e12)).str(),
+            crackTimeText(PasswordGen.crackTimeSeconds(bits, 1e12)),
             mono = false,
             copyable = false,
         )
         KeyValueRow(
             Res.string.online_attack_10_4_guesses_s.str(),
-            PasswordGen.crackTimeLabel(PasswordGen.crackTimeSeconds(bits, 1e4)).str(),
+            crackTimeText(PasswordGen.crackTimeSeconds(bits, 1e4)),
             mono = false,
             copyable = false,
         )
     }
 }
+
+@Composable
+fun crackTimeText(seconds: Double): String = when {
+    seconds < 1 -> Res.string.crack_instantly.str()
+    seconds < 60 -> countText(Res.plurals.crack_seconds, seconds)
+    seconds < 3600 -> countText(Res.plurals.crack_minutes, seconds / 60)
+    seconds < 86_400 -> countText(Res.plurals.crack_hours, seconds / 3600)
+    seconds < 2_592_000 -> countText(Res.plurals.crack_days, seconds / 86_400)
+    seconds < 31_536_000 -> countText(Res.plurals.crack_months, seconds / 2_592_000)
+    seconds < 31_536_000_000.0 -> countText(Res.plurals.year_count, seconds / 31_536_000)
+    seconds < 31_536_000_000_000.0 -> countText(Res.plurals.crack_thousand_years, seconds / 31_536_000_000.0)
+    seconds < 3.1536e16 -> countText(Res.plurals.crack_million_years, seconds / 31_536_000_000_000.0)
+    else -> Res.string.crack_longer_than_the_universe.str()
+}
+
+@Composable
+private fun countText(resource: PluralStringResource, value: Double): String = value.toInt().let { pluralStringResource(resource, it, it) }

@@ -12,7 +12,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.core.toDoubleLenient
@@ -27,6 +26,7 @@ import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.MonoText
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
+import org.jetbrains.compose.resources.stringResource
 
 val temperatureTowerTool = Tool(
     id = "temperature-tower",
@@ -156,10 +156,12 @@ private fun TemperatureTowerScreen() {
     if (outOfRange.isNotEmpty()) {
         val materialTitle = material.title.str()
         ErrorText(
-            Tr(
-                "Segments outside the $materialTitle range ${material.nozzleC.first}–${material.nozzleC.last} °C: ${outOfRange.joinToString(", ") { it.temperature.toString() }}",
-                "Сегменты вне диапазона $materialTitle ${material.nozzleC.first}–${material.nozzleC.last} °C: ${outOfRange.joinToString(", ") { it.temperature.toString() }}",
-            ).str(),
+            stringResource(
+                Res.string.tower_segments_out_of_range,
+                materialTitle,
+                "${material.nozzleC.first}–${material.nozzleC.last}",
+                outOfRange.joinToString(", ") { it.temperature.toString() },
+            ),
         )
     }
 

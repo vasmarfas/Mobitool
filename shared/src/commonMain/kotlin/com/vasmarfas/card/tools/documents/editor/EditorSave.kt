@@ -1,17 +1,20 @@
 package com.vasmarfas.card.tools.documents.editor
 
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import com.vasmarfas.card.core.currentEpochMillis
 import com.vasmarfas.card.core.imageBitmapOf
 import com.vasmarfas.card.core.limitedTo
 import com.vasmarfas.card.core.pixels
+import com.vasmarfas.card.resources.*
+import com.vasmarfas.card.tools.documents.documentFonts
 import com.vasmarfas.card.tools.documents.pdf.PdfArray
 import com.vasmarfas.card.tools.documents.pdf.PdfDict
 import com.vasmarfas.card.tools.documents.pdf.PdfDocument
@@ -28,7 +31,10 @@ import com.vasmarfas.card.tools.media.decodeImage
 import com.vasmarfas.card.tools.media.encodeImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.getString
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 internal enum class ImageQuality(val side: Int, val jpeg: Int) { HIGH(2400, 85), MEDIUM(1600, 74), LOW(1100, 62) }
 
@@ -82,13 +88,13 @@ private fun jpegComponents(bytes: ByteArray): Int? {
     return null
 }
 
-internal suspend fun buildPdf(session: EditorSession, renderer: MarkRenderer, options: EditorSaveOptions, onProgress: (Float) -> Unit): ByteArray {
-    var edit = session.edit
+internal suspend fun buildPdf(session: EditorSession, renderer: MarkRenderer, source: DocumentEdit, options: EditorSaveOptions, onProgress: (Float) -> Unit): ByteArray {
+    var edit = source
     val redacted = edit.pages.filter { page -> page.marks.any { it is CoverMark && it.redact } }
     if (options.burnRedactions && redacted.isNotEmpty()) {
         val burnt = HashMap<Long, EditPage>()
         redacted.forEachIndexed { i, page ->
-            burn(session, renderer, page)?.let { burnt[page.id] = it }
+            burnt[page.id] = burn(session, renderer, page) ?: throw IllegalStateException(getString(Res.string.pdf_edit_redaction_failed))
             onProgress(0.4f * (i + 1) / redacted.size)
         }
         edit = edit.copy(pages = edit.pages.map { burnt[it.id] ?: it })
@@ -104,23 +110,27 @@ internal suspend fun buildPdf(session: EditorSession, renderer: MarkRenderer, op
     return withContext(Dispatchers.Default) { PdfEditWriter.write(session.main, edit, session.fonts, save, replacements, pdfDate(currentEpochMillis())) }
 }
 
+internal suspend fun compressPdf(document: PdfDocument, quality: ImageQuality, onProgress: (Float) -> Unit): ByteArray {
+    val fonts = MarkFonts(documentFonts(serif = true))
+    val edit = startingEdit(document)
+    val replacements = compress(edit, quality) { onProgress(0.9f * it) }
+    return withContext(Dispatchers.Default) { PdfEditWriter.write(document, edit, fonts, replacements = replacements, date = pdfDate(currentEpochMillis())) }
+}
+
 private suspend fun burn(session: EditorSession, renderer: MarkRenderer, page: EditPage): EditPage? {
-    val source = page.source as? SourcePage ?: return null
+    val source = page.source
     val frame = PageFrame(source.cropBox, source.rotation)
-    val width = (frame.width * 200 / 72).roundToInt().coerceIn(200, 3200)
-    val raster = session.render(source, width, page.objects) ?: return null
-    val out = ImageBitmap(raster.width, raster.height)
-    val canvas = Canvas(out)
-    canvas.drawImage(raster, Offset.Zero, Paint())
-    val toScreen = frame.displayAffine().scaled(raster.width / frame.width)
-    CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, canvas, Size(out.width.toFloat(), out.height.toFloat())) {
+    val dpi = minOf(200.0, 72 * sqrt(BURN_PIXELS / (frame.width * frame.height)))
+    val width = (frame.width * dpi / 72).roundToInt().coerceIn(200, 3200)
+    val raster = (source as? SourcePage)?.let { session.renderFlattened(it, width, page.objects) ?: return null }
+    val picture = (source as? ImagePage)?.let { session.images[it.image] ?: return null }
+    val out = ImageBitmap(raster?.width ?: width, raster?.height ?: (width * frame.height / frame.width).roundToInt().coerceAtLeast(1))
+    val toScreen = frame.displayAffine().scaled(out.width / frame.width)
+    CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, Canvas(out), Size(out.width.toFloat(), out.height.toFloat())) {
+        drawRect(Color.White)
+        raster?.let { drawImage(it) }
+        picture?.let { drawImage(it, dstSize = IntSize(out.width, out.height), filterQuality = FilterQuality.Medium) }
         with(renderer) {
-            if (source.page.document === session.main) {
-                for (field in session.fields) {
-                    val value = session.edit.fields[field.name] ?: continue
-                    for (widget in field.widgets) if (widget.pageIndex == source.page.index) fieldValue(field, widget, value, toScreen)
-                }
-            }
             for (mark in page.marks) if (mark !is NoteMark) draw(if (mark is CoverMark) mark.copy(redact = false) else mark, toScreen, session.images)
         }
     }
@@ -135,6 +145,11 @@ private suspend fun burn(session: EditorSession, renderer: MarkRenderer, page: E
 
 private val passThrough = setOf("FlateDecode", "Fl", "LZWDecode", "LZW", "ASCIIHexDecode", "AHx", "ASCII85Decode", "A85", "RunLengthDecode", "RL")
 
+// a bigger picture is inflated in one piece, which needs a few times its size on the heap at once
+private const val MAX_SAMPLES = 40_000_000
+
+private const val BURN_PIXELS = 25_000_000.0
+
 private suspend fun compress(edit: DocumentEdit, quality: ImageQuality, onProgress: (Float) -> Unit): Map<PdfDocument, Map<Int, PdfObject>> {
     val found = LinkedHashMap<Pair<PdfDocument, Int>, PdfStream>()
     for (page in edit.pages) {
@@ -144,7 +159,14 @@ private suspend fun compress(edit: DocumentEdit, quality: ImageQuality, onProgre
     val out = HashMap<PdfDocument, HashMap<Int, PdfObject>>()
     var done = 0
     for ((key, stream) in found) {
-        recode(key.first, stream, quality)?.let { out.getOrPut(key.first) { HashMap() }[key.second] = it }
+        val recoded = try {
+            recode(key.first, stream, quality)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+        recoded?.let { out.getOrPut(key.first) { HashMap() }[key.second] = it }
         onProgress(++done / found.size.toFloat())
     }
     return out
@@ -192,17 +214,32 @@ private suspend fun recode(doc: PdfDocument, stream: PdfStream, quality: ImageQu
             decodeImage(jpeg)
         }
         filters.all { it in passThrough } -> withContext(Dispatchers.Default) {
+            if (width.toLong() * height * channels > MAX_SAMPLES) return@withContext null
             val raw = runCatching { doc.decodedStream(stream) }.getOrNull() ?: return@withContext null
             if (raw.size < width.toLong() * height * channels) return@withContext null
-            val pixels = IntArray(width * height) { i ->
-                if (channels == 3) {
-                    (0xFF shl 24) or ((raw[3 * i].toInt() and 0xFF) shl 16) or ((raw[3 * i + 1].toInt() and 0xFF) shl 8) or (raw[3 * i + 2].toInt() and 0xFF)
-                } else {
-                    val v = raw[i].toInt() and 0xFF
-                    (0xFF shl 24) or (v shl 16) or (v shl 8) or v
+            val step = (maxOf(width, height) / quality.side).coerceIn(1, minOf(width, height))
+            val w = width / step
+            val h = height / step
+            val area = step * step
+            val sums = IntArray(w * channels)
+            val pixels = IntArray(w * h)
+            for (y in 0 until h) {
+                sums.fill(0)
+                for (row in y * step until (y + 1) * step) {
+                    val start = row * width * channels
+                    for (i in 0 until w * step * channels) sums[i / (step * channels) * channels + i % channels] += raw[start + i].toInt() and 0xFF
+                }
+                for (x in 0 until w) {
+                    val s = x * channels
+                    pixels[y * w + x] = if (channels == 3) {
+                        (0xFF shl 24) or ((sums[s] / area) shl 16) or ((sums[s + 1] / area) shl 8) or (sums[s + 2] / area)
+                    } else {
+                        val v = sums[s] / area
+                        (0xFF shl 24) or (v shl 16) or (v shl 8) or v
+                    }
                 }
             }
-            imageBitmapOf(pixels, width, height)
+            imageBitmapOf(pixels, w, h)
         }
         else -> null
     } ?: return null

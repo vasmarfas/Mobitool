@@ -1,6 +1,10 @@
 package com.vasmarfas.card.tools.calculators
 
+import com.vasmarfas.card.core.Lang
+import com.vasmarfas.card.core.appLang
+import kotlin.math.E
 import kotlin.math.PI
+import kotlin.math.sqrt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -22,6 +26,29 @@ class ExpressionParserTest {
         assertEquals(6.0, ExpressionParser.evaluate("(1+2)(2)"))
         assertEquals(2 * PI, ExpressionParser.evaluate("2pi"), 1e-12)
         assertEquals(2000.0, ExpressionParser.evaluate("2e3"))
+    }
+
+    @Test
+    fun keypadSymbolsDoNotMergeWithNeighbours() {
+        assertEquals(2 * PI, ExpressionParser.evaluate("π2"), 1e-12)
+        assertEquals(sqrt(2.0), ExpressionParser.evaluate("√2"), 1e-12)
+        assertEquals(sqrt(PI), ExpressionParser.evaluate("√π"), 1e-12)
+        assertEquals(2 * E, ExpressionParser.evaluate("e2"), 1e-12)
+        assertEquals(2 * E - 3, ExpressionParser.evaluate("2×e−3"), 1e-12)
+        assertEquals(0.002, ExpressionParser.evaluate("2e−3"), 1e-15)
+        assertEquals(3.0, ExpressionParser.evaluate("log2(8)"), 1e-12)
+    }
+
+    @Test
+    fun commaFollowsTheLanguage() {
+        assertEquals(1001.0, ExpressionParser.evaluate("1,000+1"))
+        assertEquals(2.5, ExpressionParser.evaluate("1,5+1"))
+        appLang = Lang.RU
+        try {
+            assertEquals(2.0, ExpressionParser.evaluate("1,000+1"))
+        } finally {
+            appLang = Lang.EN
+        }
     }
 
     @Test

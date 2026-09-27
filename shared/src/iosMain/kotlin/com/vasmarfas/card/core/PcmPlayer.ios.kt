@@ -27,7 +27,7 @@ actual class PcmPlayer actual constructor() {
         val format = AVAudioFormat(AVAudioPCMFormatFloat32, sampleRate.toDouble(), channels.toUInt(), false)
         audio.attachNode(player)
         audio.connect(player, audio.mainMixerNode, format)
-        audio.startAndReturnError(null)
+        if (!audio.startAndReturnError(null)) return
         player.play()
         engine = audio
         node = player

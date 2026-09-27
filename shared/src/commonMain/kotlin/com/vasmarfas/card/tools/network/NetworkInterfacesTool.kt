@@ -19,6 +19,8 @@ import com.vasmarfas.card.core.wifiDetails
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
+import com.vasmarfas.card.tools.device.fieldName
+import com.vasmarfas.card.tools.device.fieldValue
 import com.vasmarfas.card.ui.components.ActionButton
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.PermissionPrompt
@@ -41,7 +43,7 @@ private fun NetworkInterfacesScreen() {
     var refresh by remember { mutableStateOf(0) }
     var permission by remember { mutableStateOf(hasPermission(AppPermission.LOCATION)) }
     val interfaces by produceState(emptyList<InterfaceInfo>(), refresh) { value = networkInterfaces() }
-    val wifi = remember(refresh, permission) { wifiDetails() }
+    val wifi by produceState(emptyMap<String, String>(), refresh, permission) { value = wifiDetails() }
 
     if (currentPlatform == PlatformKind.ANDROID) {
         ResultCard(title = Res.string.connection.str()) {
@@ -51,7 +53,17 @@ private fun NetworkInterfacesScreen() {
                     refresh++
                 }
             }
-            wifi.forEach { (k, v) -> if (v.isNotBlank()) KeyValueRow(k, v, mono = k in setOf("BSSID", "Addresses", "DNS", "Gateway")) }
+            wifi.forEach { (k, v) ->
+                if (v.isNotBlank()) {
+                    val unit = when (k) {
+                        "Downstream", "Upstream", "Link speed" -> Res.string.unit_mbit_s.str()
+                        "Frequency" -> Res.string.unit_mhz.str()
+                        "RSSI" -> Res.string.unit_dbm.str()
+                        else -> null
+                    }
+                    KeyValueRow(fieldName(k), if (unit != null) "$v $unit" else fieldValue(v), mono = k in setOf("BSSID", "Addresses", "DNS", "Gateway"))
+                }
+            }
         }
     }
     SwitchRow(Res.string.show_inactive_interfaces.str(), showAll, { showAll = it })
@@ -61,7 +73,8 @@ private fun NetworkInterfacesScreen() {
             nif.mac?.let { KeyValueRow("MAC", it) }
             nif.addresses.forEach { KeyValueRow(if (it.contains(':')) "IPv6" else "IPv4", it) }
             KeyValueRow("MTU", nif.mtu.toString(), copyable = false)
-            KeyValueRow(Res.string.state.str(), (if (nif.isUp) "up" else "down") + (if (nif.isLoopback) " · loopback" else ""), mono = false, copyable = false)
+            val state = (if (nif.isUp) Res.string.iface_up.str() else Res.string.iface_down.str()) + (if (nif.isLoopback) " · " + Res.string.iface_loopback.str() else "")
+            KeyValueRow(Res.string.state.str(), state, mono = false, copyable = false)
         }
     }
 }

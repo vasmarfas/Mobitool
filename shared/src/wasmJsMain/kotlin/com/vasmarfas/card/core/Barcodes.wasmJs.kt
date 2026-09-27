@@ -17,9 +17,11 @@ import androidx.compose.ui.layout.ContentScale
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.ui.components.ErrorText
 import com.vasmarfas.card.ui.components.LoadingRow
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.await
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
 import org.khronos.webgl.Int32Array
 import org.khronos.webgl.Int8Array
@@ -104,7 +106,7 @@ actual fun CameraScanner(onFound: (ScannedCode) -> Unit, modifier: Modifier) {
     var frame by remember { mutableStateOf<ImageBitmap?>(null) }
     var failed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        val camera = runCatching { jsOpenCamera(barcodes()).await<JsAny>() }.getOrNull()
+        val camera = runCatching { withContext(NonCancellable) { jsOpenCamera(barcodes()).await<JsAny>() } }.getOrNull()
         if (camera == null) {
             failed = true
             return@LaunchedEffect

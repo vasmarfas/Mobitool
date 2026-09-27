@@ -19,6 +19,7 @@ import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SwitchRow
+import org.jetbrains.compose.resources.stringResource
 
 private val tipPresets = listOf(0, 5, 10, 12, 15, 18, 20, 25)
 
@@ -57,7 +58,7 @@ private fun TipSplitScreen() {
         options = tipPresets,
         selected = tip?.toInt()?.takeIf { it.toDouble() == tip },
         onSelect = { tipText = it.toString() },
-        label = { "$it%" },
+        label = { stringResource(Res.string.percent_value, "$it") },
     )
     NumberField(
         value = peopleText,

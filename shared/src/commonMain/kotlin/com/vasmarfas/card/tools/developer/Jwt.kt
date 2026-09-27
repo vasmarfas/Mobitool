@@ -1,12 +1,13 @@
 package com.vasmarfas.card.tools.developer
 
-import com.vasmarfas.card.core.Tr
+import com.vasmarfas.card.resources.*
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import org.jetbrains.compose.resources.StringResource
 
 data class JwtParts(
     val header: JsonObject,
@@ -14,44 +15,44 @@ data class JwtParts(
     val signature: String,
 )
 
-class JwtException(val text: Tr) : Exception(text.en)
+class JwtException(val text: StringResource) : Exception(text.key)
 
 object Jwt {
-    val claimNames: Map<String, Tr> = mapOf(
-        "iss" to Tr("Issuer", "Издатель"),
-        "sub" to Tr("Subject", "Субъект"),
-        "aud" to Tr("Audience", "Аудитория"),
-        "exp" to Tr("Expiration time", "Срок действия до"),
-        "nbf" to Tr("Not before", "Действителен не раньше"),
-        "iat" to Tr("Issued at", "Выдан"),
-        "jti" to Tr("JWT ID", "Идентификатор токена"),
-        "alg" to Tr("Algorithm", "Алгоритм"),
-        "typ" to Tr("Type", "Тип"),
-        "kid" to Tr("Key ID", "Идентификатор ключа"),
-        "cty" to Tr("Content type", "Тип содержимого"),
-        "scope" to Tr("Scopes", "Права"),
-        "scp" to Tr("Scopes", "Права"),
-        "azp" to Tr("Authorized party", "Авторизованная сторона"),
-        "nonce" to Tr("Nonce", "Nonce"),
-        "auth_time" to Tr("Authentication time", "Время аутентификации"),
-        "sid" to Tr("Session ID", "Идентификатор сессии"),
-        "email" to Tr("Email", "Email"),
-        "email_verified" to Tr("Email verified", "Email подтверждён"),
-        "name" to Tr("Name", "Имя"),
-        "given_name" to Tr("Given name", "Имя"),
-        "family_name" to Tr("Family name", "Фамилия"),
-        "preferred_username" to Tr("Preferred username", "Имя пользователя"),
-        "username" to Tr("Username", "Имя пользователя"),
-        "roles" to Tr("Roles", "Роли"),
-        "role" to Tr("Role", "Роль"),
-        "groups" to Tr("Groups", "Группы"),
-        "client_id" to Tr("Client ID", "Идентификатор клиента"),
-        "token_use" to Tr("Token use", "Назначение токена"),
-        "amr" to Tr("Authentication methods", "Методы аутентификации"),
-        "acr" to Tr("Authentication context class", "Класс контекста аутентификации"),
-        "at_hash" to Tr("Access token hash", "Хеш access-токена"),
-        "picture" to Tr("Picture URL", "URL аватара"),
-        "locale" to Tr("Locale", "Локаль"),
+    val claimNames: Map<String, StringResource> = mapOf(
+        "iss" to Res.string.jwt_claim_iss,
+        "sub" to Res.string.jwt_claim_sub,
+        "aud" to Res.string.jwt_claim_aud,
+        "exp" to Res.string.jwt_claim_exp,
+        "nbf" to Res.string.jwt_claim_nbf,
+        "iat" to Res.string.jwt_claim_iat,
+        "jti" to Res.string.jwt_claim_jti,
+        "alg" to Res.string.algorithm,
+        "typ" to Res.string.type,
+        "kid" to Res.string.jwt_claim_kid,
+        "cty" to Res.string.jwt_claim_cty,
+        "scope" to Res.string.jwt_claim_scope,
+        "scp" to Res.string.jwt_claim_scope,
+        "azp" to Res.string.jwt_claim_azp,
+        "nonce" to Res.string.jwt_claim_nonce,
+        "auth_time" to Res.string.jwt_claim_auth_time,
+        "sid" to Res.string.jwt_claim_sid,
+        "email" to Res.string.jwt_claim_email,
+        "email_verified" to Res.string.jwt_claim_email_verified,
+        "name" to Res.string.name,
+        "given_name" to Res.string.jwt_claim_given_name,
+        "family_name" to Res.string.jwt_claim_family_name,
+        "preferred_username" to Res.string.jwt_claim_preferred_username,
+        "username" to Res.string.jwt_claim_username,
+        "roles" to Res.string.jwt_claim_roles,
+        "role" to Res.string.jwt_claim_role,
+        "groups" to Res.string.jwt_claim_groups,
+        "client_id" to Res.string.jwt_claim_client_id,
+        "token_use" to Res.string.jwt_claim_token_use,
+        "amr" to Res.string.jwt_claim_amr,
+        "acr" to Res.string.jwt_claim_acr,
+        "at_hash" to Res.string.jwt_claim_at_hash,
+        "picture" to Res.string.jwt_claim_picture,
+        "locale" to Res.string.locale,
     )
 
     val timeClaims = setOf("exp", "nbf", "iat", "auth_time", "updated_at")
@@ -66,10 +67,10 @@ object Jwt {
     fun decode(token: String): Result<JwtParts> {
         val parts = token.trim().removePrefix("Bearer ").trim().split('.')
         if (parts.size != 3) {
-            return Result.failure(JwtException(Tr("A JWT has three dot-separated parts: header.payload.signature.", "JWT состоит из трёх частей через точку: header.payload.signature.")))
+            return Result.failure(JwtException(Res.string.jwt_three_parts))
         }
-        val header = decodeObject(parts[0]) ?: return Result.failure(JwtException(Tr("Header is not Base64URL-encoded JSON object.", "Заголовок — не JSON-объект в Base64URL.")))
-        val payload = decodeObject(parts[1]) ?: return Result.failure(JwtException(Tr("Payload is not Base64URL-encoded JSON object.", "Полезная нагрузка — не JSON-объект в Base64URL.")))
+        val header = decodeObject(parts[0]) ?: return Result.failure(JwtException(Res.string.jwt_header_not_json))
+        val payload = decodeObject(parts[1]) ?: return Result.failure(JwtException(Res.string.jwt_payload_not_json))
         return Result.success(JwtParts(header, payload, parts[2]))
     }
 

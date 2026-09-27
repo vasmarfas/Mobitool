@@ -12,14 +12,4 @@ class PersistedToolsTest {
         assertNull(Tally.decode("not json"))
         assertNull(Tally.decode(null))
     }
-
-    @Test
-    fun textStatistics() {
-        val s = textStats("Hello,  world\nsecond line")
-        assertEquals(25, s.chars)
-        assertEquals(21, s.charsNoSpaces)
-        assertEquals(4, s.words)
-        assertEquals(2, s.lines)
-        assertEquals(TextStats(0, 0, 0, 0), textStats(""))
-    }
 }

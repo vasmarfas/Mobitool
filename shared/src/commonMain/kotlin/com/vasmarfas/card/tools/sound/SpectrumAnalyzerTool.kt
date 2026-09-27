@@ -39,6 +39,7 @@ import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.PermissionPrompt
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
+import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.sqrt
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +49,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.pluralStringResource
 
 val spectrumAnalyzerTool = Tool(
     id = "spectrum-analyzer",
@@ -225,7 +227,7 @@ private fun SpectrumAnalyzerScreen() {
         KeyValueRow(Res.string.peak_frequency.str(), formatHz(reading.peakHz, units), copyable = false)
         SpectrumAnalysis.note(reading.peakHz)?.let { (name, cents) ->
             val sign = if (cents >= 0) "+" else ""
-            KeyValueRow(Res.string.nearest_note.str(), "$name $sign$cents ${Res.string.cents.str()}", copyable = false)
+            KeyValueRow(Res.string.nearest_note.str(), "$name ${pluralStringResource(Res.plurals.cents_count, abs(cents), "$sign$cents")}", copyable = false)
         }
         KeyValueRow(Res.string.level.str(), "${reading.peakDb.toDouble().fmt(1)} ${units.db}", copyable = false)
         KeyValueRow(

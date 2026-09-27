@@ -98,9 +98,37 @@ internal fun scanObjects(data: ByteArray): ScannedObjects {
             i += 7
             continue
         }
+        if (c == 's'.code && opensStream(data, i)) {
+            val end = indexOf(data, "endstream", i + 6)
+            if (end > 0) {
+                i = end + 9
+                continue
+            }
+        }
         i++
     }
     return result
+}
+
+private fun opensStream(data: ByteArray, at: Int): Boolean {
+    if (!matchesWord(data, at, "stream")) return false
+    var after = at + 6
+    while (after < data.size && data[after].toInt() == ' '.code) after++
+    if (after >= data.size || (data[after].toInt() != '\r'.code && data[after].toInt() != '\n'.code)) return false
+    var before = at - 1
+    while (before > 0 && isWhitespace(data[before].toInt())) before--
+    return before > 0 && data[before].toInt() == '>'.code && data[before - 1].toInt() == '>'.code
+}
+
+private fun indexOf(data: ByteArray, word: String, from: Int): Int {
+    var i = from
+    while (i + word.length <= data.size) {
+        var k = 0
+        while (k < word.length && data[i + k].toInt() == word[k].code) k++
+        if (k == word.length) return i
+        i++
+    }
+    return -1
 }
 
 private fun headerStart(data: ByteArray, objAt: Int): Int {

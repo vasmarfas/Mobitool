@@ -27,6 +27,7 @@ import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
 import com.vasmarfas.card.ui.components.ToolSection
+import org.jetbrains.compose.resources.stringResource
 import kotlin.math.floor
 
 private enum class BodyUnits { METRIC, IMPERIAL }
@@ -228,7 +229,7 @@ private fun BmiBodyScreen() {
                 ErrorText(Res.string.waist_must_be_larger_than_neck.str())
             } else {
                 ResultCard(Res.string.body_fat_us_navy.str()) {
-                    KeyValueRow(Res.string.body_fat.str(), "${fat.fmt(1)}%")
+                    KeyValueRow(Res.string.body_fat.str(), stringResource(Res.string.percent_value, fat.fmt(1)))
                     KeyValueRow(Res.string.category.str(), Body.bodyFatCategory(sex, fat).str(), mono = false, copyable = false)
                     KeyValueRow(Res.string.fat_mass.str(), weight(weightKg * fat / 100))
                     KeyValueRow(Res.string.lean_mass.str(), weight(weightKg * (1 - fat / 100)))

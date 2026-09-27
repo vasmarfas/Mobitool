@@ -66,7 +66,7 @@ object Totp {
             ((mac[offset + 1].toInt() and 0xFF) shl 16) or
             ((mac[offset + 2].toInt() and 0xFF) shl 8) or
             (mac[offset + 3].toInt() and 0xFF)
-        var modulo = 1
+        var modulo = 1L
         repeat(digits) { modulo *= 10 }
         return (binary % modulo).toString().padStart(digits, '0')
     }

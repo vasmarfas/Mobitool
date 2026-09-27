@@ -10,7 +10,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
@@ -20,6 +19,7 @@ import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.ToolInputField
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 
 val checksumCompareTool = Tool(
     id = "checksum-compare",
@@ -30,8 +30,16 @@ val checksumCompareTool = Tool(
     keywords = listOf("checksum", "hash", "compare", "verify", "integrity", "sha256", "md5", "контрольная сумма", "хеш", "сравнить", "целостность"),
 ) { ChecksumCompareScreen() }
 
-private fun normalizeHash(text: String): String =
-    text.trim().substringBefore(' ').filterNot { it.isWhitespace() || it == ':' || it == '-' }.removePrefix("0x").lowercase()
+fun normalizeHash(text: String): String {
+    var best = ""
+    var run = StringBuilder()
+    for (group in text.trim().split(Regex("\\s+"))) {
+        val digits = group.removePrefix("0x").filterNot { it == ':' || it == '-' }
+        if (digits.isNotEmpty() && digits.all { it.digitToIntOrNull(16) != null }) run.append(digits) else run = StringBuilder()
+        if (run.length > best.length) best = run.toString()
+    }
+    return best.ifEmpty { text.filterNot { it.isWhitespace() } }.lowercase()
+}
 
 private fun detectAlgorithm(hash: String): StringResource? = when (hash.length) {
     8 -> Res.string.crc32
@@ -67,6 +75,10 @@ private fun ChecksumCompareScreen() {
     if (left.isBlank() || right.isBlank()) return
     val a = remember(left) { normalizeHash(left) }
     val b = remember(right) { normalizeHash(right) }
+    if (a.length < 8 || b.length < 8) {
+        ErrorText(Res.string.checksum_too_short.str())
+        return
+    }
     val hexOnly = a.all { it.digitToIntOrNull(16) != null } && b.all { it.digitToIntOrNull(16) != null }
     val match = a == b
     ResultCard {
@@ -96,7 +108,7 @@ private fun ChecksumCompareScreen() {
                 ErrorText(Res.string.checksum_lengths_differ_so_these.str())
             } else {
                 val index = a.indices.first { a[it] != b[it] }
-                ErrorText(Tr("First difference at position ${index + 1}: '${a[index]}' vs '${b[index]}'.", "Первое отличие в позиции ${index + 1}: «${a[index]}» против «${b[index]}».").str())
+                ErrorText(stringResource(Res.string.checksum_first_difference, index + 1, a[index].toString(), b[index].toString()))
             }
         }
         KeyValueRow(Res.string.normalized_expected.str(), a)

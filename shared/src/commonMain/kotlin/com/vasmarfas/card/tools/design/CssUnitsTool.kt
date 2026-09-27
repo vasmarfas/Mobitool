@@ -24,6 +24,7 @@ import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
 import com.vasmarfas.card.ui.components.ToolSection
+import org.jetbrains.compose.resources.stringResource
 
 private enum class CssUnitInput { PX, REM, EM, PT }
 
@@ -68,8 +69,8 @@ private fun CssUnitsScreen() {
     }
     ResultCard {
         KeyValueRow("px", px.fmt(4))
-        KeyValueRow("rem", "${CssUnits.pxToRem(px, root).fmt(4)} (root ${root.fmt(2)} px)")
-        KeyValueRow("em", "${CssUnits.pxToRem(px, parent).fmt(4)} (parent ${parent.fmt(2)} px)")
+        KeyValueRow("rem", "${CssUnits.pxToRem(px, root).fmt(4)} ${stringResource(Res.string.css_of_root, root.fmt(2))}")
+        KeyValueRow("em", "${CssUnits.pxToRem(px, parent).fmt(4)} ${stringResource(Res.string.css_of_parent, parent.fmt(2))}")
         KeyValueRow("pt", CssUnits.pxToPt(px).fmt(4))
         KeyValueRow("%", "${CssUnits.pxToPercent(px, parent).fmt(2)} %")
     }

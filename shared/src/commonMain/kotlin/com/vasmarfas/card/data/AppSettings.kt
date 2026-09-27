@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.text.intl.Locale
 import com.vasmarfas.card.core.Analytics
 import com.vasmarfas.card.core.AnalyticsEvent
 import com.vasmarfas.card.core.AnalyticsParam
@@ -13,7 +14,7 @@ import com.vasmarfas.card.core.Prefs
 import com.vasmarfas.card.core.UserProperty
 import com.vasmarfas.card.core.appLang
 import com.vasmarfas.card.core.applyPlatformLocale
-import com.vasmarfas.card.core.platformInfo
+import com.vasmarfas.card.tools.ToolRegistry
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
@@ -21,7 +22,7 @@ enum class OnboardingStatus { NONE, DONE, SKIPPED }
 
 class AppSettings(private val store: KeyValueStore = Prefs.store) {
     var lang: Lang by mutableStateOf(
-        Lang.fromCode(store.get(KEY_LANG)) ?: Lang.fromSystemTag(platformInfo().locale)
+        Lang.fromCode(store.get(KEY_LANG)) ?: Lang.fromSystemTag(Locale.current.toLanguageTag())
     )
         private set
 
@@ -40,10 +41,10 @@ class AppSettings(private val store: KeyValueStore = Prefs.store) {
         private set
 
     // the home screen in the apps and the favorites on the site, in the order tools were added
-    var myTools: List<String> by mutableStateOf(readList(KEY_MY_TOOLS))
+    var myTools: List<String> by mutableStateOf(readTools(KEY_MY_TOOLS))
         private set
 
-    var recent: List<String> by mutableStateOf(readList(KEY_RECENT))
+    var recent: List<String> by mutableStateOf(readTools(KEY_RECENT))
         private set
 
     var collapsedSections: Set<String> by mutableStateOf(readList(KEY_COLLAPSED).toSet())
@@ -61,7 +62,7 @@ class AppSettings(private val store: KeyValueStore = Prefs.store) {
         private set
 
     init {
-        applyPlatformLocale(lang.code)
+        if (store.get(KEY_LANG) != null) applyPlatformLocale(lang.code)
         appLang = lang
     }
 
@@ -152,6 +153,13 @@ class AppSettings(private val store: KeyValueStore = Prefs.store) {
 
     private fun readList(key: String): List<String> =
         store.get(key)?.split(',')?.filter { it.isNotBlank() } ?: emptyList()
+
+    private fun readTools(key: String): List<String> {
+        val stored = readList(key)
+        val ids = stored.map { ToolRegistry.byId(it)?.id ?: it }.distinct()
+        if (ids != stored) store.put(key, ids.joinToString(","))
+        return ids
+    }
 
     companion object {
         const val DEFAULT_SEED = 0xFF326773

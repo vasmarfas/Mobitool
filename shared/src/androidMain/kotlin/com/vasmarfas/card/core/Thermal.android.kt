@@ -9,8 +9,7 @@ import android.os.PowerManager
 
 actual fun thermalSupported(): Boolean = true
 
-// battery temperature from the sticky ACTION_BATTERY_CHANGED broadcast: no permission, no receiver. It lags
-// the SoC, but /sys/class/thermal is closed to apps under SELinux and there is no public CPU temperature API
+// battery temperature, /sys/class/thermal is closed to apps and there is no public SoC temperature API
 actual fun readThermal(): ThermalReading? {
     val context = AppContextHolder.context
     val battery: Intent? = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))

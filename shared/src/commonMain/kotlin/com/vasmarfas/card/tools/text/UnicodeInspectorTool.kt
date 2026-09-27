@@ -10,7 +10,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
@@ -21,6 +20,7 @@ import com.vasmarfas.card.ui.components.MonoTable
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
 import com.vasmarfas.card.ui.components.ToolInputField
+import org.jetbrains.compose.resources.pluralStringResource
 
 private enum class UnicodeMode { TEXT, CODE_POINT }
 
@@ -63,14 +63,23 @@ private fun UnicodeInspectorScreen() {
                 KeyValueRow("URL", UnicodeInfo.urlEncode(input))
             }
             ResultCard(Res.string.characters.str()) {
+                val header = listOf(
+                    Res.string.ascii_header_char.str(),
+                    Res.string.code_point.str(),
+                    Res.string.ascii_header_dec.str(),
+                    "UTF-8",
+                    "UTF-16",
+                    Res.string.category.str(),
+                    Res.string.block.str(),
+                )
+                val widths = listOf(6, 10, 9, 13, 11, 29).mapIndexed { column, width -> maxOf(width, header[column].length + 2) }
+                fun line(cells: List<String>) = cells.dropLast(1).mapIndexed { column, cell -> cell.padEnd(widths[column]) }.joinToString("") + cells.last()
                 MonoTable(
-                    listOf("Char  Code      Dec      UTF-8        UTF-16     Category                     Block") +
-                        infos.map { i ->
-                            i.text.padEnd(6) + i.hex.padEnd(10) + i.cp.toString().padEnd(9) + i.utf8.padEnd(13) + i.utf16.padEnd(11) + i.category.padEnd(29) + i.block
-                        },
+                    listOf(line(header)) +
+                        infos.map { i -> line(listOf(i.text, i.hex, i.cp.toString(), i.utf8, i.utf16, i.category, i.block)) },
                 )
                 if (input.codePointList().size > infos.size) {
-                    Text(Tr("Only the first ${infos.size} characters are shown.", "Показаны только первые ${infos.size} символов.").str(), style = MaterialTheme.typography.bodySmall)
+                    Text(pluralStringResource(Res.plurals.unicode_first_characters_shown, infos.size, infos.size), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

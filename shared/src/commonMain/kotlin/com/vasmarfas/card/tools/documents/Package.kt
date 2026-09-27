@@ -7,6 +7,7 @@ import com.vasmarfas.card.core.ZipArchive
 import com.vasmarfas.card.core.ZipEntryInfo
 import com.vasmarfas.card.core.ZipException
 import com.vasmarfas.card.core.parseXml
+import com.vasmarfas.card.resources.*
 import kotlin.io.encoding.Base64
 
 private const val MAX_UNPACKED = 200L * 1024 * 1024
@@ -41,7 +42,7 @@ internal class Package(bytes: ByteArray) {
         val entry = find(name) ?: return null
         cache[entry]?.let { return it }
         unpacked += entry.size
-        if (unpacked > MAX_UNPACKED) throw DocumentFormatException("The package unpacks to more than ${MAX_UNPACKED / 1024 / 1024} MB")
+        if (unpacked > MAX_UNPACKED) throw DocumentFormatException("The package unpacks to more than ${MAX_UNPACKED / 1024 / 1024} MB", Res.string.document_too_large)
         return zip.read(entry).also { cache[entry] = it }
     }
 

@@ -20,4 +20,14 @@ class TipSplitTest {
         assertEquals(112.0, result.total, 1e-9)
         assertEquals(12.0, result.tip, 1e-9)
     }
+
+    @Test
+    fun exactSharesStayWhenRoundedUp() {
+        assertEquals(110.0, TipSplit.compute(100.0, 10.0, 1, roundUp = true).perPerson, 1e-9)
+        assertEquals(55.0, TipSplit.compute(100.0, 10.0, 2, roundUp = true).perPerson, 1e-9)
+        assertEquals(1400.0, TipSplit.compute(2500.0, 12.0, 2, roundUp = true).perPerson, 1e-9)
+        assertEquals(33_000_000.0, TipSplit.compute(30_000_000.0, 10.0, 1, roundUp = true).perPerson, 1e-9)
+        assertEquals(34.0, TipSplit.compute(100.0, 0.0, 3, roundUp = true).perPerson, 1e-9)
+        assertEquals(28.0, TipSplit.compute(54.01, 0.0, 2, roundUp = true).perPerson, 1e-9)
+    }
 }

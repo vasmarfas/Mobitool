@@ -6,20 +6,21 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.activity.result.ActivityResultLauncher
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CompletableDeferred
 
 object PermissionBridge {
-    private var launcher: ((Array<String>) -> Unit)? = null
+    private var launcher: ActivityResultLauncher<Array<String>>? = null
     private var pending: CompletableDeferred<Map<String, Boolean>>? = null
     val requested = mutableSetOf<String>()
 
-    fun attach(launch: (Array<String>) -> Unit) {
-        launcher = launch
+    fun attach(launcher: ActivityResultLauncher<Array<String>>) {
+        this.launcher = launcher
     }
 
-    fun detach() {
-        launcher = null
+    fun detach(launcher: ActivityResultLauncher<Array<String>>) {
+        if (this.launcher === launcher) this.launcher = null
     }
 
     fun onResult(result: Map<String, Boolean>) {
@@ -28,12 +29,12 @@ object PermissionBridge {
     }
 
     suspend fun request(permissions: Array<String>): Map<String, Boolean> {
-        val launch = launcher ?: return permissions.associateWith { false }
+        val active = launcher ?: return permissions.associateWith { false }
         pending?.cancel()
         val deferred = CompletableDeferred<Map<String, Boolean>>()
         pending = deferred
         requested += permissions
-        launch(permissions)
+        active.launch(permissions)
         return deferred.await()
     }
 }
@@ -42,11 +43,6 @@ private fun manifestPermissions(permission: AppPermission): Array<String> = when
     AppPermission.LOCATION -> arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
     AppPermission.ACTIVITY_RECOGNITION -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) arrayOf(Manifest.permission.ACTIVITY_RECOGNITION) else emptyArray()
     AppPermission.MICROPHONE -> arrayOf(Manifest.permission.RECORD_AUDIO)
-    AppPermission.BLUETOOTH -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
-    } else {
-        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
-    }
     AppPermission.CAMERA -> arrayOf(Manifest.permission.CAMERA)
 }
 

@@ -67,7 +67,7 @@ import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun MyToolsScreen(onOpenTool: (String) -> Unit, onOpenCatalog: () -> Unit, onRunOnboarding: (entry: String) -> Unit) {
+fun MyToolsScreen(onOpenTool: (id: String, source: String) -> Unit, onOpenCatalog: () -> Unit, onRunOnboarding: (entry: String) -> Unit) {
     val settings = LocalSettings.current
     val tools = settings.myTools.mapNotNull { ToolRegistry.byId(it) }
     val sections = ToolCategory.entries.mapNotNull { category ->
@@ -76,14 +76,7 @@ fun MyToolsScreen(onOpenTool: (String) -> Unit, onOpenCatalog: () -> Unit, onRun
     }
     var removing by remember { mutableStateOf<Tool?>(null) }
     val compact = LocalLayoutSize.current == LayoutSize.COMPACT
-    val open = { id: String ->
-        val tool = ToolRegistry.byId(id)
-        Analytics.log(
-            AnalyticsEvent.TOOL_OPEN,
-            mapOf(AnalyticsParam.TOOL to id, AnalyticsParam.CATEGORY to (tool?.category?.id ?: ""), AnalyticsParam.SOURCE to "home"),
-        )
-        onOpenTool(id)
-    }
+    val open = { id: String -> onOpenTool(id, "home") }
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         LazyVerticalGrid(

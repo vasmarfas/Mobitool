@@ -130,7 +130,7 @@ private fun CurrencyConverterScreen() {
             AnswerCard(
                 "${money(converted)} $to",
                 "${money(amount)} $from" + (rate?.let { " · 1 $from = ${money(it)} $to" } ?: ""),
-                copyValue = converted.fmt(2),
+                copyValue = money(converted, grouping = false),
             )
         }
         ResultCard {
@@ -156,7 +156,7 @@ private fun CurrencyConverterScreen() {
 @Composable
 internal fun currencyLabel(code: String): String = Currency.names[code]?.let { "$code — ${it.str()}" } ?: code
 
-internal fun money(value: Double): String = if (abs(value) >= 1) value.fmt(2, grouping = true) else value.fmtSig(4)
+internal fun money(value: Double, grouping: Boolean = true): String = if (abs(value) >= 1) value.fmt(2, grouping = grouping) else value.fmtSig(4)
 
 internal fun formatTime(epochMillis: Long): String {
     val time = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())

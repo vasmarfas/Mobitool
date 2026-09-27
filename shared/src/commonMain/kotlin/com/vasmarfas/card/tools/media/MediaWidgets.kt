@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.vasmarfas.card.core.MediaException
 import com.vasmarfas.card.core.PickKind
 import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.formatBytes
@@ -58,6 +59,7 @@ import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 import kotlin.coroutines.cancellation.CancellationException
 
 val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif", "avif", "tif", "tiff", "ico")
@@ -126,6 +128,12 @@ fun formatClock(ms: Long): String {
     }
 }
 
+internal suspend fun errorText(e: Throwable): String = when (e) {
+    is MediaException -> getString(e.reason)
+    is Error -> getString(Res.string.out_of_memory)
+    else -> e.message ?: e.toString()
+}
+
 @Stable
 class TaskState {
     var progress by mutableStateOf<Float?>(null)
@@ -144,8 +152,8 @@ class TaskState {
                 block { progress = it }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
-                error = e.message ?: e.toString()
+            } catch (e: Throwable) {
+                error = errorText(e)
             } finally {
                 progress = null
             }

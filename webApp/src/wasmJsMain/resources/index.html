@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>vasmarfas — Android и Kotlin Multiplatform разработчик</title>
-    <meta name="description" content="Василий (vasmarfas), Android и Kotlin Multiplatform разработчик, системный и сетевой инженер: проекты, статьи на Хабре, резюме и бесплатные инструменты.">
+    <title data-en="vasmarfas · Android and Kotlin Multiplatform developer">vasmarfas · разработчик Android и Kotlin Multiplatform</title>
+    <meta name="description" content="Василий (vasmarfas), разработчик Android и Kotlin Multiplatform, системный и сетевой инженер: проекты, статьи на Хабре, резюме и бесплатные инструменты." data-en="Vasilii (vasmarfas), Android and Kotlin Multiplatform developer, systems and network engineer: projects, Habr articles, résumé and free tools.">
     <meta name="keywords" content="vasmarfas, мультитул, сетевые инструменты, калькулятор подсетей, пинг, трассировка, DNS, конвертер единиц, Android developer, Kotlin Multiplatform">
     <meta name="author" content="vasmarfas">
     <meta name="theme-color" content="#fff9ef" media="(prefers-color-scheme: light)">
@@ -19,32 +19,41 @@
     <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
     <link rel="manifest" href="manifest.webmanifest">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="vasmarfas — Android и Kotlin Multiplatform разработчик">
-    <meta property="og:description" content="Проекты, статьи на Хабре и резюме Android и Kotlin Multiplatform разработчика. И бесплатный мультитул: @TOOLS_RU@ @CATEGORIES_RU@, от фото и PDF до сети и 3D-печати.">
+    <meta property="og:title" content="vasmarfas · разработчик Android и Kotlin Multiplatform" data-en="vasmarfas · Android and Kotlin Multiplatform developer">
+    <meta property="og:description" content="Проекты, статьи на Хабре и резюме разработчика Android и Kotlin Multiplatform. И бесплатный мультитул: @TOOLS_RU@ @CATEGORIES_RU@, от фото и PDF до сети и 3D-печати." data-en="Projects, Habr articles and the résumé of an Android and Kotlin Multiplatform developer. Plus a free multitool: @TOOLS_EN@ in @CATEGORIES_EN@, from photos and PDF to networking and 3D printing.">
     <meta property="og:url" content="https://vasmarfas.com/">
     <meta property="og:image" content="https://vasmarfas.com/og-image.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="vasmarfas Mobitool">
     <meta property="og:site_name" content="vasmarfas">
-    <meta property="og:locale" content="ru_RU">
-    <meta property="og:locale:alternate" content="en_US">
+    <meta property="og:locale" content="ru_RU" data-en="en_US">
+    <meta property="og:locale:alternate" content="en_US" data-en="ru_RU">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="vasmarfas — Android и Kotlin Multiplatform разработчик">
-    <meta name="twitter:description" content="Проекты, статьи на Хабре и резюме Android и Kotlin Multiplatform разработчика. И бесплатный мультитул: @TOOLS_RU@ @CATEGORIES_RU@, от фото и PDF до сети и 3D-печати.">
+    <meta name="twitter:title" content="vasmarfas · разработчик Android и Kotlin Multiplatform" data-en="vasmarfas · Android and Kotlin Multiplatform developer">
+    <meta name="twitter:description" content="Проекты, статьи на Хабре и резюме разработчика Android и Kotlin Multiplatform. И бесплатный мультитул: @TOOLS_RU@ @CATEGORIES_RU@, от фото и PDF до сети и 3D-печати." data-en="Projects, Habr articles and the résumé of an Android and Kotlin Multiplatform developer. Plus a free multitool: @TOOLS_EN@ in @CATEGORIES_EN@, from photos and PDF to networking and 3D printing.">
     <meta name="twitter:image" content="https://vasmarfas.com/og-image.png">
     <link rel="preload" href="app.js" as="script">
     <!-- wasm hints -->
     <script>
         (function () {
+            // the same rule as AppSettings: the saved choice, then the browser language
             var saved = null;
             try { saved = localStorage.getItem("settings.lang"); } catch (e) {}
-            var ru = saved ? saved === "ru" : /^ru/i.test(navigator.language || "");
+            var lang = saved === "ru" || saved === "en" ? saved : /^ru/i.test(navigator.language || "") ? "ru" : "en";
+            var root = document.documentElement;
+            if (root.lang !== lang) {
+                root.lang = lang;
+                var title = document.querySelector("title[data-" + lang + "]");
+                var description = document.querySelector('meta[name="description"][data-' + lang + "]");
+                if (title) document.title = title.getAttribute("data-" + lang);
+                if (description) description.setAttribute("content", description.getAttribute("data-" + lang));
+            }
             var link = document.createElement("link");
             link.rel = "preload";
             link.as = "fetch";
             link.crossOrigin = "anonymous";
-            link.href = "composeResources/com.vasmarfas.card.resources/" + (ru ? "values-ru" : "values") + "/strings.commonMain.cvr";
+            link.href = "composeResources/com.vasmarfas.card.resources/" + (lang === "ru" ? "values-ru" : "values") + "/strings.commonMain.cvr";
             document.head.appendChild(link);
         })();
     </script>
@@ -58,7 +67,7 @@
     }
     </script>
     <script>
-        // Media and PDF modules come in on first use; webpack must not see these imports.
+        // media and PDF modules load on first use, webpack must not see these imports
         window.vasmarfasImport = function (name) { return import("./" + name); };
     </script>
     <script type="application/ld+json">
@@ -103,19 +112,24 @@
           "isAccessibleForFree": true,
           "description": "Бесплатный мультитул: @TOOLS_RU@ @CATEGORIES_RU@. Расчёты идут на устройстве, рекламы и регистрации нет.",
           "featureList": [
-            "Сеть",
-            "Конвертеры",
-            "Калькуляторы",
-            "Текст",
-            "Разработчику",
-            "Безопасность",
-            "Цвет и дизайн",
-            "Время",
             "Измерения и датчики",
-            "Устройство",
+            "Калькуляторы",
+            "Конвертеры",
+            "Деньги",
+            "Фото, видео и аудио",
+            "Документы и PDF",
+            "Время",
             "Быт",
-            "3D-печать",
-            "Спорт и здоровье"
+            "Текст",
+            "Спорт и здоровье",
+            "Звук",
+            "Цвет и дизайн",
+            "Безопасность",
+            "Устройство",
+            "Разработчику",
+            "Сеть",
+            "Электроника",
+            "3D-печать"
           ],
           "offers": {
             "@type": "Offer",
@@ -131,6 +145,7 @@
     </script>
     <script>
         window.vasmarfasAnalytics = (function () {
+            if (!/(^|\.)vasmarfas\.(com|ru)$/i.test(location.hostname)) return null;
             var firebaseConfig = {
                 apiKey: "AIzaSyBrYxAlyZ_hk8AZRxiTnleuf466fFMGii8",
                 authDomain: "mobitool-ce437.firebaseapp.com",
@@ -142,7 +157,7 @@
             };
             var sdk = "https://www.gstatic.com/firebasejs/12.19.0/";
             var metricaId = 112719808;
-            // Firebase keeps its data abroad, so the Russian mirror runs on Metrica alone.
+            // Firebase keeps its data abroad, so the Russian mirror runs on Metrica alone
             var withFirebase = !/\.ru$/i.test(location.hostname);
             var started = false;
             var firebase = null;
@@ -156,8 +171,7 @@
             tag.async = 1;
             tag.src = "https://mc.yandex.ru/metrika/tag.js?id=" + metricaId;
             document.head.appendChild(tag);
-            // Webvisor records neither canvas nor shadow DOM, and the click map drops the fragment and folds every
-            // screen into one, so both stay off. The first page view is the landing one, later ones come from page().
+            // Webvisor cannot record the canvas and the click map folds every screen into one, so both stay off
             window.ym(metricaId, "init", {
                 ssr: true,
                 webvisor: false,
@@ -168,7 +182,7 @@
                 trackLinks: true
             });
 
-            // Metrica draws goal parameters as a tree, so an event goes in as its name, then each value in turn.
+            // Metrica draws goal parameters as a tree, so an event goes in as its name, then each value in turn
             function tree(name, params) {
                 var values = Object.keys(params).map(function (key) { return String(params[key]); });
                 var node = values.length ? values.pop() : 1;
@@ -187,7 +201,8 @@
                     return import(sdk + "firebase-analytics.js").then(function (analyticsModule) {
                         var app = appModule.initializeApp(firebaseConfig);
                         firebase = {
-                            analytics: analyticsModule.getAnalytics(app),
+                            // the app logs screen_view for every screen, an automatic page_view would count the first one twice
+                            analytics: analyticsModule.initializeAnalytics(app, { config: { send_page_view: false } }),
                             log: analyticsModule.logEvent,
                             setProperties: analyticsModule.setUserProperties
                         };
@@ -202,9 +217,8 @@
                 else if (pending && pending.length < 200) pending.push(call);
             }
 
-            // The canvas has no elements to click on, but Compose keeps an accessibility tree with the label and role of
-            // everything on screen. A tap is matched to the smallest node under it. Tool screens are left out: their
-            // buttons can carry what the person typed, and so can text fields anywhere.
+            // a tap is matched to the smallest node of the accessibility tree, tool screens and text fields stay out
+            // because their labels can carry what the person typed
             var a11yRoot = null;
             var press = null;
 
@@ -275,7 +289,9 @@
                     var params = {};
                     try { params = JSON.parse(paramsJson); } catch (e) {}
                     if (name !== "screen_view") window.ym(metricaId, "reachGoal", name, tree(name, params));
-                    toFirebase(function () { firebase.log(firebase.analytics, name, params); });
+                    // gtag drops the fragment from the address, and the fragment is the screen
+                    var hit = Object.assign({ page_location: location.href, page_title: document.title }, params);
+                    toFirebase(function () { firebase.log(firebase.analytics, name, hit); });
                 },
                 property: function (name, value) {
                     var props = {};
@@ -304,12 +320,8 @@
 <div id="app"></div>
 <script>
     (function () {
-        var ru = /^ru/i.test(navigator.language || "") || /\.ru$/i.test(location.hostname);
+        var ru = document.documentElement.lang === "ru";
         if (!ru) {
-            document.documentElement.lang = "en";
-            document.title = "vasmarfas — Android and Kotlin Multiplatform developer";
-            var meta = document.querySelector('meta[name="description"]');
-            if (meta) meta.setAttribute("content", "Vasilii (vasmarfas), Android and Kotlin Multiplatform developer, systems and network engineer: projects, Habr articles, résumé and free tools.");
             var note = document.getElementById("splash-note");
             if (note) note.textContent = "Loading the app…";
         }
@@ -327,7 +339,7 @@
             var note = document.getElementById("splash-note");
             if (note) {
                 note.innerHTML = (ru ? "Этот браузер не поддерживает WebAssembly GC. Обновите браузер (Chrome 119+, Firefox 120+, Safari 18.2+) или скачайте приложение: " : "This browser does not support WebAssembly GC. Update it (Chrome 119+, Firefox 120+, Safari 18.2+) or get the app: ") +
-                    "<a href=\"https://github.com/vasmarfas/mobitool/releases\">GitHub Releases</a>.";
+                    "<a href=\"download.html\">" + (ru ? "страница загрузки" : "download page") + "</a>.";
             }
             var bar = document.querySelector(".splash-progress");
             if (bar) bar.remove();
@@ -349,29 +361,22 @@
                 if (!sizes[url.split("?")[0].split("/").pop()]) return request;
                 return request.then(function (response) {
                     if (!response.ok || !response.body) return response;
-                    var reader = response.body.getReader();
-                    var counted = new ReadableStream({
-                        pull: function (controller) {
-                            return reader.read().then(function (step) {
-                                if (step.done) {
-                                    controller.close();
-                                    return;
-                                }
-                                received += step.value.byteLength;
-                                var share = Math.min(1, received / expected);
-                                fill.style.transform = "scaleX(" + share.toFixed(3) + ")";
-                                percent.textContent = Math.floor(share * 100) + (ru ? " %" : "%");
-                                if (share >= 1) {
-                                    var note = document.getElementById("splash-note");
-                                    if (note) note.textContent = ru ? "Запускаю…" : "Starting…";
-                                    percent.textContent = "";
-                                }
-                                controller.enqueue(step.value);
-                            });
-                        },
-                        cancel: function (reason) { return reader.cancel(reason); }
-                    });
-                    return new Response(counted, { status: response.status, statusText: response.statusText, headers: response.headers });
+                    // counted on a copy: a Response built in JS has no URL, and Chrome would not cache the compiled module
+                    var reader = response.clone().body.getReader();
+                    reader.read().then(function count(step) {
+                        if (step.done) return;
+                        received += step.value.byteLength;
+                        var share = Math.min(1, received / expected);
+                        fill.style.transform = "scaleX(" + share.toFixed(3) + ")";
+                        percent.textContent = Math.floor(share * 100) + (ru ? " %" : "%");
+                        if (share >= 1) {
+                            var note = document.getElementById("splash-note");
+                            if (note) note.textContent = ru ? "Запускаю…" : "Starting…";
+                            percent.textContent = "";
+                        }
+                        return reader.read().then(count);
+                    }).catch(function () {});
+                    return response;
                 });
             };
         }

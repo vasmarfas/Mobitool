@@ -1,7 +1,8 @@
 package com.vasmarfas.card.tools.developer
 
 import com.vasmarfas.card.core.Lang
-import com.vasmarfas.card.core.Tr
+import com.vasmarfas.card.resources.*
+import org.jetbrains.compose.resources.StringResource
 
 sealed class CronPart {
     data object Any : CronPart()
@@ -38,7 +39,7 @@ data class CronTime(val year: Int, val month: Int, val day: Int, val hour: Int, 
     fun nextMonth(): CronTime = if (month < 12) CronTime(year, month + 1, 1, 0, 0) else CronTime(year + 1, 1, 1, 0, 0)
 }
 
-class CronException(val text: Tr) : Exception(text.en)
+class CronException(val text: StringResource, vararg val args: Any) : Exception(text.key)
 
 object Cron {
     private val monthNames = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
@@ -62,25 +63,25 @@ object Cron {
     private val daysRuFrom = listOf("воскресенья", "понедельника", "вторника", "среды", "четверга", "пятницы", "субботы")
     private val daysRuTo = listOf("воскресенье", "понедельник", "вторник", "среду", "четверг", "пятницу", "субботу")
 
-    val presets: List<Pair<String, Tr>> = listOf(
-        "* * * * *" to Tr("Every minute", "Каждую минуту"),
-        "*/5 * * * *" to Tr("Every 5 minutes", "Каждые 5 минут"),
-        "0 * * * *" to Tr("Every hour", "Каждый час"),
-        "0 0 * * *" to Tr("Daily at midnight", "Ежедневно в полночь"),
-        "0 9 * * 1-5" to Tr("Weekdays at 09:00", "По будням в 09:00"),
-        "0 0 * * 0" to Tr("Weekly on Sunday", "По воскресеньям"),
-        "0 0 1 * *" to Tr("Monthly on the 1st", "1-го числа каждого месяца"),
-        "0 0 1 1 *" to Tr("Yearly on January 1", "Ежегодно 1 января"),
-        "30 2 * * 6" to Tr("Saturdays at 02:30", "По субботам в 02:30"),
-        "0 */6 * * *" to Tr("Every 6 hours", "Каждые 6 часов"),
-        "0 12 1,15 * *" to Tr("1st and 15th at noon", "1-го и 15-го в полдень"),
+    val presets: List<Pair<String, StringResource>> = listOf(
+        "* * * * *" to Res.string.cron_every_minute,
+        "*/5 * * * *" to Res.string.cron_every_5_minutes,
+        "0 * * * *" to Res.string.cron_every_hour,
+        "0 0 * * *" to Res.string.cron_daily_at_midnight,
+        "0 9 * * 1-5" to Res.string.cron_weekdays_at_9,
+        "0 0 * * 0" to Res.string.cron_weekly_on_sunday,
+        "0 0 1 * *" to Res.string.cron_monthly_on_the_1st,
+        "0 0 1 1 *" to Res.string.cron_yearly_on_january_1,
+        "30 2 * * 6" to Res.string.cron_saturdays_at_0230,
+        "0 */6 * * *" to Res.string.cron_every_6_hours,
+        "0 12 1,15 * *" to Res.string.cron_1st_and_15th_at_noon,
     )
 
     fun parse(text: String): Result<CronExpr> {
         val expanded = macros[text.trim().lowercase()] ?: text.trim()
         val fields = expanded.split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (fields.size != 5) {
-            return Result.failure(CronException(Tr("Expected 5 fields: minute hour day-of-month month day-of-week.", "Ожидается 5 полей: минута час день месяц день-недели.")))
+            return Result.failure(CronException(Res.string.cron_expected_5_fields))
         }
         return try {
             Result.success(
@@ -107,33 +108,33 @@ object Cron {
 
     private fun value(token: String, min: Int, max: Int, names: List<String>?): Int {
         val named = names?.indexOf(token.lowercase())?.takeIf { it >= 0 }?.let { if (names === monthNames) it + 1 else it }
-        val v = named ?: token.toIntOrNull() ?: throw CronException(Tr("Invalid value \"$token\".", "Некорректное значение «$token»."))
-        if (v < min || v > max) throw CronException(Tr("Value $v is out of range $min–$max.", "Значение $v вне диапазона $min–$max."))
+        val v = named ?: token.toIntOrNull() ?: throw CronException(Res.string.cron_invalid_value, token)
+        if (v < min || v > max) throw CronException(Res.string.cron_value_out_of_range, v, min, max)
         return v
     }
 
     private fun part(piece: String, min: Int, max: Int, names: List<String>?): CronPart {
         val p = piece.trim()
-        if (p.isEmpty()) throw CronException(Tr("Empty list item.", "Пустой элемент списка."))
+        if (p.isEmpty()) throw CronException(Res.string.cron_empty_list_item)
         if (p == "*" || p == "?") return CronPart.Any
         val slash = p.indexOf('/')
         if (slash >= 0) {
             val base = p.substring(0, slash)
             val step = p.substring(slash + 1).toIntOrNull()?.takeIf { it > 0 }
-                ?: throw CronException(Tr("Invalid step in \"$p\".", "Некорректный шаг в «$p»."))
+                ?: throw CronException(Res.string.cron_invalid_step, p)
             if (base == "*" || base == "?") return CronPart.Step(null, null, step)
             val dash = base.indexOf('-')
-            return if (dash > 0) {
-                CronPart.Step(value(base.substring(0, dash), min, max, names), value(base.substring(dash + 1), min, max, names), step)
-            } else {
-                CronPart.Step(value(base, min, max, names), null, step)
-            }
+            if (dash <= 0) return CronPart.Step(value(base, min, max, names), null, step)
+            val from = value(base.substring(0, dash), min, max, names)
+            val to = value(base.substring(dash + 1), min, max, names)
+            if (from > to) throw CronException(Res.string.cron_reversed_range, p)
+            return CronPart.Step(from, to, step)
         }
         val dash = p.indexOf('-')
         if (dash > 0) {
             val from = value(p.substring(0, dash), min, max, names)
             val to = value(p.substring(dash + 1), min, max, names)
-            if (from > to) throw CronException(Tr("Range \"$p\" is reversed.", "Диапазон «$p» задан наоборот."))
+            if (from > to) throw CronException(Res.string.cron_reversed_range, p)
             return CronPart.Range(from, to)
         }
         return CronPart.Single(value(p, min, max, names))
@@ -280,7 +281,9 @@ object Cron {
         val dom = if (expr.dayOfMonth.isStar && expr.dayOfMonth.parts.all { it is CronPart.Any }) "" else domPhrase(expr.dayOfMonth, lang)
         val dow = namedPhrase(expr.dayOfWeek, lang, daysEn, daysRuOn, daysRuFrom, daysRuTo, "on ", "по ", false, "day of the week", "день недели")
         if (dom.isNotEmpty() && dow.isNotEmpty()) {
-            pieces += if (ru) "$dom или $dow" else "$dom or $dow"
+            val both = expr.dayOfMonth.isStar || expr.dayOfWeek.isStar
+            val joint = if (ru) (if (both) "и" else "или") else (if (both) "and" else "or")
+            pieces += "$dom $joint $dow"
         } else {
             if (dom.isNotEmpty()) pieces += dom
             if (dow.isNotEmpty()) pieces += dow

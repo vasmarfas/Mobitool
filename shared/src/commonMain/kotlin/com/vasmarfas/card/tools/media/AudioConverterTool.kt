@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +63,7 @@ private fun AudioConverterScreen() {
     var result by remember { mutableStateOf<MediaResult?>(null) }
     val task = remember { TaskState() }
     val noAudio = Res.string.no_audio_track.str()
+    DisposableEffect(Unit) { onDispose { result?.discard() } }
 
     PickButton(Res.string.choose_audio.str(), audioExtensions + videoExtensions, empty = file == null) { files ->
         val picked = files.first()
@@ -74,7 +76,7 @@ private fun AudioConverterScreen() {
         scope.launch {
             runCatching { MediaEngine.probe(picked) }
                 .onSuccess { if (it.hasAudio) info = it else loadError = noAudio }
-                .onFailure { loadError = it.message ?: it.toString() }
+                .onFailure { loadError = errorText(it) }
         }
     }
     loadError?.let { ErrorText(it) }
@@ -92,7 +94,7 @@ private fun AudioConverterScreen() {
     }
     if (target.lossy) {
         ToolSection(Res.string.bitrate.str()) {
-            ChoiceChips(options = listOf(64, 96, 128, 192, 256, 320), selected = kbps, onSelect = { kbps = it }, label = { "$it kbps" })
+            ChoiceChips(options = listOf(64, 96, 128, 192, 256, 320), selected = kbps, onSelect = { kbps = it }, label = { "$it ${Res.string.unit_kbit_s.str()}" })
         }
     }
     if (target != MediaFormat.OGG) {
@@ -101,7 +103,7 @@ private fun AudioConverterScreen() {
                 options = listOf(0, 22_050, 44_100, 48_000),
                 selected = rate,
                 onSelect = { rate = it },
-                label = { if (it == 0) Res.string.as_source.str() else (it / 1000.0).fmt(2) + " kHz" },
+                label = { if (it == 0) Res.string.as_source.str() else "${(it / 1000.0).fmt(2)} ${Res.string.unit_khz.str()}" },
             )
         }
     }

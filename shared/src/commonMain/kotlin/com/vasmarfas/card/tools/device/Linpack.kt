@@ -2,7 +2,7 @@ package com.vasmarfas.card.tools.device
 
 import kotlin.math.abs
 
-// Port of netlib.org/benchmark/linpackjava, only the path the benchmark walks: job 0, unit strides.
+// port of netlib.org/benchmark/linpackjava, only the path the benchmark walks: job 0, unit strides
 object Linpack {
     class Result(val mflops: Double, val seconds: Double, val residual: Double)
 

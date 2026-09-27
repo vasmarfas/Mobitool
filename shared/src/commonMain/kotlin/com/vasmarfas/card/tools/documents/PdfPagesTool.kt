@@ -56,8 +56,9 @@ import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
-import com.vasmarfas.card.tools.documents.pdf.PageRef
-import com.vasmarfas.card.tools.documents.pdf.PdfAssembler
+import com.vasmarfas.card.tools.documents.editor.MarkFonts
+import com.vasmarfas.card.tools.documents.editor.PdfEditWriter
+import com.vasmarfas.card.tools.documents.editor.startingEdit
 import com.vasmarfas.card.tools.media.EditButton
 import com.vasmarfas.card.tools.media.EditButtons
 import com.vasmarfas.card.tools.media.PickButton
@@ -161,15 +162,20 @@ private fun PdfPagesScreen() {
     }
 
     SaveButton(Res.string.save_as_one.str()) {
-        val pages = slots.map { PageRef(document, it.index, it.rotation) }
-        saveBytes(withContext(Dispatchers.Default) { PdfAssembler.assemble(pages) }, renamed(pdf.file.name, "pdf", "-pages"))
+        val fonts = MarkFonts(documentFonts(serif = true))
+        val start = startingEdit(document)
+        val edit = start.copy(pages = slots.map { start.pages[it.index].copy(turn = it.rotation) })
+        saveBytes(withContext(Dispatchers.Default) { PdfEditWriter.write(document, edit, fonts) }, renamed(pdf.file.name, "pdf", "-pages"))
     }
     if (slots.size > 1) {
         SaveButton(Res.string.save_each_page.str()) {
+            val fonts = MarkFonts(documentFonts(serif = true))
+            val start = startingEdit(document)
             val zip = withContext(Dispatchers.Default) {
                 ZipWriter().apply {
                     slots.forEachIndexed { n, slot ->
-                        add(renamed(pdf.file.name, "pdf", "-${n + 1}"), PdfAssembler.assemble(listOf(PageRef(document, slot.index, slot.rotation))))
+                        val edit = start.copy(pages = listOf(start.pages[slot.index].copy(turn = slot.rotation)), outline = emptyList())
+                        add(renamed(pdf.file.name, "pdf", "-${n + 1}"), PdfEditWriter.write(document, edit, fonts))
                     }
                 }.toByteArray()
             }

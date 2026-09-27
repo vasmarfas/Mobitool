@@ -3,6 +3,7 @@ package com.vasmarfas.card.tools.developer
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonUnquotedLiteral
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 
@@ -11,23 +12,32 @@ data class CsvTable(val rows: List<List<String>>, val delimiter: Char) {
 }
 
 object Csv {
-    private val delimiters = listOf(',', ';', '\t', '|')
+    private val delimiters = listOf(';', '\t', ',', '|')
+    private val jsonNumber = Regex("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?")
 
     fun detectDelimiter(text: String): Char {
         val sample = text.lineSequence().take(20).joinToString("\n")
-        return delimiters.maxByOrNull { d -> countOutsideQuotes(sample, d) } ?: ','
+        val counts = delimiters.associateWith { recordCounts(sample, it) }
+        val steady = delimiters.firstOrNull { d -> counts.getValue(d).let { c -> c.isNotEmpty() && c[0] > 0 && c.all { it == c[0] } } }
+        return steady ?: delimiters.filter { counts.getValue(it).sum() > 0 }.maxByOrNull { counts.getValue(it).sum() } ?: ','
     }
 
-    private fun countOutsideQuotes(text: String, delimiter: Char): Int {
+    private fun recordCounts(text: String, delimiter: Char): List<Int> {
+        val counts = mutableListOf<Int>()
         var count = 0
+        var blank = true
         var inQuotes = false
-        for (c in text) {
-            when {
-                c == '"' -> inQuotes = !inQuotes
-                c == delimiter && !inQuotes -> count++
+        for (c in text + '\n') {
+            if (c == '\n' && !inQuotes) {
+                if (!blank) counts += count
+                count = 0
+                blank = true
+                continue
             }
+            if (c == '"') inQuotes = !inQuotes else if (c == delimiter && !inQuotes) count++
+            if (!c.isWhitespace()) blank = false
         }
-        return count
+        return counts
     }
 
     fun parse(text: String, delimiter: Char): CsvTable {
@@ -109,12 +119,15 @@ object Csv {
     private fun valueElement(raw: String): JsonPrimitive {
         val t = raw.trim()
         return when {
-            t.isEmpty() -> JsonPrimitive(raw)
             t == "true" || t == "false" -> JsonPrimitive(t == "true")
-            t.toLongOrNull() != null -> JsonPrimitive(t.toLong())
-            t.toDoubleOrNull() != null && t.none { it == 'x' || it == 'X' } -> JsonPrimitive(t.toDouble())
+            isNumber(t) -> JsonUnquotedLiteral(t)
             else -> JsonPrimitive(raw)
         }
+    }
+
+    private fun isNumber(text: String): Boolean {
+        if (!jsonNumber.matches(text)) return false
+        return if (text.none { it == '.' || it == 'e' || it == 'E' }) text.toLongOrNull() != null else text.toDouble().isFinite()
     }
 
     fun toMarkdown(table: CsvTable, hasHeader: Boolean): String {

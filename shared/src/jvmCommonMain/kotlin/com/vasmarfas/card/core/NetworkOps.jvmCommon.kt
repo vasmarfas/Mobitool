@@ -6,6 +6,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.io.File
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -15,17 +17,27 @@ import java.net.MulticastSocket
 import java.net.NetworkInterface
 import java.net.Socket
 import java.net.SocketTimeoutException
+import java.security.KeyStore
 import java.security.MessageDigest
+import java.security.cert.CertificateException
+import java.security.cert.CertificateExpiredException
+import java.security.cert.CertificateNotYetValidException
 import java.security.cert.X509Certificate
 import java.security.interfaces.ECPublicKey
 import java.security.interfaces.RSAPublicKey
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import javax.net.ssl.SNIHostName
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLEngine
 import javax.net.ssl.SSLSocket
-import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509ExtendedTrustManager
+import javax.net.ssl.X509TrustManager
 
-private val isWindows = (System.getProperty("os.name") ?: "").lowercase().contains("win")
+private val osName = (System.getProperty("os.name") ?: "").lowercase()
+private val isWindows = osName.contains("win")
+private val isMac = osName.contains("mac")
 private val isAndroid = (System.getProperty("java.vendor") ?: "").lowercase().contains("android") ||
     (System.getProperty("java.vm.vendor") ?: "").lowercase().contains("android") ||
     System.getProperty("java.runtime.name")?.lowercase()?.contains("android") == true ||
@@ -37,32 +49,53 @@ private val pingBinary: String = when {
 }
 
 private val ipv4Regex = Regex("""(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})""")
-private val timeRegex = Regex("""(?:time|время|temps|Zeit|tiempo|tempo)\s*[=<:]\s*([\d.,]+)\s*(?:ms|мс|мсек)?""", RegexOption.IGNORE_CASE)
-private val ttlRegex = Regex("""TTL\s*=\s*(\d+)""", RegexOption.IGNORE_CASE)
+
+private val ttlRegex = Regex("""\bttl\s*=\s*(\d+)""", RegexOption.IGNORE_CASE)
+private val windowsTimeRegex = Regex("""[=<]\s*(\d+)\s*[^\s=<]*\s+TTL=""")
+private val unixTimeRegex = Regex("""time[=<]\s*([\d.]+)""")
+private val windowsV6TimeRegex = Regex("""[=<]\s*(\d+)\s*[^\s=<]*\s*$""")
 
 actual fun platformNetCapabilities() = PlatformNetCapabilities(
     icmpPing = true,
     tcp = true,
     udp = true,
     interfaces = true,
-    tls = true,
 )
 
-private fun pingCommand(host: String, timeoutMs: Int, ttl: Int?): List<String> {
-    val timeoutSec = ((timeoutMs + 999) / 1000).coerceAtLeast(1)
-    return if (isWindows) {
-        buildList {
-            add(pingBinary); add("-n"); add("1"); add("-w"); add(timeoutMs.toString())
+private fun pingCommand(host: String, timeoutMs: Int, ttl: Int?): List<String> = buildList {
+    add(pingBinary)
+    when {
+        isWindows -> {
+            if (!host.contains(':')) add("-4")
+            add("-n"); add("1"); add("-w"); add(timeoutMs.toString())
             if (ttl != null) { add("-i"); add(ttl.toString()) }
-            add(host)
         }
-    } else {
-        buildList {
-            add(pingBinary); add("-c"); add("1"); add("-W"); add(timeoutSec.toString())
+        isMac -> {
+            add("-c"); add("1"); add("-W"); add(timeoutMs.toString())
+            if (ttl != null) { add("-m"); add(ttl.toString()) }
+        }
+        else -> {
+            add("-c"); add("1"); add("-W"); add(((timeoutMs + 999) / 1000).coerceAtLeast(1).toString())
             if (ttl != null) { add("-t"); add(ttl.toString()) }
-            add(host)
         }
     }
+    add(host)
+}
+
+internal fun parsePing(output: String, sequence: Int, ttl: Int?, ipv6: Boolean, elapsedMs: Double): PingReply {
+    val lines = output.lines()
+    val reply = lines.firstOrNull { ttlRegex.containsMatchIn(it) }
+    if (reply != null) {
+        val time = (windowsTimeRegex.find(reply) ?: unixTimeRegex.find(reply))?.groupValues?.get(1)?.toDoubleOrNull()
+        return PingReply(sequence, time ?: elapsedMs, ttlRegex.find(reply)?.groupValues?.get(1)?.toIntOrNull(), ipv4Regex.find(reply)?.value, null)
+    }
+    if (ipv6) {
+        val time = lines.firstNotNullOfOrNull { windowsV6TimeRegex.find(it) }?.groupValues?.get(1)?.toDoubleOrNull()
+        if (time != null) return PingReply(sequence, time, null, null, null)
+    }
+    val addresses = ipv4Regex.findAll(output).map { it.value }.toList()
+    val hop = addresses.firstOrNull { it != addresses.first() }
+    return if (ttl != null && hop != null) PingReply(sequence, elapsedMs, null, hop, "ttl-expired") else PingReply(sequence, null, null, null, null)
 }
 
 actual suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: Int?): PingReply = withContext(Dispatchers.IO) {
@@ -75,24 +108,7 @@ actual suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: In
         } ?: process.destroy()
         text
     }.getOrElse { return@withContext PingReply(sequence, null, null, null, it.message ?: "ping failed") }
-    val elapsedMs = (System.nanoTime() - started) / 1_000_000.0
-    val lower = output.lowercase()
-    val from = ipv4Regex.findAll(output).map { it.groupValues[1] }.toList()
-    val ttlExpired = lower.contains("ttl expired") || lower.contains("time to live exceeded") || lower.contains("превышен") ||
-        lower.contains("ttl expir") || lower.contains("exceeded")
-    val time = timeRegex.find(output)?.groupValues?.get(1)?.replace(',', '.')?.toDoubleOrNull()
-    val replyTtl = ttlRegex.find(output)?.groupValues?.get(1)?.toIntOrNull()
-    val timedOut = lower.contains("timed out") || lower.contains("100% packet loss") || lower.contains("100% потерь") ||
-        lower.contains("unreachable") || lower.contains("недоступ") || lower.contains("превышен интервал")
-    when {
-        ttlExpired -> {
-            val hop = from.lastOrNull { it != from.firstOrNull() } ?: from.lastOrNull()
-            PingReply(sequence, time ?: elapsedMs, replyTtl, hop, "ttl-expired")
-        }
-        time != null -> PingReply(sequence, time, replyTtl, from.lastOrNull(), null)
-        timedOut || from.isEmpty() -> PingReply(sequence, null, null, null, null)
-        else -> PingReply(sequence, elapsedMs, replyTtl, from.lastOrNull(), null)
-    }
+    parsePing(output, sequence, ttl, isWindows && host.contains(':'), (System.nanoTime() - started) / 1_000_000.0)
 }
 
 actual suspend fun tcpConnect(host: String, port: Int, timeoutMs: Int): Long? = withContext(Dispatchers.IO) {
@@ -149,45 +165,76 @@ actual suspend fun networkInterfaces(): List<InterfaceInfo> = withContext(Dispat
 private fun ByteArray.hexColon(): String = joinToString(":") { (it.toInt() and 0xFF).toString(16).padStart(2, '0').uppercase() }
 
 actual suspend fun tlsHandshake(host: String, port: Int, timeoutMs: Int): TlsInfo = withContext(Dispatchers.IO) {
-    val factory = SSLSocketFactory.getDefault() as SSLSocketFactory
-    val raw = Socket()
-    raw.connect(InetSocketAddress(host, port), timeoutMs)
-    raw.soTimeout = timeoutMs
-    val socket = factory.createSocket(raw, host, port, true) as SSLSocket
-    socket.use {
-        runCatching {
-            val params = it.sslParameters
-            params.serverNames = listOf(SNIHostName(host))
-            it.sslParameters = params
+    val system = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        .apply { init(null as KeyStore?) }
+        .trustManagers.filterIsInstance<X509TrustManager>().first()
+    var trust = CertTrust.UNTRUSTED
+    val inspecting = object : X509ExtendedTrustManager() {
+        override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {
+            trust = try {
+                system.checkServerTrusted(chain, authType)
+                CertTrust.TRUSTED
+            } catch (e: CertificateException) {
+                val causes = generateSequence<Throwable>(e) { it.cause }.toList()
+                when {
+                    causes.any { it is CertificateExpiredException } -> CertTrust.EXPIRED
+                    causes.any { it is CertificateNotYetValidException } -> CertTrust.NOT_YET_VALID
+                    else -> CertTrust.UNTRUSTED
+                }
+            }
         }
-        it.startHandshake()
-        val session = it.session
-        val now = Instant.now()
-        val chain = session.peerCertificates.filterIsInstance<X509Certificate>().map { cert ->
-            val notAfter = cert.notAfter.toInstant()
-            CertificateInfo(
-                subject = cert.subjectX500Principal.name,
-                issuer = cert.issuerX500Principal.name,
-                notBefore = cert.notBefore.toInstant().toString(),
-                notAfter = notAfter.toString(),
-                serial = cert.serialNumber.toString(16).uppercase(),
-                signatureAlgorithm = cert.sigAlgName,
-                publicKey = cert.publicKey.algorithm + " " + runCatching {
-                    when (val key = cert.publicKey) {
-                        is RSAPublicKey -> "${key.modulus.bitLength()} bit"
-                        is ECPublicKey -> "${key.params.curve.field.fieldSize} bit"
-                        else -> ""
-                    }
-                }.getOrDefault(""),
-                subjectAltNames = runCatching { cert.subjectAlternativeNames?.mapNotNull { san -> san.getOrNull(1)?.toString() } }.getOrNull() ?: emptyList(),
-                sha256 = MessageDigest.getInstance("SHA-256").digest(cert.encoded).hexColon(),
-                sha1 = MessageDigest.getInstance("SHA-1").digest(cert.encoded).hexColon(),
-                version = cert.version,
-                expired = notAfter.isBefore(now),
-                daysLeft = ChronoUnit.DAYS.between(now, notAfter),
-            )
+
+        override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String, socket: Socket) = checkServerTrusted(chain, authType)
+
+        override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String, engine: SSLEngine) = checkServerTrusted(chain, authType)
+
+        override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) = Unit
+
+        override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String, socket: Socket) = Unit
+
+        override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String, engine: SSLEngine) = Unit
+
+        override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+    }
+    val context = SSLContext.getInstance("TLS").apply { init(null, arrayOf(inspecting), null) }
+    Socket().use { raw ->
+        raw.connect(InetSocketAddress(host, port), timeoutMs)
+        raw.soTimeout = timeoutMs
+        (context.socketFactory.createSocket(raw, host, port, true) as SSLSocket).use {
+            runCatching {
+                val params = it.sslParameters
+                params.serverNames = listOf(SNIHostName(host))
+                it.sslParameters = params
+            }
+            it.startHandshake()
+            val session = it.session
+            val now = Instant.now()
+            val chain = session.peerCertificates.filterIsInstance<X509Certificate>().map { cert ->
+                val notAfter = cert.notAfter.toInstant()
+                CertificateInfo(
+                    subject = cert.subjectX500Principal.name,
+                    issuer = cert.issuerX500Principal.name,
+                    notBefore = cert.notBefore.toInstant().toString(),
+                    notAfter = notAfter.toString(),
+                    serial = cert.serialNumber.toString(16).uppercase(),
+                    signatureAlgorithm = cert.sigAlgName,
+                    publicKey = cert.publicKey.algorithm + " " + runCatching {
+                        when (val key = cert.publicKey) {
+                            is RSAPublicKey -> "${key.modulus.bitLength()} bit"
+                            is ECPublicKey -> "${key.params.curve.field.fieldSize} bit"
+                            else -> ""
+                        }
+                    }.getOrDefault(""),
+                    subjectAltNames = runCatching { cert.subjectAlternativeNames?.mapNotNull { san -> san.getOrNull(1)?.toString() } }.getOrNull() ?: emptyList(),
+                    sha256 = MessageDigest.getInstance("SHA-256").digest(cert.encoded).hexColon(),
+                    sha1 = MessageDigest.getInstance("SHA-1").digest(cert.encoded).hexColon(),
+                    version = cert.version,
+                    expired = notAfter.isBefore(now),
+                    daysLeft = ChronoUnit.DAYS.between(now, notAfter),
+                )
+            }
+            TlsInfo(session.protocol, session.cipherSuite, chain, trust)
         }
-        TlsInfo(session.protocol, session.cipherSuite, chain)
     }
 }
 
@@ -210,6 +257,22 @@ actual suspend fun udpQuery(host: String, port: Int, payload: ByteArray, timeout
             val packet = DatagramPacket(buffer, buffer.size)
             socket.receive(packet)
             buffer.copyOf(packet.length)
+        }
+    }.getOrNull()
+}
+
+actual suspend fun tcpDnsQuery(host: String, payload: ByteArray, timeoutMs: Int): ByteArray? = withContext(Dispatchers.IO) {
+    runCatching {
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(host, 53), timeoutMs)
+            socket.soTimeout = timeoutMs
+            DataOutputStream(socket.getOutputStream()).apply {
+                writeShort(payload.size)
+                write(payload)
+                flush()
+            }
+            val input = DataInputStream(socket.getInputStream())
+            ByteArray(input.readUnsignedShort()).also { input.readFully(it) }
         }
     }.getOrNull()
 }

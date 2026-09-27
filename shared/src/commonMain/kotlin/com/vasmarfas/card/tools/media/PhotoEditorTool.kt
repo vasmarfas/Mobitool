@@ -49,6 +49,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -309,7 +310,14 @@ private fun PhotoBox(image: ImageBitmap, content: @Composable BoxScope.() -> Uni
 }
 
 @Composable
-private fun CropView(image: ImageBitmap, crop: Rect, ratio: Float?, onChange: (Rect) -> Unit, onDone: () -> Unit) {
+internal fun CropView(
+    image: ImageBitmap,
+    crop: Rect,
+    ratio: Float?,
+    onChange: (Rect) -> Unit,
+    onDone: () -> Unit,
+    overlay: (DrawScope.(Rect) -> Unit)? = null,
+) {
     val touch = with(LocalDensity.current) { 28.dp.toPx() }
     val current by rememberUpdatedState(crop)
     val lock by rememberUpdatedState(ratio)
@@ -344,12 +352,16 @@ private fun CropView(image: ImageBitmap, crop: Rect, ratio: Float?, onChange: (R
             drawRect(shade, Offset(0f, r.bottom), Size(size.width, size.height - r.bottom))
             drawRect(shade, Offset(0f, r.top), Size(r.left, r.height))
             drawRect(shade, Offset(r.right, r.top), Size(size.width - r.right, r.height))
-            val grid = Color.White.copy(alpha = 0.5f)
-            for (i in 1..2) {
-                val x = r.left + r.width * i / 3
-                val y = r.top + r.height * i / 3
-                drawLine(grid, Offset(x, r.top), Offset(x, r.bottom), 1.dp.toPx())
-                drawLine(grid, Offset(r.left, y), Offset(r.right, y), 1.dp.toPx())
+            if (overlay != null) {
+                overlay(r)
+            } else {
+                val grid = Color.White.copy(alpha = 0.5f)
+                for (i in 1..2) {
+                    val x = r.left + r.width * i / 3
+                    val y = r.top + r.height * i / 3
+                    drawLine(grid, Offset(x, r.top), Offset(x, r.bottom), 1.dp.toPx())
+                    drawLine(grid, Offset(r.left, y), Offset(r.right, y), 1.dp.toPx())
+                }
             }
             val arm = min(20.dp.toPx(), min(r.width, r.height) / 2)
             val stroke = 4.dp.toPx()

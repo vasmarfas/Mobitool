@@ -9,6 +9,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,24 +28,27 @@ import com.vasmarfas.card.ui.components.EmptyState
 import com.vasmarfas.card.ui.components.ErrorText
 import com.vasmarfas.card.ui.components.InteractiveChart
 import com.vasmarfas.card.ui.components.LoadingRow
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
 private val axisNames = listOf("X", "Y", "Z")
 
-class SensorSession(val reading: SensorReading?, val error: String?, val supported: Boolean, val ready: Boolean)
+class SensorSession(val reading: SensorReading?, val error: String?, val supported: Boolean, val denied: Boolean, val onGranted: () -> Unit)
 
 @Composable
 fun rememberSensor(type: SensorType, history: MutableList<SensorReading>? = null, historySize: Int = 200): SensorSession {
     val supported = remember { type in availableSensors() }
     var reading by remember { mutableStateOf<SensorReading?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    var ready by remember { mutableStateOf(false) }
+    var access by remember { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(type, supported) {
-        if (!supported) return@LaunchedEffect
-        ready = requestMotionAccess()
-        if (!ready) return@LaunchedEffect
+        if (supported) access = requestMotionAccess()
+    }
+    LaunchedEffect(type, access) {
+        if (access != true) return@LaunchedEffect
         sensorFlow(type)
             .catch { error = it.message ?: it.toString() }
             .collect { r ->
@@ -55,7 +59,7 @@ fun rememberSensor(type: SensorType, history: MutableList<SensorReading>? = null
                 }
             }
     }
-    return SensorSession(reading, error, supported, ready)
+    return SensorSession(reading, error, supported, access == false) { access = true }
 }
 
 // desktop browsers announce motion events and never send one, so a sensor silent for three seconds
@@ -63,7 +67,7 @@ fun rememberSensor(type: SensorType, history: MutableList<SensorReading>? = null
 @Composable
 fun SensorGate(session: SensorSession, content: @Composable (SensorReading) -> Unit) {
     var silent by remember { mutableStateOf(false) }
-    LaunchedEffect(session.reading == null) {
+    LaunchedEffect(session.reading == null, session.denied) {
         silent = false
         if (session.reading == null) {
             delay(3.seconds)
@@ -72,6 +76,7 @@ fun SensorGate(session: SensorSession, content: @Composable (SensorReading) -> U
     }
     when {
         !session.supported -> EmptyState(Icons.Filled.SensorsOff, Res.string.sensor_missing_title.str(), description = Res.string.sensor_missing_description.str())
+        session.denied -> MotionPermissionButton(session.onGranted)
         session.error != null -> ErrorText(session.error)
         session.reading == null && silent -> EmptyState(Icons.Filled.SensorsOff, Res.string.sensor_silent_title.str(), description = Res.string.sensor_silent_description.str())
         session.reading == null -> LoadingRow(Res.string.waiting_for_sensor_data.str())
@@ -79,11 +84,15 @@ fun SensorGate(session: SensorSession, content: @Composable (SensorReading) -> U
     }
 }
 
+// Safari grants motion access only from a tap, the request goes out before the first suspension
 @Composable
 fun MotionPermissionButton(onGranted: () -> Unit) {
-    val sampleText = Res.string.sensor_sample.str()
+    val scope = rememberCoroutineScope()
     Text(Res.string.sensor_browser_needs_permission.str(), style = MaterialTheme.typography.bodyMedium)
-    ActionButton(text = Res.string.grant_permission.str(), onClick = onGranted)
+    ActionButton(
+        text = Res.string.grant_permission.str(),
+        onClick = { scope.launch(start = CoroutineStart.UNDISPATCHED) { if (requestMotionAccess()) onGranted() } },
+    )
 }
 
 @Composable

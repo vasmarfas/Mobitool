@@ -696,6 +696,7 @@ internal class HtmlReader(private val resource: ((String) -> ByteArray?)?) {
 
     companion object {
         private val META_CHARSET = Regex("""<meta[^>]+charset\s*=\s*["']?\s*([A-Za-z0-9._:-]+)""", RegexOption.IGNORE_CASE)
+        private val CYRILLIC_CHARSET = Regex("koi8|cyr|8859-5|855|866|1251")
 
         fun decode(bytes: ByteArray): String {
             val b0 = if (bytes.isNotEmpty()) bytes[0].toInt() and 0xFF else 0
@@ -707,7 +708,10 @@ internal class HtmlReader(private val resource: ((String) -> ByteArray?)?) {
                 try {
                     return TextDecoding.decode(bytes, charset)
                 } catch (e: IllegalArgumentException) {
-                    // unknown to TextDecoding, the content-based guess is the better fallback
+                    // the content-based guess knows only UTF-8 and Cyrillic, other pages are closer to windows-1252
+                    if (!CYRILLIC_CHARSET.containsMatchIn(charset)) {
+                        return runCatching { bytes.decodeToString(throwOnInvalidSequence = true) }.getOrElse { TextDecoding.decode(bytes, "windows-1252") }
+                    }
                 }
             }
             return TextDecoding.decode(bytes)

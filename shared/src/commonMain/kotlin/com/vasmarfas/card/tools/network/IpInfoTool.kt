@@ -77,7 +77,7 @@ private object IpApi {
     private suspend fun ipwho(ip: String): IpFacts {
         val text = Net.client.get("https://ipwho.is/$ip").bodyAsText()
         val json = Net.json.parseToJsonElement(text).jsonObject
-        if (json.s("success") == "false") error(json.s("message") ?: "lookup failed")
+        if (json.s("success") == "false") error(json.s("message") ?: getString(Res.string.ip_service_no_data))
         val connection = json["connection"] as? JsonObject
         val tz = json["timezone"] as? JsonObject
         val flag = (json["flag"] as? JsonObject)?.s("emoji") ?: ""
@@ -113,7 +113,7 @@ private object IpApi {
         val path = if (ip.isEmpty()) "https://ipapi.co/json/" else "https://ipapi.co/$ip/json/"
         val text = Net.client.get(path).bodyAsText()
         val json = Net.json.parseToJsonElement(text).jsonObject
-        if (json.s("error") == "true") error(json.s("reason") ?: "lookup failed")
+        if (json.s("error") == "true") error(json.s("reason") ?: getString(Res.string.ip_service_no_data))
         return IpFacts(
             ip = json.s("ip") ?: ip,
             address = listOfNotNull(
@@ -231,7 +231,7 @@ private fun IpInfoScreen() {
                 val ip = if (host.isEmpty() || looksLikeIp(host)) host else resolve(host) ?: error(getString(Res.string.ip_host_not_found, host))
                 val found = IpApi.lookup(ip)
                 if (ip == host) found else found.copy(address = listOf(Res.string.host to host) + found.address)
-            }.onSuccess { facts = it; own = input.isBlank() }.onFailure { error = it.message ?: it.toString() }
+            }.onSuccess { facts = it; own = input.isBlank() }.onFailure { error = networkErrorText(it) }
             loading = false
         }
     }

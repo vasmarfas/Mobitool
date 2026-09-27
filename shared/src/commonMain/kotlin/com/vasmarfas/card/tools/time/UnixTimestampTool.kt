@@ -15,7 +15,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.currentEpochMillis
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.core.systemTimeZoneId
@@ -33,6 +32,7 @@ import com.vasmarfas.card.ui.components.ToolSection
 import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.number
+import org.jetbrains.compose.resources.stringResource
 
 private enum class ZoneChoice { LOCAL, UTC }
 
@@ -97,7 +97,7 @@ private fun UnixTimestampScreen() {
                 val diff = (ms - now) / 1000
                 KeyValueRow(
                     Res.string.relative_to_now.str(),
-                    relativeText(diff).str(),
+                    relativeText(diff),
                     mono = false,
                     copyable = false,
                 )
@@ -146,13 +146,14 @@ private fun UnixTimestampScreen() {
     }
 }
 
-private fun relativeText(diffSeconds: Long): Tr {
+@Composable
+private fun relativeText(diffSeconds: Long): String {
     val a = if (diffSeconds < 0) -diffSeconds else diffSeconds
     val amount = when {
-        a < 60 -> Tr("$a s", "$a с")
-        a < 3600 -> Tr("${a / 60} min", "${a / 60} мин")
-        a < 86_400 -> Tr("${a / 3600} h", "${a / 3600} ч")
-        else -> Tr("${a / 86_400} d", "${a / 86_400} дн")
+        a < 60 -> "$a ${Res.string.unit_s.str()}"
+        a < 3600 -> "${a / 60} ${Res.string.unit_min.str()}"
+        a < 86_400 -> "${a / 3600} ${Res.string.unit_h.str()}"
+        else -> "${a / 86_400} ${Res.string.d.str()}"
     }
-    return if (diffSeconds < 0) Tr("${amount.en} ago", "${amount.ru} назад") else Tr("in ${amount.en}", "через ${amount.ru}")
+    return stringResource(if (diffSeconds < 0) Res.string.time_ago else Res.string.time_in, amount)
 }

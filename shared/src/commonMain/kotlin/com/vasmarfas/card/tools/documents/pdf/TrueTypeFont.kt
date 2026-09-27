@@ -6,9 +6,6 @@ class FontFormatException(message: String) : Exception(message)
 
 class GlyphContour(val x: FloatArray, val y: FloatArray, val onCurve: BooleanArray)
 
-// ascent, descent and lineGap are the OS/2 typo metrics with USE_TYPO_METRICS (fsSelection bit 7),
-// hhea otherwise, descent is negative. glyphId tries the cmap subtables 3/10, 3/1, 0/x, 3/0, 1/0,
-// a 3/0 symbol subtable also at U+F000 + code
 class TrueTypeFont(val data: ByteArray) {
     private val directory: Map<String, Entry> = readDirectory()
     private val head = required("head", 54)
@@ -72,9 +69,7 @@ class TrueTypeFont(val data: ByteArray) {
         return kerningPairs[(left shl 16) or right] ?: 0
     }
 
-    // glyph ids stay stable: unused glyphs keep their hmtx entry with an empty outline, so the PDF can use
-    // CIDToGIDMap /Identity. Without name Java's Font.createFont, GDI and GDI+ refuse the font, GDI also
-    // needs cmap
+    // ids stay stable for CIDToGIDMap /Identity, name and cmap stay since Java and GDI reject a font without them
     fun subset(glyphIds: Set<Int>): ByteArray {
         val kept = BooleanArray(numGlyphs)
         val pending = ArrayDeque<Int>()

@@ -22,6 +22,8 @@ import com.vasmarfas.card.tools.ToolCategory
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.ToolInputField
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 
 val passwordStrengthTool = Tool(
     id = "password-strength",
@@ -69,19 +71,19 @@ private fun PasswordStrengthScreen() {
     ResultCard(Res.string.crack_time.str()) {
         KeyValueRow(
             Res.string.online_throttled_10_4_s.str(),
-            PasswordGen.crackTimeLabel(PasswordGen.crackTimeSeconds(result.bits, 1e4)).str(),
+            crackTimeText(PasswordGen.crackTimeSeconds(result.bits, 1e4)),
             mono = false,
             copyable = false,
         )
         KeyValueRow(
             Res.string.offline_slow_hash_10_9_s.str(),
-            PasswordGen.crackTimeLabel(PasswordGen.crackTimeSeconds(result.bits, 1e9)).str(),
+            crackTimeText(PasswordGen.crackTimeSeconds(result.bits, 1e9)),
             mono = false,
             copyable = false,
         )
         KeyValueRow(
             Res.string.offline_fast_hash_10_12_s.str(),
-            PasswordGen.crackTimeLabel(PasswordGen.crackTimeSeconds(result.bits, 1e12)).str(),
+            crackTimeText(PasswordGen.crackTimeSeconds(result.bits, 1e12)),
             mono = false,
             copyable = false,
         )
@@ -89,7 +91,7 @@ private fun PasswordStrengthScreen() {
     if (result.issues.isNotEmpty()) {
         ResultCard(Res.string.detected_patterns.str()) {
             result.issues.forEach { issue ->
-                KeyValueRow(issue.text.str(), "−${issue.penaltyBits.fmt(1)} ${Res.string.unit_bit.str()}", mono = false, copyable = false)
+                KeyValueRow(issue.text(), "−${issue.penaltyBits.fmt(1)} ${Res.string.unit_bit.str()}", mono = false, copyable = false)
             }
         }
     }
@@ -98,4 +100,15 @@ private fun PasswordStrengthScreen() {
             Text("• " + suggestion.str(), style = MaterialTheme.typography.bodyMedium)
         }
     }
+}
+
+@Composable
+private fun StrengthIssue.text(): String = when (pattern) {
+    StrengthPattern.REPEAT -> pluralStringResource(Res.plurals.strength_repeat, count, count)
+    StrengthPattern.SEQUENCE -> pluralStringResource(Res.plurals.strength_sequence, count, count)
+    StrengthPattern.KEYBOARD_WALK -> pluralStringResource(Res.plurals.strength_keyboard_walk, count, count)
+    StrengthPattern.DATE -> Res.string.strength_contains_a_date.str()
+    StrengthPattern.DICTIONARY_WORD -> stringResource(Res.string.strength_dictionary_word, word)
+    StrengthPattern.FEW_DISTINCT -> pluralStringResource(Res.plurals.strength_few_distinct, count, count)
+    StrengthPattern.WORD_AND_DIGITS -> Res.string.strength_word_and_digits.str()
 }

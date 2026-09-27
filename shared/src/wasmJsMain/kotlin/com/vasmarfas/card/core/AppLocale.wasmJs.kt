@@ -1,7 +1,6 @@
 package com.vasmarfas.card.core
 
-// Both properties are read-only by spec, so the only lever is shadowing them with own getters.
-// ui-text reads navigator.languages[0], compose-resources reads navigator.language.
+// both properties are read-only, so own getters shadow them: ui-text reads languages[0], compose-resources language
 actual fun applyPlatformLocale(tag: String) {
     js(
         """{

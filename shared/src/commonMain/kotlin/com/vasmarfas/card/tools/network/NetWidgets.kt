@@ -131,6 +131,8 @@ private fun StackedRows(header: List<String>, rows: List<List<String>>, style: T
 
 fun looksLikeIp(text: String): Boolean = Ipv4.parse(text) != null || Ipv6Address.parse(text) != null
 
+fun pluralQuantity(count: Long): Int = if (count < 100) count.toInt() else (count % 100 + 100).toInt()
+
 fun hostFrom(input: String): String {
     var t = input.trim()
     if (t.contains("://")) t = t.substringAfter("://")

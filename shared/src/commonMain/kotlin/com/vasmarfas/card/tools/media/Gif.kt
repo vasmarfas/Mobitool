@@ -45,7 +45,7 @@ class GifWriter(val width: Int, val height: Int, val loopCount: Int = 0) {
         }
         val previous = shown
         val last = pending
-        var base = previous ?: IntArray(target.size)
+        var base = previous
         if (previous != null && last != null) {
             val erased = bounds { target[it] == 0 && previous[it] != 0 }
             if (erased != null) {
@@ -55,7 +55,7 @@ class GifWriter(val width: Int, val height: Int, val loopCount: Int = 0) {
                 for (y in last.top until last.top + last.height) base.fill(0, y * width + last.left, y * width + last.left + last.width)
             }
         }
-        val changed = bounds { target[it] != base[it] }
+        val changed = if (base == null) bounds { target[it] != 0 } else bounds { target[it] != base[it] }
         shown = target
         if (changed == null && last != null && last.disposal == KEEP) {
             last.delayMs += delayMs
@@ -75,7 +75,7 @@ class GifWriter(val width: Int, val height: Int, val loopCount: Int = 0) {
         return out.toByteArray()
     }
 
-    private fun encode(target: IntArray, base: IntArray, r: Rect, delayMs: Int, dither: Boolean): GifFrame {
+    private fun encode(target: IntArray, base: IntArray?, r: Rect, delayMs: Int, dither: Boolean): GifFrame {
         val w = r.width
         val h = r.height
         val region = IntArray(w * h)
@@ -86,7 +86,7 @@ class GifWriter(val width: Int, val height: Int, val loopCount: Int = 0) {
             for (x in 0 until w) {
                 val p = target[row + x]
                 region[y * w + x] = p
-                if (p == 0) erasing = true else if (p == base[row + x]) unchanged++
+                if (p == 0) erasing = true else if (base != null && p == base[row + x]) unchanged++
             }
         }
         val needsSlot = unchanged > 0 || w != width || h != height
@@ -94,7 +94,7 @@ class GifWriter(val width: Int, val height: Int, val loopCount: Int = 0) {
         var indices = Quantizer.remap(region, w, h, palette, dither)
         val codeSize = codeSize(palette.size)
         var data = GifLzw.encode(indices, codeSize)
-        if (unchanged > 0) {
+        if (base != null && unchanged > 0) {
             val t = palette.transparentIndex.toByte()
             val masked = indices.copyOf()
             for (y in 0 until h) {

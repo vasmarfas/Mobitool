@@ -25,7 +25,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
@@ -38,6 +37,8 @@ import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
 import com.vasmarfas.card.ui.components.TagChips
 import com.vasmarfas.card.ui.components.ToolInputField
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 
 private enum class CodeDirection { DECODE, ENCODE }
 
@@ -73,7 +74,7 @@ private fun ResistorColorCodeScreen() {
         options = bandCounts,
         selected = bandCount,
         onSelect = { bandCount = it },
-        label = { Tr("$it bands", if (it == 4) "4 полосы" else "$it полос").str() },
+        label = { pluralStringResource(Res.plurals.band_count, it, it) },
     )
     when (direction) {
         CodeDirection.DECODE -> {
@@ -137,7 +138,7 @@ private fun ValueCard(value: ResistorValue) {
     val max = value.ohms * (1 + value.tolerance / 100)
     ResultCard {
         KeyValueRow(Res.string.resistance.str(), Si.format(value.ohms, Res.string.unit_ohm.str()))
-        KeyValueRow(Res.string.tolerance.str(), "±${value.tolerance.fmt(2)}%")
+        KeyValueRow(Res.string.tolerance.str(), stringResource(Res.string.percent_value, "±" + value.tolerance.fmt(2)))
         KeyValueRow(Res.string.range.str(), "${Si.format(min, Res.string.unit_ohm.str())} – ${Si.format(max, Res.string.unit_ohm.str())}", copyable = false)
         if (value.tempco != null) KeyValueRow(Res.string.temperature_coefficient.str(), "${value.tempco} ppm/K")
     }

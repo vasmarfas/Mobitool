@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.vasmarfas.card.core.fmtGrouped
 import com.vasmarfas.card.core.secureRandomBytes
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
@@ -48,6 +49,7 @@ import com.vasmarfas.card.ui.components.ToolInputField
 import kotlin.math.abs
 import kotlin.random.Random
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 
 private enum class RandomMode(val title: StringResource) {
     INT(Res.string.number),
@@ -140,6 +142,10 @@ private fun RandomGeneratorScreen() {
         RandomMode.UNIQUE -> {
             if (from == null || to == null || from > to || count == null || count < 1) {
                 ErrorText(Res.string.enter_a_valid_range_and_count.str())
+                return
+            }
+            if (count > Dice.MAX_UNIQUE) {
+                ErrorText(stringResource(Res.string.random_count_limit, Dice.MAX_UNIQUE.fmtGrouped()))
                 return
             }
             val values = remember(from, to, count, seed) { Dice.uniqueInts(from, to, count) }

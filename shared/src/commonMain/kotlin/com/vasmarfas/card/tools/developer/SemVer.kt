@@ -103,7 +103,11 @@ object SemVerOps {
             if (!matchesSingle(version, token)) return false
             i++
         }
-        return true
+        // as in npm, a prerelease passes only a set that names a prerelease of the same major.minor.patch
+        return version.preRelease == null || tokens.any { token ->
+            val bound = parseLoose(token.trimStart('<', '>', '=', '!', '^', '~'))
+            bound?.preRelease != null && bound.major == version.major && bound.minor == version.minor && bound.patch == version.patch
+        }
     }
 
     private fun tokenize(group: String): List<String> = group.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
@@ -125,10 +129,11 @@ object SemVerOps {
         val operator = listOf(">=", "<=", "!=", "~>", ">", "<", "=", "^", "~").firstOrNull { t.startsWith(it) } ?: ""
         val rest = t.removePrefix(operator).trim().trimStart('v')
         if (rest.isEmpty()) return false
-        val wildcard = rest.substringBefore('-').split('.').indexOfFirst { it == "x" || it == "X" || it == "*" }
+        val parts = rest.substringBefore('-').substringBefore('+').split('.')
+        val wildcard = parts.indexOfFirst { it == "x" || it == "X" || it == "*" }
         val normalized = rest.split('.').joinToString(".") { if (it == "x" || it == "X" || it == "*") "0" else it }
         val target = parse(normalized) ?: return false
-        val specified = rest.substringBefore('-').substringBefore('+').split('.').size
+        val specified = if (wildcard >= 0) wildcard else parts.size
         return when {
             wildcard >= 0 && operator.isEmpty() -> when (wildcard) {
                 0 -> true
@@ -137,8 +142,8 @@ object SemVerOps {
             }
             operator == "^" -> {
                 val upper = when {
-                    target.major > 0 -> SemVer(target.major + 1, 0, 0, null, null)
-                    target.minor > 0 -> SemVer(0, target.minor + 1, 0, null, null)
+                    target.major > 0 || specified == 1 -> SemVer(target.major + 1, 0, 0, null, null)
+                    target.minor > 0 || specified == 2 -> SemVer(0, target.minor + 1, 0, null, null)
                     else -> SemVer(0, 0, target.patch + 1, null, null)
                 }
                 version in target..<upper

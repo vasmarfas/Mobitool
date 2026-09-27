@@ -16,6 +16,7 @@ import com.vasmarfas.card.ui.components.ErrorText
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.SwitchRow
 import com.vasmarfas.card.ui.components.ToolInputField
+import org.jetbrains.compose.resources.stringResource
 
 val findReplaceTool = Tool(
     id = "find-replace",
@@ -61,7 +62,7 @@ private fun FindReplaceScreen() {
         FindReplace.run(input, find, replacement, ignoreCase, useRegex, wholeWord)
     }
     if (result.error != null) {
-        ErrorText(result.error)
+        ErrorText(stringResource(Res.string.invalid_regex, result.error))
     } else if (find.isNotEmpty()) {
         KeyValueRow(Res.string.matches.str(), result.count.toString(), copyable = false)
         OutputCard(result.output)

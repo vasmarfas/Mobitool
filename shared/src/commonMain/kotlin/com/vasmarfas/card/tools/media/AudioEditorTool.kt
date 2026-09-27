@@ -191,7 +191,13 @@ private fun AudioEditorScreen() {
     var kbps by rememberSaveable { mutableStateOf(192) }
     var result by remember { mutableStateOf<MediaResult?>(null) }
     val task = remember { TaskState() }
-    DisposableEffect(Unit) { onDispose { player.stop() } }
+    val playbackFailed = Res.string.playback_failed.str()
+    DisposableEffect(Unit) {
+        onDispose {
+            player.stop()
+            result?.discard()
+        }
+    }
 
     fun load(file: PlatformFile, append: Boolean) {
         loading = true
@@ -210,7 +216,7 @@ private fun AudioEditorScreen() {
                         editor.reset(project, listOf(AudioSegment(index, 0, project.frames(index))), file.name)
                     }
                 }
-                .onFailure { loadError = it.message ?: it.toString() }
+                .onFailure { loadError = errorText(it) }
             loading = false
         }
     }
@@ -270,14 +276,18 @@ private fun AudioEditorScreen() {
                 val to = if (editor.hasSelection) editor.selEnd else editor.length
                 val source = AudioEdit.source(editor.timeline, project, from, to)
                 player.start(project.sampleRate, project.channels, source.read)
-                scope.launch {
-                    playhead = from
-                    delay(50)
-                    while (player.playing) {
-                        playhead = (from + player.position).toInt().coerceAtMost(to)
-                        delay(33)
+                if (player.playing) {
+                    scope.launch {
+                        playhead = from
+                        delay(50)
+                        while (player.playing) {
+                            playhead = (from + player.position).toInt().coerceAtMost(to)
+                            delay(33)
+                        }
+                        playhead = -1
                     }
-                    playhead = -1
+                } else {
+                    loadError = playbackFailed
                 }
             }
         },
@@ -343,7 +353,7 @@ private fun AudioEditorScreen() {
     }
     if (target.lossy) {
         ToolSection(Res.string.bitrate.str()) {
-            ChoiceChips(options = listOf(96, 128, 192, 256, 320), selected = kbps, onSelect = { kbps = it }, label = { "$it kbps" })
+            ChoiceChips(options = listOf(96, 128, 192, 256, 320), selected = kbps, onSelect = { kbps = it }, label = { "$it ${Res.string.unit_kbit_s.str()}" })
         }
     }
     ActionButton(

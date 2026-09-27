@@ -1,3 +1,3 @@
 package com.vasmarfas.card.core
 
-actual fun wifiDetails(): Map<String, String> = emptyMap()
+actual suspend fun wifiDetails(): Map<String, String> = emptyMap()

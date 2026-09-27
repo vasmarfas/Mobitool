@@ -65,7 +65,8 @@ object TextCleaner {
         while (i < text.length) {
             val cp = codePointAt(text, i)
             val width = if (cp > 0xFFFF) 2 else 1
-            val emoji = cp in 0x1F000..0x1FAFF || cp in 0x2600..0x27BF || cp in 0x1F1E6..0x1F1FF || cp == 0x200D || cp == 0xFE0F || cp in 0x1F900..0x1F9FF
+            val emoji = cp in 0x1F000..0x1FAFF || cp in 0x2600..0x27BF || cp in 0x231A..0x231B || cp in 0x23E9..0x23FA ||
+                cp in 0x2B05..0x2B55 || cp in 0xE0020..0xE007F || cp == 0x200D || cp == 0xFE0F || cp == 0x20E3
             if (!emoji) sb.append(text, i, i + width)
             i += width
         }

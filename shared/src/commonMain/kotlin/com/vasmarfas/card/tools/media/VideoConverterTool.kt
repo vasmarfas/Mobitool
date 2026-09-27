@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,7 +68,7 @@ private val videoHeights = listOf(0, 2160, 1440, 1080, 720, 480, 360, -1)
 internal fun MediaInfoRows(file: PlatformFile, info: MediaInfo) {
     KeyValueRow(Res.string.duration.str(), formatClock(info.durationMs), copyable = false)
     if (info.hasVideo) KeyValueRow(Res.string.video_resolution.str(), "${info.width} × ${info.height}", copyable = false)
-    val codecs = listOfNotNull(info.videoCodec, info.audioCodec?.let { codec -> codec + if (info.sampleRate > 0) " · ${info.sampleRate} Hz" else "" })
+    val codecs = listOfNotNull(info.videoCodec, info.audioCodec?.let { codec -> codec + if (info.sampleRate > 0) " · ${info.sampleRate} ${Res.string.unit_hz.str()}" else "" })
     if (codecs.isNotEmpty()) KeyValueRow(Res.string.codecs.str(), codecs.joinToString(" / "), copyable = false)
     KeyValueRow(Res.string.size.str(), formatBytes(file.size(), binary = false), copyable = false)
 }
@@ -92,6 +93,7 @@ private fun VideoConverterScreen() {
     var range by remember { mutableStateOf(0f..1f) }
     var result by remember { mutableStateOf<MediaResult?>(null) }
     val task = remember { TaskState() }
+    DisposableEffect(Unit) { onDispose { result?.discard() } }
 
     PickButton(Res.string.choose_video.str(), videoExtensions, PickKind.VIDEO, empty = file == null) { files ->
         val picked = files.first()
@@ -104,7 +106,7 @@ private fun VideoConverterScreen() {
         scope.launch {
             runCatching { MediaEngine.probe(picked) }
                 .onSuccess { info = it }
-                .onFailure { loadError = it.message ?: it.toString() }
+                .onFailure { loadError = errorText(it) }
         }
     }
     loadError?.let { ErrorText(it) }
@@ -164,7 +166,7 @@ private fun VideoConverterScreen() {
         if (probed.hasAudio) SwitchRow(Res.string.without_sound.str(), mute, { mute = it })
     } else if (target.lossy) {
         ToolSection(Res.string.bitrate.str()) {
-            ChoiceChips(options = listOf(96, 128, 192, 256, 320), selected = audioKbps, onSelect = { audioKbps = it }, label = { "$it kbps" })
+            ChoiceChips(options = listOf(96, 128, 192, 256, 320), selected = audioKbps, onSelect = { audioKbps = it }, label = { "$it ${Res.string.unit_kbit_s.str()}" })
         }
     }
     TrimSlider(probed.durationMs, range) { changed ->

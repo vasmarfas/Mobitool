@@ -39,7 +39,7 @@ var appLang: Lang = Lang.EN
     internal set
 
 @Serializable(with = TrSerializer::class)
-class Tr(val en: String, val ru: String = en) {
+data class Tr(val en: String, val ru: String = en) {
     operator fun get(lang: Lang): String = when (lang) {
         Lang.EN -> en
         Lang.RU -> ru
@@ -49,8 +49,6 @@ class Tr(val en: String, val ru: String = en) {
 
     override fun toString() = en
 }
-
-fun tr(en: String, ru: String) = Tr(en, ru)
 
 @Composable
 fun Tr.str(): String = this[LocalLang.current]

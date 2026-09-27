@@ -137,7 +137,7 @@ private fun ImageConverterScreen() {
                     if (image == null) {
                         skipped += file.name
                     } else {
-                        val scaled = if (format == ImageTarget.ICO) image else image.limitedTo(longSide)
+                        val scaled = if (format == ImageTarget.ICO) image else image.limitedTo(longSide).limitedFor(format, colors)
                         val encoded = withContext(Dispatchers.Default) { encodeImage(scaled, format, quality, colors, background, icons.toList()) }
                         done += ImageOutput(uniqueName(renamed(file.name, format.extension), taken), encoded, bytes.size.toLong(), scaled.width, scaled.height)
                     }

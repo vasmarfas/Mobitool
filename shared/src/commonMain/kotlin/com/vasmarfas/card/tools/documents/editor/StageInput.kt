@@ -524,7 +524,7 @@ internal class StageInput(
                 val b = user(Offset(left + w, top + h))
                 val box = PdfRect(a.x.toDouble(), a.y.toDouble(), b.x.toDouble(), b.y.toDouble()).normalized()
                 session.preview = when (mark) {
-                    is TextMark -> mark.copy(box = box)
+                    is TextMark -> renderer.fitted(mark.copy(box = box))
                     is ImageMark -> mark.copy(box = box)
                     is SignatureMark -> mark.copy(box = box)
                     is CoverMark -> mark.copy(box = box)
@@ -596,14 +596,7 @@ internal class StageInput(
             session.remove(id)
             return
         }
-        var updated = mark.copy(text = text, spans = spans)
-        if (mark.angle == page.rotation) {
-            val layout = renderer.layout(updated)
-            val frame = page.frame
-            val d = frame.displayAffine().rect(mark.box)
-            updated = updated.copy(box = frame.toUser(d.left.toDouble(), d.top.toDouble(), d.right.toDouble(), d.top + layout.height.toDouble()))
-        }
-        session.replace(updated)
+        session.replace(renderer.fitted(mark.copy(text = text, spans = spans)))
     }
 
     private fun sign(position: Offset, page: EditPage) {

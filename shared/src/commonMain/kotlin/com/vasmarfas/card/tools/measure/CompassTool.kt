@@ -16,8 +16,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.vasmarfas.card.core.Lang
-import com.vasmarfas.card.core.LocalLang
 import com.vasmarfas.card.core.PlatformKind
 import com.vasmarfas.card.core.SensorType
 import com.vasmarfas.card.core.fmt
@@ -43,23 +41,24 @@ val compassTool = Tool(
     expandable = true,
 ) { CompassScreen() }
 
-fun headingName(deg: Float, ru: Boolean): String {
-    val names = if (ru) listOf("С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ") else listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
-    val index = (((deg + 22.5f) % 360) / 45).toInt().coerceIn(0, 7)
-    return names[index]
-}
+private val compassPoints = listOf(
+    Res.string.compass_n, Res.string.compass_ne, Res.string.compass_e, Res.string.compass_se,
+    Res.string.compass_s, Res.string.compass_sw, Res.string.compass_w, Res.string.compass_nw,
+)
+
+@Composable
+private fun headingName(deg: Float): String = compassPoints[(((deg + 22.5f) % 360) / 45).toInt().coerceIn(0, 7)].str()
 
 @Composable
 private fun CompassScreen() {
     val session = rememberSensor(SensorType.ORIENTATION)
     SensorGate(session) { reading ->
         val heading = ((reading.x % 360) + 360) % 360
-        val ru = LocalLang.current == Lang.RU
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             CompassDial(heading, Modifier.size(expandedSquare(normal = 280.dp, reserved = 320.dp)))
         }
         Text(
-            "${heading.toDouble().fmt(0)}° ${headingName(heading, ru)}",
+            "${heading.toDouble().fmt(0)}° ${headingName(heading)}",
             style = MaterialTheme.typography.displayMedium,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,

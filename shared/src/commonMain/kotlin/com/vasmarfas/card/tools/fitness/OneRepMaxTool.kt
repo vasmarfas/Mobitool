@@ -24,6 +24,7 @@ import com.vasmarfas.card.ui.components.ErrorText
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
+import org.jetbrains.compose.resources.stringResource
 
 val oneRepMaxTool = Tool(
     id = "one-rep-max",
@@ -74,9 +75,9 @@ private fun OneRepMaxScreen() {
     val average = OneRepMax.average(weight, reps)
     ResultCard(Res.string.estimated_1rm.str()) {
         KeyValueRow(Res.string.one_rep_average.str(), "${average.fmt(1)} ${Res.string.unit_kg.str()}")
-        KeyValueRow(Res.string.spread.str(), "${results.minOf { it.second }.fmt(1)} — ${results.maxOf { it.second }.fmt(1)} ${Res.string.unit_kg.str()}")
+        KeyValueRow(Res.string.spread.str(), "${results.minOf { it.second }.fmt(1)} – ${results.maxOf { it.second }.fmt(1)} ${Res.string.unit_kg.str()}")
         SimpleTable(
-            header = listOf(Res.string.formula.str(), "1RM", "%"),
+            header = listOf(Res.string.formula.str(), Res.string.one_rep_max_short.str(), "%"),
             rows = results.map { (name, value) ->
                 listOf(name, value.fmt(1), (weight / value * 100).fmt(1))
             },
@@ -97,7 +98,7 @@ private fun OneRepMaxScreen() {
                 Res.string.reps.str(),
             ),
             rows = OneRepMax.percentTable(average).map { (percent, value, estimatedReps) ->
-                listOf("$percent %", value.fmt(1), "≈ $estimatedReps")
+                listOf(stringResource(Res.string.percent_value, percent), value.fmt(1), "≈ $estimatedReps")
             },
             weights = listOf(0.8f, 1f, 1f),
         )

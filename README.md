@@ -1,8 +1,9 @@
-# vasmarfas
+# Mobitool
 
-A personal site and a free multitool in one app. One Kotlin Multiplatform / Compose Multiplatform
-codebase builds the site on WebAssembly ([vasmarfas.com](https://vasmarfas.com),
-[vasmarfas.ru](https://vasmarfas.ru)) and native apps for Android, iOS, Windows, macOS and Linux.
+A personal site and a free multitool in one app: the site is vasmarfas, the app is Mobitool. One Kotlin
+Multiplatform / Compose Multiplatform codebase builds the site on WebAssembly
+([vasmarfas.com](https://vasmarfas.com), [vasmarfas.ru](https://vasmarfas.ru)) and native apps for Android,
+iOS, Windows, macOS on Apple Silicon and Linux.
 
 **Русский:** [`README.ru.md`](README.ru.md) · **Support:** [`SUPPORT.md`](SUPPORT.md) ·
 **Privacy:** [`privacy-policy.md`](privacy-policy.md) · **Terms:** [`terms.md`](terms.md)
@@ -42,7 +43,7 @@ so the site and installed apps pick up changes without a release.
 
 ## Stack
 
-Kotlin 2.4, Compose Multiplatform 1.12, Material 3 Expressive (`MaterialExpressiveTheme`,
+Kotlin 2.4, Compose Multiplatform 1.13 (alpha), Material 3 Expressive (`MaterialExpressiveTheme`,
 `MotionScheme`, `WideNavigationRail`, `ShortNavigationBar`, wavy indicators), navigation-compose
 bound to browser history, Ktor 3, kotlinx-serialization, kotlinx-datetime, material-kolor (scheme
 from a seed colour, dynamic colours on Android 12+), qrose (QR and barcodes). The web target is

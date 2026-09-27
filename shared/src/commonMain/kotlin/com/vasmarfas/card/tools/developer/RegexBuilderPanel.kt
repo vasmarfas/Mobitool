@@ -17,7 +17,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -128,12 +127,11 @@ fun RegexBuilderPanel(
         minLines = 3,
     )
     if (pattern.isEmpty()) return
-    val test = remember(pattern, sample, ignoreCase, multiline) {
-        RegexTester.run(pattern, sample, ignoreCase, multiline, dotAll = false, replacement = null)
-    }
+    val test = rememberRegexRun(pattern, sample, ignoreCase, multiline, dotAll = false, replacement = null) ?: return
+    val error = test.errorText()
     ResultCard(Res.string.test.str()) {
-        if (test.error != null) {
-            ErrorText(test.error)
+        if (error != null) {
+            ErrorText(error)
         } else {
             KeyValueRow(
                 Res.string.matches.str(),

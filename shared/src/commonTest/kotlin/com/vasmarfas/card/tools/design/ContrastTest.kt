@@ -28,6 +28,24 @@ class ContrastTest {
     }
 
     @Test
+    fun nearestPassingCrossesToTheOtherSideWhenItsOwnCannotPass() {
+        val background = Rgba(0x33, 0x33, 0x33)
+        val fixed = Wcag.nearestPassing(Rgba(0x22, 0x22, 0x22), background, 4.5)!!
+        assertEquals(Rgba(0x9C, 0x9C, 0x9C), fixed)
+        assertTrue(Wcag.ratio(fixed, background) >= 4.5)
+    }
+
+    @Test
+    fun translucentTextIsJudgedByWhatItMakesOnTheBackground() {
+        val shown = Wcag.over(Rgba(0, 0, 0, 0x80), white)
+        assertEquals(Rgba(0x7F, 0x7F, 0x7F), shown)
+        val check = Wcag.check(shown, white)
+        assertTrue(abs(check.ratio - 4.0) < 0.05, "ratio ${check.ratio}")
+        assertFalse(check.aaNormal)
+        assertEquals(black, Wcag.over(black, white))
+    }
+
+    @Test
     fun harmoniesRotateHue() {
         val base = Rgba(255, 0, 0)
         assertEquals(Rgba(0, 255, 255), Palette.complementary(base)[1])

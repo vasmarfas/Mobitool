@@ -7,6 +7,7 @@ import com.vasmarfas.card.resources.*
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,21 +37,22 @@ open class JsonFileRepository<T : Any>(
 
     @OptIn(ExperimentalResourceApi::class)
     suspend fun load() {
-        if (_state.value.value != null) return
-        val cached = runCatching { Prefs.store.get(cacheKey)?.let(::parse) }.getOrNull()
-        if (cached != null) _state.value = ContentState(cached, ContentSource.CACHED)
-        val bundled = runCatching { parse(Res.readBytes(bundledPath).decodeToString()) }.getOrNull()
-        val best = when {
-            bundled == null -> cached
-            cached == null -> bundled
-            updatedOf(cached) > updatedOf(bundled) -> cached
-            else -> bundled
+        if (_state.value.value == null) {
+            val cached = runCatching { Prefs.store.get(cacheKey)?.let(::parse) }.getOrNull()
+            if (cached != null) _state.value = ContentState(cached, ContentSource.CACHED)
+            val bundled = runCatching { parse(Res.readBytes(bundledPath).decodeToString()) }.getOrNull()
+            val best = when {
+                bundled == null -> cached
+                cached == null -> bundled
+                updatedOf(cached) > updatedOf(bundled) -> cached
+                else -> bundled
+            }
+            _state.value = ContentState(
+                value = best,
+                source = if (best === cached && cached != null) ContentSource.CACHED else ContentSource.BUNDLED,
+            )
         }
-        _state.value = ContentState(
-            value = best,
-            source = if (best === cached && cached != null) ContentSource.CACHED else ContentSource.BUNDLED,
-        )
-        refresh()
+        if (_state.value.source != ContentSource.REMOTE) refresh()
     }
 
     suspend fun refresh() {
@@ -69,6 +71,10 @@ open class JsonFileRepository<T : Any>(
                 _state.value = _state.value.copy(refreshing = false)
             }
         }.onFailure {
+            if (it is CancellationException) {
+                _state.value = _state.value.copy(refreshing = false)
+                throw it
+            }
             _state.value = _state.value.copy(refreshing = false, error = it.message)
         }
     }

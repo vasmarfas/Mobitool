@@ -42,6 +42,9 @@ actual fun platformInfo(): PlatformInfo = PlatformInfo(
 
 actual fun openUrl(url: String) {
     val intent = Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    if (url.startsWith(AppConfig.SITE_COM) || url.startsWith(AppConfig.SITE_RU)) {
+        intent.selector = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_BROWSER)
+    }
     runCatching { AppContextHolder.context.startActivity(intent) }
 }
 

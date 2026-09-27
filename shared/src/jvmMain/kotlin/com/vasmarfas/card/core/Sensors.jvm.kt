@@ -5,6 +5,7 @@ import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.Structure
 import com.sun.jna.ptr.IntByReference
+import com.vasmarfas.card.resources.*
 import java.awt.GraphicsDevice
 import java.awt.GraphicsEnvironment
 import java.awt.Toolkit
@@ -17,13 +18,12 @@ import kotlin.math.log10
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
-import kotlin.time.Duration.Companion.milliseconds
+import org.jetbrains.compose.resources.getString
 
 private val osName = (System.getProperty("os.name") ?: "").lowercase()
 
@@ -61,8 +61,8 @@ actual suspend fun batteryInfo(): BatteryInfo? = withContext(Dispatchers.IO) {
                 level, charging,
                 buildList {
                     add("Status" to when (status) { 1 -> "discharging"; 2 -> "on AC"; 3 -> "fully charged"; 4 -> "low"; 5 -> "critical"; 6 -> "charging"; 7 -> "charging (high)"; 8 -> "charging (low)"; 9 -> "charging (critical)"; else -> status.toString() })
-                    if (runtime != null && runtime in 1..(60 * 24 * 7)) add("Estimated runtime" to "${runtime / 60} h ${runtime % 60} min")
-                    if (voltage != null && voltage > 0) add("Design voltage" to "$voltage mV")
+                    if (runtime != null && runtime in 1..(60 * 24 * 7)) add("Estimated runtime" to formatDurationMs(runtime * 60_000L))
+                    if (voltage != null && voltage > 0) add("Design voltage" to "$voltage ${getString(Res.string.unit_mv)}")
                     if (!name.isNullOrBlank()) add("Name" to name)
                 },
             )
@@ -81,10 +81,14 @@ actual suspend fun batteryInfo(): BatteryInfo? = withContext(Dispatchers.IO) {
             BatteryInfo(
                 level, status.equals("Charging", true) || status.equals("Full", true),
                 buildList {
-                    add("Status" to status)
-                    read("voltage_now")?.toLongOrNull()?.let { add("Voltage" to "${it / 1000} mV") }
-                    read("current_now")?.toLongOrNull()?.let { add("Current" to "${it / 1000} mA") }
-                    read("energy_full")?.toLongOrNull()?.let { full -> read("energy_full_design")?.toLongOrNull()?.let { design -> add("Health" to "${full * 100 / design}% of design") } }
+                    add("Status" to status.lowercase())
+                    read("voltage_now")?.toLongOrNull()?.let { add("Voltage" to "${it / 1000} ${getString(Res.string.unit_mv)}") }
+                    read("current_now")?.toLongOrNull()?.let { add("Current" to "${it / 1000} ${getString(Res.string.unit_ma)}") }
+                    read("energy_full")?.toLongOrNull()?.let { full ->
+                        read("energy_full_design")?.toLongOrNull()?.takeIf { it > 0 }?.let { design ->
+                            add("Health" to getString(Res.string.battery_health_of_design, "${full * 100 / design} %"))
+                        }
+                    }
                     read("cycle_count")?.let { add("Cycle count" to it) }
                     read("technology")?.let { add("Technology" to it) }
                     read("manufacturer")?.let { add("Manufacturer" to it) }
@@ -173,7 +177,7 @@ internal interface CoreGraphics : Library {
     fun CGDisplayIsBuiltin(display: Int): Int
 }
 
-private fun macPanels(): List<DisplayPanel> = runCatching {
+private suspend fun macPanels(): List<DisplayPanel> = runCatching {
     val cg = Native.load("CoreGraphics", CoreGraphics::class.java)
     val ids = IntArray(16)
     val count = IntByReference()
@@ -189,10 +193,10 @@ private fun macPanels(): List<DisplayPanel> = runCatching {
         cg.CGDisplayModeRelease(mode)
         if (size.width < 1 || size.height < 1 || width <= 0 || height <= 0) return@mapNotNull null
         val name = if (cg.CGDisplayIsBuiltin(id) != 0) {
-            Tr("Built-in display", "Встроенный дисплей")[appLang]
+            getString(Res.string.builtin_display)
         } else {
             external++
-            Tr("External display", "Внешний монитор")[appLang] + if (externals > 1) " $external" else ""
+            getString(Res.string.external_display) + if (externals > 1) " $external" else ""
         }
         DisplayPanel(name, width, height, size.width.roundToInt(), size.height.roundToInt())
     }
@@ -202,25 +206,23 @@ actual fun microphoneSupported(): Boolean = true
 
 actual fun microphoneLevelFlow(): Flow<Double> = flow {
     val format = AudioFormat(44100f, 16, 1, true, false)
-    val line = runCatching { AudioSystem.getTargetDataLine(format) as TargetDataLine }.getOrNull() ?: return@flow
-    line.open(format)
+    val line = runCatching { AudioSystem.getTargetDataLine(format) as TargetDataLine }.getOrNull() ?: throw IllegalStateException("NotFoundError")
+    runCatching { line.open(format) }.onFailure { throw IllegalStateException("NotReadableError") }
     line.start()
     val buffer = ByteArray(4096)
     try {
         while (true) {
             val read = line.read(buffer, 0, buffer.size)
-            if (read > 0) {
-                var sum = 0.0
-                var i = 0
-                while (i + 1 < read) {
-                    val sample = ((buffer[i + 1].toInt() shl 8) or (buffer[i].toInt() and 0xFF)).toShort().toDouble()
-                    sum += sample * sample
-                    i += 2
-                }
-                val rms = sqrt(sum / (read / 2))
-                emit(20 * log10((rms / 32768.0).coerceAtLeast(1e-9)) + 90)
+            if (read <= 0) throw IllegalStateException("NotReadableError")
+            var sum = 0.0
+            var i = 0
+            while (i + 1 < read) {
+                val sample = ((buffer[i + 1].toInt() shl 8) or (buffer[i].toInt() and 0xFF)).toShort().toDouble()
+                sum += sample * sample
+                i += 2
             }
-            delay(50.milliseconds)
+            val rms = sqrt(sum / (read / 2))
+            emit(20 * log10((rms / 32768.0).coerceAtLeast(1e-9)) + 90)
         }
     } finally {
         line.stop()

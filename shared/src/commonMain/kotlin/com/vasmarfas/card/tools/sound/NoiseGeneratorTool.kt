@@ -28,6 +28,7 @@ import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
 import com.vasmarfas.card.ui.components.ActionButton
 import com.vasmarfas.card.ui.components.ChoiceChips
+import com.vasmarfas.card.ui.components.ErrorText
 import com.vasmarfas.card.ui.components.SegmentedChoice
 import com.vasmarfas.card.ui.components.ToolSection
 import kotlin.concurrent.Volatile
@@ -66,6 +67,7 @@ private fun NoiseGeneratorScreen() {
     var volume by rememberSaveable { mutableStateOf(0.5f) }
     var timer by rememberSaveable { mutableStateOf(0) }
     var playing by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
     var fading by remember { mutableStateOf(false) }
     var left by remember { mutableStateOf<Long?>(null) }
     val player = remember { PcmPlayer() }
@@ -86,6 +88,10 @@ private fun NoiseGeneratorScreen() {
         player.start(NOISE_RATE, 1) { buffer ->
             generator.fill(buffer, controls.color, controls.volume, NOISE_RATE)
             buffer.size
+        }
+        if (!player.playing) {
+            failed = true
+            playing = false
         }
     }
     LaunchedEffect(playing, timer) {
@@ -140,6 +146,7 @@ private fun NoiseGeneratorScreen() {
         onClick = {
             if (!playing) {
                 fading = false
+                failed = false
                 playing = true
             } else {
                 scope.launch {
@@ -151,6 +158,7 @@ private fun NoiseGeneratorScreen() {
         },
         modifier = Modifier.fillMaxWidth(),
     )
+    if (failed) ErrorText(Res.string.playback_failed.str())
     left?.let {
         Text(
             stringResource(Res.string.turns_off_in, formatDurationMs(it)),

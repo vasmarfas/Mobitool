@@ -11,15 +11,24 @@ class DateMathTest {
     @Test
     fun differenceAndWorkingDays() {
         val d = DateMath.difference(LocalDate(2024, 6, 17), LocalDate(2024, 6, 24))
-        assertEquals(7, d.totalDays)
-        assertEquals(1, d.weeks)
-        assertEquals(5, d.workingDays)
-        assertEquals(10, DateMath.workingDays(LocalDate(2024, 6, 19), LocalDate(2024, 7, 3)))
-        assertEquals(0, DateMath.workingDays(LocalDate(2024, 6, 22), LocalDate(2024, 6, 24)))
+        assertEquals(7L, d.totalDays)
+        assertEquals(1L, d.weeks)
+        assertEquals(5L, d.workingDays)
+        assertEquals(10L, DateMath.workingDays(LocalDate(2024, 6, 19), LocalDate(2024, 7, 3)))
+        assertEquals(0L, DateMath.workingDays(LocalDate(2024, 6, 22), LocalDate(2024, 6, 24)))
         val p = DateMath.difference(LocalDate(2025, 3, 10), LocalDate(2024, 1, 5))
         assertEquals(1, p.years)
         assertEquals(2, p.months)
         assertEquals(5, p.days)
+    }
+
+    @Test
+    fun farDatesAreCountedWithoutSaturating() {
+        val far = DateMath.difference(LocalDate(2026, 9, 27), LocalDate.parse("+10000000-01-01"))
+        assertEquals(3_651_684_749L, far.totalDays)
+        assertEquals(2_608_346_250L, far.workingDays)
+        assertNull(DateMath.shift(LocalDate(2026, 9, 27), 1_000_000_000, DateUnit.YEARS, false))
+        assertEquals(LocalDate(2026, 9, 27), DateMath.shift(LocalDate(2027, 9, 27), 1, DateUnit.YEARS, true))
     }
 
     @Test

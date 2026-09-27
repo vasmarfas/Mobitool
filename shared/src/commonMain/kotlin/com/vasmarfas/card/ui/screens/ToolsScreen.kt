@@ -50,8 +50,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -83,6 +85,8 @@ import com.vasmarfas.card.ui.components.LayoutSize
 import com.vasmarfas.card.ui.components.LocalLayoutSize
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 
 private sealed interface Shelf {
     val key: String
@@ -126,7 +130,7 @@ private fun Shelf.tools(favorites: List<String>): List<Tool> = when (this) {
 }
 
 @Composable
-fun ToolsScreen(onOpenTool: (String) -> Unit) {
+fun ToolsScreen(onOpenTool: (id: String, source: String) -> Unit) {
     val settings = LocalSettings.current
     var query by rememberSaveable { mutableStateOf("") }
     var shelfKey by rememberSaveable { mutableStateOf<String?>(null) }
@@ -141,13 +145,18 @@ fun ToolsScreen(onOpenTool: (String) -> Unit) {
     val recent = settings.recent.mapNotNull { ToolRegistry.byId(it) }
     var categoriesExpanded by rememberSaveable { mutableStateOf(false) }
     val compact = LocalLayoutSize.current == LayoutSize.COMPACT
-    // A tile tapped at the bottom of the page must not open its category scrolled past the header.
+    // a new shelf or query starts from the top, the restored values on the way back from a tool are not a new choice
     val grid = rememberLazyGridState()
-    LaunchedEffect(shelf, query) { grid.scrollToItem(0) }
-    LaunchedEffect(query) {
-        if (query.isBlank()) return@LaunchedEffect
-        delay(1500.milliseconds)
-        Analytics.search(query, filtered.size)
+    LaunchedEffect(grid) {
+        snapshotFlow { shelfKey to query }.drop(1).collect { grid.scrollToItem(0) }
+    }
+    val results by rememberUpdatedState(filtered.size)
+    LaunchedEffect(Unit) {
+        snapshotFlow { query }.drop(1).collectLatest { typed ->
+            if (typed.isBlank()) return@collectLatest
+            delay(1500.milliseconds)
+            Analytics.search(typed, results)
+        }
     }
     val source = when {
         query.isNotBlank() -> "search"
@@ -156,7 +165,7 @@ fun ToolsScreen(onOpenTool: (String) -> Unit) {
         shelf is Shelf.Of -> "category"
         else -> "catalog"
     }
-    val open = { id: String -> openTool(id, source, onOpenTool) }
+    val open = { id: String -> onOpenTool(id, source) }
     val select = { key: String? ->
         shelfKey = key
         key?.let { Analytics.log(AnalyticsEvent.CATALOG_FILTER, mapOf(AnalyticsParam.CATEGORY to it)) }
@@ -191,7 +200,7 @@ fun ToolsScreen(onOpenTool: (String) -> Unit) {
         ) {
             if (browsing && recent.isNotEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "recent") {
-                    ChipRow(Res.string.recent.str(), recent) { openTool(it, "recent", onOpenTool) }
+                    ChipRow(Res.string.recent.str(), recent) { onOpenTool(it, "recent") }
                 }
             }
             if (browsing) {
@@ -244,14 +253,6 @@ fun ToolsScreen(onOpenTool: (String) -> Unit) {
     }
 }
 
-private fun openTool(id: String, source: String, onOpenTool: (String) -> Unit) {
-    Analytics.log(
-        AnalyticsEvent.TOOL_OPEN,
-        mapOf(AnalyticsParam.TOOL to id, AnalyticsParam.CATEGORY to (ToolRegistry.byId(id)?.category?.id ?: ""), AnalyticsParam.SOURCE to source),
-    )
-    onOpenTool(id)
-}
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CatalogHeader(
@@ -274,7 +275,7 @@ private fun CatalogHeader(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                Res.string.tools.str(),
+                Res.string.tools_short.str(),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
             )

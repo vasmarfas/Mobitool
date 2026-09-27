@@ -36,7 +36,7 @@ internal fun StillFrame(project: MediaProject, atMs: Long, infos: Map<PlatformFi
             active.map { clip ->
                 async {
                     val image = if (clip.kind == ClipKind.IMAGE) {
-                        images[clip.file] ?: runCatching { decodeRawImage(clip.file.readBytes())?.bitmap?.limitedTo(STILL_SIDE) }.getOrNull()?.also { images[clip.file] = it }
+                        images[clip.file] ?: runCatching { decodeRawImage(clip.file.readBytes(), STILL_SIDE)?.bitmap?.limitedTo(STILL_SIDE) }.getOrNull()?.also { images[clip.file] = it }
                     } else {
                         frames[key(clip)] ?: MediaEngine.frame(clip.file, clip.startMs + (atMs - clip.atMs), STILL_SIDE)
                     }

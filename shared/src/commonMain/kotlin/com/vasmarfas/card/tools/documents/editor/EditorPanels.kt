@@ -68,6 +68,7 @@ import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.documents.pdf.PdfDict
 import com.vasmarfas.card.tools.documents.pdf.PdfDocument
+import com.vasmarfas.card.tools.documents.pdf.PdfEncryptedException
 import com.vasmarfas.card.tools.media.EditButton
 import com.vasmarfas.card.tools.media.EditButtons
 import com.vasmarfas.card.tools.media.LabeledSlider
@@ -136,7 +137,7 @@ internal fun PageThumb(session: EditorSession, page: EditPage, selected: Boolean
 }
 
 @Composable
-internal fun PagesPanel(session: EditorSession, picked: Set<Long>, onPicked: (Set<Long>) -> Unit) {
+internal fun PagesPanel(session: EditorSession, renderer: MarkRenderer, picked: Set<Long>, onPicked: (Set<Long>) -> Unit) {
     val scope = rememberCoroutineScope()
     var error by remember { mutableStateOf<String?>(null) }
     val pages = session.edit.pages
@@ -187,9 +188,10 @@ internal fun PagesPanel(session: EditorSession, picked: Set<Long>, onPicked: (Se
                 error = null
                 val file = runCatching { pickFiles(setOf("pdf")) }.getOrDefault(emptyList()).firstOrNull() ?: return@launch
                 val bytes = file.readBytes()
-                val document = runCatching { withContext(Dispatchers.Default) { PdfDocument.parse(bytes) } }.getOrNull()
+                val parsed = runCatching { withContext(Dispatchers.Default) { PdfDocument.parse(bytes) } }
+                val document = parsed.getOrNull()
                 if (document == null || document.pageCount == 0) {
-                    error = getString(Res.string.not_a_pdf)
+                    error = getString(if (parsed.exceptionOrNull() is PdfEncryptedException) Res.string.pdf_protected else Res.string.not_a_pdf)
                     return@launch
                 }
                 session.addSource(document, bytes)
@@ -217,8 +219,7 @@ internal fun PagesPanel(session: EditorSession, picked: Set<Long>, onPicked: (Se
             scope.launch {
                 error = null
                 runCatching {
-                    val edit = session.edit.copy(pages = targets, outline = emptyList())
-                    val bytes = withContext(Dispatchers.Default) { PdfEditWriter.write(session.main, edit, session.fonts) }
+                    val bytes = buildPdf(session, renderer, session.edit.copy(pages = targets, outline = emptyList()), EditorSaveOptions()) {}
                     saveBytes(bytes, renamed(session.name, "pdf", "-pages"))
                 }.onFailure { error = it.message ?: it.toString() }
             }
@@ -463,7 +464,7 @@ internal fun DocumentPanel(session: EditorSession, save: EditorSaveOptions, onSa
             val formats = listOf("{n}", "{n} / {total}", Res.string.pdf_edit_numbering_format.str())
             ChoiceChips(options = formats, selected = numbering.format, onSelect = { set(numbering.copy(format = it)) }, label = { PageNumbering(it).label(0, session.edit.pages.size) })
             ChoiceChips(options = NumberPosition.entries, selected = numbering.position, onSelect = { set(numbering.copy(position = it)) }, label = { positionLabel(it) })
-            LabeledSlider(Res.string.font_size.str(), numbering.size.toDouble().fmt(0) + " pt", numbering.size, 6f..24f) { set(numbering.copy(size = it.toInt().toFloat())) }
+            LabeledSlider(Res.string.font_size.str(), "${numbering.size.toDouble().fmt(0)} ${Res.string.unit_point.str()}", numbering.size, 6f..24f) { set(numbering.copy(size = it.toInt().toFloat())) }
             NumberField(
                 value = numbering.start.toString(),
                 onValueChange = { text -> text.toIntOrNull()?.takeIf { it in 0..99_999 }?.let { set(numbering.copy(start = it)) } },
@@ -479,7 +480,7 @@ internal fun DocumentPanel(session: EditorSession, save: EditorSaveOptions, onSa
         if (watermark != null) {
             fun set(next: Watermark, typing: Boolean = false) = if (typing) session.type("watermark", session.edit.copy(watermark = next)) else session.commit(session.edit.copy(watermark = next))
             ToolInputField(value = watermark.text, onValueChange = { set(watermark.copy(text = it), typing = true) }, label = Res.string.text.str())
-            LabeledSlider(Res.string.font_size.str(), watermark.size.toDouble().fmt(0) + " pt", watermark.size, 16f..140f) { set(watermark.copy(size = it.toInt().toFloat())) }
+            LabeledSlider(Res.string.font_size.str(), "${watermark.size.toDouble().fmt(0)} ${Res.string.unit_point.str()}", watermark.size, 16f..140f) { set(watermark.copy(size = it.toInt().toFloat())) }
             LabeledSlider(Res.string.pdf_edit_opacity.str(), "${(watermark.opacity * 100).toInt()} %", watermark.opacity, 0.05f..1f) { set(watermark.copy(opacity = it)) }
             ChoiceChips(options = listOf(0, 30, 45, 60, 90), selected = watermark.angle, onSelect = { set(watermark.copy(angle = it)) }, label = { "$it°" })
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

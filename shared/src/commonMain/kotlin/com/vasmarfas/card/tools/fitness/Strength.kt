@@ -17,10 +17,9 @@ object OneRepMax {
     )
 
     fun all(weight: Double, reps: Int): List<Pair<String, Double>> =
-        formulas.map { it.name to it.compute(weight, reps) }
+        formulas.map { it.name to if (reps == 1) weight else it.compute(weight, reps) }
 
-    fun average(weight: Double, reps: Int): Double =
-        formulas.map { it.compute(weight, reps) }.average()
+    fun average(weight: Double, reps: Int): Double = all(weight, reps).map { it.second }.average()
 
     fun repsAtPercent(percent: Int): Int = (30.0 * (100.0 / percent - 1.0)).roundToInt().coerceAtLeast(1)
 

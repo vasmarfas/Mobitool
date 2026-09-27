@@ -46,6 +46,17 @@ class SemVerTest {
     }
 
     @Test
+    fun caretFollowsNpm() {
+        assertFalse(SemVerOps.satisfies(v("1.10.0-rc.1"), "^1.4.0"))
+        assertTrue(SemVerOps.satisfies(v("1.4.0-rc.2"), "^1.4.0-rc.1"))
+        assertFalse(SemVerOps.satisfies(v("1.5.0-rc.1"), "^1.4.0-rc.1"))
+        assertTrue(SemVerOps.satisfies(v("0.5.0"), "^0"))
+        assertTrue(SemVerOps.satisfies(v("0.0.5"), "^0.0"))
+        assertFalse(SemVerOps.satisfies(v("0.1.0"), "^0.0"))
+        assertTrue(SemVerOps.satisfies(v("1.9.0"), "~1.x"))
+    }
+
+    @Test
     fun tildeAndComparators() {
         assertTrue(SemVerOps.satisfies(v("1.2.9"), "~1.2.3"))
         assertFalse(SemVerOps.satisfies(v("1.3.0"), "~1.2.3"))

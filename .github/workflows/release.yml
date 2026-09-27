@@ -11,7 +11,7 @@ on:
         required: true
         default: '1.0.0'
       version_code:
-        description: 'Android versionCode and iOS build number (empty = from the version, 1.4.12 is 10412)'
+        description: 'Android versionCode and Apple build number (empty = from the version, 1.4.12 is 1041299, 1.4.12-rc2 is 1041202)'
         required: false
         default: ''
       publish_google_play:
@@ -24,17 +24,21 @@ on:
         options: [internal, alpha, beta, production]
         default: internal
       publish_rustore:
-        description: 'Upload the build to a RuStore draft version'
+        description: 'Upload the APK to RuStore and send the version to moderation'
         type: boolean
         default: false
       publish_ios_app_store:
         description: 'Upload to App Store Connect: the iOS IPA and the macOS PKG (TestFlight)'
         type: boolean
         default: false
+      deploy_web:
+        description: 'Deploy the site to vasmarfas.com and vasmarfas.ru'
+        type: boolean
+        default: false
       draft:
         description: 'Create the GitHub release as a draft'
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: write
@@ -55,6 +59,7 @@ jobs:
       publish_google_play: ${{ steps.resolve.outputs.publish_google_play }}
       publish_rustore: ${{ steps.resolve.outputs.publish_rustore }}
       publish_ios_app_store: ${{ steps.resolve.outputs.publish_ios_app_store }}
+      deploy_web: ${{ steps.resolve.outputs.deploy_web }}
       draft: ${{ steps.resolve.outputs.draft }}
     steps:
       - uses: actions/checkout@v7
@@ -67,6 +72,7 @@ jobs:
           INPUT_PLAY: ${{ inputs.publish_google_play }}
           INPUT_RUSTORE: ${{ inputs.publish_rustore }}
           INPUT_IOS: ${{ inputs.publish_ios_app_store }}
+          INPUT_WEB: ${{ inputs.deploy_web }}
           INPUT_DRAFT: ${{ inputs.draft }}
         run: |
           set -eu
@@ -86,20 +92,29 @@ jobs:
           play=true
           rustore=true
           ios=true
+          web=true
           draft=false
           if [ "$GITHUB_EVENT_NAME" = 'workflow_dispatch' ]; then
             play="$INPUT_PLAY"
             rustore="$INPUT_RUSTORE"
             ios="$INPUT_IOS"
+            web="$INPUT_WEB"
             draft="$INPUT_DRAFT"
           fi
-          derived=$(printf '%s' "${name%%-*}" | awk -F. '{ print ($1 * 100 + $2) * 100 + $3 }')
+          derived=$(printf '%s' "$name" | awk '{
+            split($0, part, "-")
+            split(part[1], v, ".")
+            stage = 99
+            if (index($0, "-")) { stage = 0; if (match($0, /[0-9]+$/)) stage = substr($0, RSTART) }
+            print ((v[1] * 100 + v[2]) * 100 + v[3]) * 100 + stage
+          }')
           {
             echo "version_name=$name"
             echo "version_code=${INPUT_CODE:-$derived}"
             echo "publish_google_play=$play"
             echo "publish_rustore=$rustore"
             echo "publish_ios_app_store=$ios"
+            echo "deploy_web=$web"
             echo "draft=$draft"
           } >> "$GITHUB_OUTPUT"
 
@@ -132,8 +147,8 @@ jobs:
     uses: ./.github/workflows/deploy_web.yml
     with:
       version_name: ${{ needs.meta.outputs.version_name }}
-      deploy_pages: true
-      deploy_s3: true
+      deploy_pages: ${{ needs.meta.outputs.deploy_web == 'true' }}
+      deploy_s3: ${{ needs.meta.outputs.deploy_web == 'true' }}
     secrets: inherit
 
   android:
@@ -192,9 +207,11 @@ jobs:
         with:
           tag_name: v${{ needs.meta.outputs.version_name }}
           name: v${{ needs.meta.outputs.version_name }}
+          target_commitish: ${{ github.sha }}
           body_path: artifacts/notes.md
           generate_release_notes: true
-          draft: ${{ needs.meta.outputs.draft == 'true' }}
+          # a failed platform leaves its files out, so such a release is only drafted
+          draft: ${{ needs.meta.outputs.draft == 'true' || contains(needs.*.result, 'failure') }}
           fail_on_unmatched_files: false
           files: |
             artifacts/*.apk

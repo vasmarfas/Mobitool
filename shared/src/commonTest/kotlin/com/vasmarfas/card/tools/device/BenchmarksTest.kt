@@ -12,7 +12,7 @@ class BenchmarksTest {
     @Test
     fun linpackSolvesTheSystemItGenerates() {
         val result = Linpack.run(100) { block -> timeSeconds(block) }
-        // the normalised residual is O(1) for a correct solve; a broken one runs into the thousands
+        // the normalised residual is O(1) for a correct solve, a broken one runs into the thousands
         assertTrue(result.residual < 10.0, "residual ${result.residual}")
         assertTrue(result.mflops > 0.0)
     }
@@ -92,7 +92,7 @@ class BenchmarksTest {
         // so one of those per second has to come out as exactly 1 MWIPS
         assertEquals(1.0, Whetstone.mwips(loop = 10, majorLoops = 1, seconds = 1.0))
 
-        // KIPS = 100 * loop * majorLoops / seconds; the reported figure is KIPS / 1000
+        // KIPS = 100 * loop * majorLoops / seconds, the reported figure is KIPS / 1000
         assertEquals(1000.0, Whetstone.mwips(loop = 1000, majorLoops = 10, seconds = 1.0))
         assertEquals(500.0, Whetstone.mwips(loop = 1000, majorLoops = 10, seconds = 2.0))
         assertEquals(0.0, Whetstone.mwips(loop = 1000, majorLoops = 10, seconds = 0.0))

@@ -70,7 +70,7 @@ object TextStats {
             uniqueWords = freq.size,
             sentences = sentences(text),
             paragraphs = if (text.isBlank()) 0 else text.split(paragraphBreak).count { it.isNotBlank() },
-            lines = if (text.isEmpty()) 0 else text.lines().size,
+            lines = if (text.isEmpty()) 0 else text.lines().size - (if (text.last() == '\n' || text.last() == '\r') 1 else 0),
             utf8Bytes = text.encodeToByteArray().size,
             readingSeconds = (words.size * 60.0 / 200).roundToInt(),
             speakingSeconds = (words.size * 60.0 / 130).roundToInt(),

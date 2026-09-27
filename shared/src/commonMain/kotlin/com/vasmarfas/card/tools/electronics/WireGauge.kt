@@ -62,4 +62,6 @@ object WireGauge {
     fun ohmsPerKm(mm2: Double): Double = COPPER_RESISTIVITY / mm2
 
     fun nearest(awg: Double): WireRow = table.minBy { abs(it.awg - awg) }
+
+    fun notThicker(awg: Double): WireRow = table.firstOrNull { it.awg >= awg - 0.01 } ?: table.last()
 }

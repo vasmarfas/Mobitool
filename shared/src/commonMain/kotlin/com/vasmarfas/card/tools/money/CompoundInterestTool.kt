@@ -8,7 +8,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.core.toDoubleLenient
@@ -23,6 +22,7 @@ import com.vasmarfas.card.ui.components.MonoTable
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.ToolSection
+import org.jetbrains.compose.resources.stringResource
 
 private const val MAX_YEARS = 100
 
@@ -78,7 +78,7 @@ private fun CompoundInterestScreen() {
         label = { it.title.str() },
     )
     if (years != null && years > MAX_YEARS) {
-        ErrorText(Tr("Term is limited to $MAX_YEARS years", "Срок ограничен $MAX_YEARS годами").str())
+        ErrorText(stringResource(Res.string.compound_term_limit, MAX_YEARS))
     } else if (principal != null && rate != null && years != null && contribution != null) {
         val rows = remember(principal, rate, years, contribution, compounding) {
             CompoundInterest.grow(principal, rate, years, compounding, contribution)
@@ -90,7 +90,7 @@ private fun CompoundInterestScreen() {
             KeyValueRow(Res.string.total_interest.str(), last.interest.fmt(2, grouping = true))
             KeyValueRow(
                 Res.string.growth.str(),
-                if (last.contributed == 0.0) "—" else "${(last.interest / last.contributed * 100).fmt(1)}%",
+                if (last.contributed == 0.0) "—" else stringResource(Res.string.percent_value, (last.interest / last.contributed * 100).fmt(1)),
                 copyable = false,
             )
         }

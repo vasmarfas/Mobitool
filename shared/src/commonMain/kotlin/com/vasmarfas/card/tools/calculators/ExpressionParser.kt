@@ -1,6 +1,7 @@
 package com.vasmarfas.card.tools.calculators
 
-import com.vasmarfas.card.core.Tr
+import com.vasmarfas.card.core.toDoubleLenient
+import com.vasmarfas.card.resources.*
 import kotlin.math.E
 import kotlin.math.PI
 import kotlin.math.abs
@@ -22,8 +23,9 @@ import kotlin.math.sinh
 import kotlin.math.sqrt
 import kotlin.math.tan
 import kotlin.math.tanh
+import org.jetbrains.compose.resources.StringResource
 
-class ExpressionException(val error: Tr) : RuntimeException(error.en)
+class ExpressionException(val error: StringResource, vararg val args: String) : RuntimeException(error.key)
 
 private sealed class Token {
     class Num(val value: Double) : Token()
@@ -38,13 +40,15 @@ object ExpressionParser {
         "sqrt", "cbrt", "ln", "log", "log2", "exp", "abs", "floor", "ceil", "round",
     )
 
+    val constants = mapOf("pi" to PI, "e" to E)
+
     fun evaluate(expression: String, degrees: Boolean = false): Double {
         val tokens = tokenize(expression)
-        if (tokens.size == 1) throw ExpressionException(Tr("Empty expression", "Пустое выражение"))
+        if (tokens.size == 1) throw ExpressionException(Res.string.calc_empty_expression)
         val parser = Parser(tokens, degrees)
         val value = parser.expression()
-        if (parser.peek() != Token.End) throw ExpressionException(Tr("Unexpected token", "Лишний символ в выражении"))
-        if (value.isNaN()) throw ExpressionException(Tr("Result is undefined", "Результат не определён"))
+        if (parser.peek() != Token.End) throw ExpressionException(Res.string.calc_unexpected_token)
+        if (value.isNaN()) throw ExpressionException(Res.string.calc_result_undefined)
         return value
     }
 
@@ -53,18 +57,17 @@ object ExpressionParser {
             .replace('×', '*')
             .replace('÷', '/')
             .replace('−', '-')
-            .replace(',', '.')
-            .replace("π", "pi")
-            .replace("√", "sqrt")
+            .replace("π", " pi ")
+            .replace("√", " sqrt ")
         val tokens = mutableListOf<Token>()
         var i = 0
         while (i < src.length) {
             val c = src[i]
             when {
                 c.isWhitespace() -> i++
-                c.isDigit() || c == '.' -> {
+                c.isDigit() || c == '.' || c == ',' -> {
                     val start = i
-                    while (i < src.length && (src[i].isDigit() || src[i] == '.')) i++
+                    while (i < src.length && (src[i].isDigit() || src[i] == '.' || src[i] == ',')) i++
                     if (i < src.length && (src[i] == 'e' || src[i] == 'E')) {
                         var j = i + 1
                         if (j < src.length && (src[j] == '+' || src[j] == '-')) j++
@@ -74,19 +77,21 @@ object ExpressionParser {
                         }
                     }
                     val text = src.substring(start, i)
-                    val value = text.toDoubleOrNull() ?: throw ExpressionException(Tr("Invalid number: $text", "Некорректное число: $text"))
+                    val value = text.toDoubleLenient() ?: throw ExpressionException(Res.string.calc_invalid_number, text)
                     tokens.add(Token.Num(value))
                 }
                 c.isLetter() -> {
                     val start = i
-                    while (i < src.length && (src[i].isLetter() || src[i].isDigit())) i++
+                    while (i < src.length && src[i].isLetter()) i++
+                    // a constant does not swallow digits, so e2 is e × 2 while log2 stays one name
+                    if (src.substring(start, i).lowercase() !in constants) while (i < src.length && src[i].isDigit()) i++
                     tokens.add(Token.Ident(src.substring(start, i).lowercase()))
                 }
                 c in "+-*/%^()!" -> {
                     tokens.add(Token.Op(c))
                     i++
                 }
-                else -> throw ExpressionException(Tr("Unexpected character: $c", "Недопустимый символ: $c"))
+                else -> throw ExpressionException(Res.string.calc_unexpected_character, c.toString())
             }
         }
         tokens.add(Token.End)
@@ -142,7 +147,7 @@ private class Parser(private val tokens: List<Token>, private val degrees: Boole
 
     private fun divisor(): Double {
         val value = unary()
-        if (value == 0.0) throw ExpressionException(Tr("Division by zero", "Деление на ноль"))
+        if (value == 0.0) throw ExpressionException(Res.string.division_by_zero)
         return value
     }
 
@@ -194,23 +199,17 @@ private class Parser(private val tokens: List<Token>, private val degrees: Boole
             expectClose()
             return value
         }
-        throw ExpressionException(
-            if (token == Token.End) Tr("Expression is incomplete", "Выражение не завершено")
-            else Tr("Unexpected token", "Лишний символ в выражении"),
-        )
+        throw ExpressionException(if (token == Token.End) Res.string.calc_incomplete_expression else Res.string.calc_unexpected_token)
     }
 
     private fun expectClose() {
-        if (!isOp(')')) throw ExpressionException(Tr("Missing closing parenthesis", "Не хватает закрывающей скобки"))
+        if (!isOp(')')) throw ExpressionException(Res.string.calc_missing_closing_parenthesis)
         pos++
     }
 
     private fun identifier(name: String): Double {
-        when (name) {
-            "pi" -> return PI
-            "e" -> return E
-        }
-        if (name !in ExpressionParser.functions) throw ExpressionException(Tr("Unknown function: $name", "Неизвестная функция: $name"))
+        ExpressionParser.constants[name]?.let { return it }
+        if (name !in ExpressionParser.functions) throw ExpressionException(Res.string.calc_unknown_function, name)
         val argument = if (isOp('(')) {
             pos++
             val value = expression()
@@ -243,7 +242,7 @@ private fun applyFunction(name: String, x: Double, degrees: Boolean): Double = w
     "floor" -> floor(x)
     "ceil" -> ceil(x)
     "round" -> if (x < 0) -floor(-x + 0.5) else floor(x + 0.5)
-    else -> throw ExpressionException(Tr("Unknown function: $name", "Неизвестная функция: $name"))
+    else -> throw ExpressionException(Res.string.calc_unknown_function, name)
 }
 
 private fun fromRadians(value: Double, degrees: Boolean): Double = if (degrees) value * 180 / PI else value
@@ -264,14 +263,14 @@ private fun tanDeg(x: Double): Double {
         0.0 -> 0.0
         45.0 -> 1.0
         135.0 -> -1.0
-        90.0 -> throw ExpressionException(Tr("tan is undefined at 90°", "tan не определён при 90°"))
+        90.0 -> throw ExpressionException(Res.string.calc_tan_undefined)
         else -> tan(r * PI / 180)
     }
 }
 
 private fun factorial(x: Double): Double {
     if (x < 0 || x != floor(x)) {
-        throw ExpressionException(Tr("Factorial is defined for non-negative integers", "Факториал определён только для целых неотрицательных чисел"))
+        throw ExpressionException(Res.string.calc_factorial_domain)
     }
     if (x > 170) return Double.POSITIVE_INFINITY
     var result = 1.0

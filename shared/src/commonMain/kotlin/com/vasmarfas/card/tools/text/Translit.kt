@@ -33,7 +33,7 @@ object Translit {
         'ъ' to "", 'ы' to "y", 'ь' to "", 'э' to "e", 'ю' to "yu", 'я' to "ya",
     )
 
-    private val passportInverse = inverse(passport, listOf("shch" to "щ", "sch" to "щ", "ie" to "ъ", "y" to "ы"))
+    private val passportInverse = inverse(passport, listOf("shch" to "щ", "sch" to "щ", "ie" to "ие", "y" to "ы"))
     private val gostInverse = inverse(gost, listOf("shh" to "щ", "c" to "ц", "y" to "ы"))
     private val readableInverse = inverse(readable, listOf("shch" to "щ", "sch" to "щ", "y" to "ы", "j" to "й", "x" to "кс", "w" to "в", "h" to "х", "c" to "к", "q" to "к"))
 
@@ -100,10 +100,13 @@ object Translit {
                 val prevOut = sb.lastOrNull()?.lowercaseChar()
                 val nextIn = text.getOrNull(i + 1)?.lowercaseChar()
                 if (prevOut != null && prevOut in VOWELS) cyr = "й"
-                if (prevOut == null && nextIn != null && nextIn in "aeiou") cyr = "й"
+                if (prevOut?.isLetter() != true && nextIn != null && nextIn in "aeiou") cyr = "й"
             }
-            val upper = text[i].isUpperCase()
-            sb.append(if (upper) cyr.uppercase() else cyr)
+            when {
+                !text[i].isUpperCase() -> sb.append(cyr)
+                text.getOrNull(i + 1)?.isUpperCase() == true -> sb.append(cyr.uppercase())
+                else -> sb.append(cyr.replaceFirstChar { it.uppercaseChar() })
+            }
             i += matched.first.length
         }
         return sb.toString()

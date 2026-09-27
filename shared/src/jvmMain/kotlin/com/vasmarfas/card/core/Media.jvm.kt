@@ -1,6 +1,9 @@
 package com.vasmarfas.card.core
 
 import androidx.compose.ui.graphics.ImageBitmap
+import com.vasmarfas.card.resources.*
+import com.vasmarfas.card.tools.media.ImageContainer
+import com.vasmarfas.card.tools.media.ImageMetadata
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.absolutePath
 import kotlinx.coroutines.Dispatchers
@@ -8,7 +11,10 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.bytedeco.ffmpeg.ffmpeg
 import org.bytedeco.ffmpeg.ffprobe
 import org.bytedeco.javacpp.Loader
@@ -70,12 +76,43 @@ actual object MediaEngine {
         val output = tempPath(project.spec.format.extension)
         val args = FfmpegArgs.export(project, infos, output)
         val total = project.durationMs.coerceAtLeast(1)
-        execute(listOf(ffmpegPath) + args) { stdout -> followProgress(stdout, total, onProgress) }
+        try {
+            execute(listOf(ffmpegPath) + args) { stdout -> followProgress(stdout, total, onProgress) }
+        } catch (e: Throwable) {
+            File(output).delete()
+            throw e
+        }
         return MediaResult(PlatformFile(output))
     }
 
     internal suspend fun probeAll(project: MediaProject): Map<PlatformFile, MediaInfo> =
         project.tracks.flatMap { it.clips }.map { it.file }.distinct().associateWith { probe(it) }
+
+    internal suspend fun heifImage(bytes: ByteArray): ImageBitmap? {
+        if (ImageMetadata.detect(bytes) != ImageContainer.HEIF) return null
+        val path = tempPath("heif")
+        return try {
+            File(path).writeBytes(bytes)
+            val probe = Net.json.parseToJsonElement(run(listOf(ffprobePath, "-v", "error", "-show_stream_groups", "-show_streams", "-of", "json", path)).decodeToString()).jsonObject
+            val grid = probe["stream_groups"]?.jsonArray?.map { it.jsonObject }?.firstOrNull { it["type"]?.jsonPrimitive?.content == "Tile Grid" }
+                ?.get("components")?.jsonArray?.firstOrNull()?.jsonObject
+            val picture = grid ?: probe["streams"]?.jsonArray?.map { it.jsonObject }
+                ?.filter { it["codec_type"]?.jsonPrimitive?.content == "video" }
+                ?.maxByOrNull { (it["width"]?.jsonPrimitive?.intOrNull ?: 0) * (it["height"]?.jsonPrimitive?.intOrNull ?: 0) }
+            val size = picture?.let { it["width"]?.jsonPrimitive?.intOrNull to it["height"]?.jsonPrimitive?.intOrNull }
+            val png = run(
+                listOf(
+                    ffmpegPath, "-hide_banner", "-nostdin", "-noautorotate", "-i", path, "-frames:v", "1",
+                    "-pix_fmt", "rgba", "-f", "image2pipe", "-c:v", "png", "pipe:1",
+                ),
+            )
+            skiaDecode(png)?.takeIf { (it.width to it.height) == size }
+        } catch (e: MediaException) {
+            null
+        } finally {
+            File(path).delete()
+        }
+    }
 
     actual suspend fun peaks(file: PlatformFile, perSecond: Int, maxDurationMs: Long): FloatArray {
         val bytes = run(
@@ -100,7 +137,7 @@ actual object MediaEngine {
 
     actual suspend fun decodeAudio(file: PlatformFile, maxDurationMs: Long): PcmAudio {
         val info = probe(file)
-        if (!info.hasAudio) throw MediaException("no audio stream")
+        if (!info.hasAudio) throw MediaException("no audio stream", Res.string.no_audio_track)
         val channels = info.channels.coerceIn(1, 2)
         val rate = info.sampleRate.takeIf { it in 8_000..48_000 } ?: FfmpegArgs.SAMPLE_RATE
         val bytes = run(
@@ -136,7 +173,12 @@ actual object MediaEngine {
                 stream.write(bytes, 0, n * 2)
             }
         }
-        execute(command, feed) { stdout -> followProgress(stdout, totalMs, onProgress) }
+        try {
+            execute(command, feed) { stdout -> followProgress(stdout, totalMs, onProgress) }
+        } catch (e: Throwable) {
+            File(output).delete()
+            throw e
+        }
         return MediaResult(PlatformFile(output))
     }
 
@@ -181,7 +223,8 @@ actual object MediaEngine {
                     throw MediaException(reason)
                 }
             } finally {
-                if (!finished && process.isAlive) process.destroyForcibly()
+                // waited out, a dying process still holds its output file open on Windows
+                if (!finished && process.isAlive) process.destroyForcibly().waitFor()
             }
         }
 
@@ -212,7 +255,8 @@ private fun program(name: String, unpacked: () -> String): String =
 private fun loadFailure(e: Throwable): Throwable {
     if (e !is UnsatisfiedLinkError) return e
     val library = Regex("""lib[\w.+-]+\.so[\d.]*(?=: cannot open)""").find(e.message.orEmpty())?.value ?: return MediaException(e.message ?: e.toString())
-    return MediaException(
+    // not a MediaException: this text names the library and is shown as it is
+    return IllegalStateException(
         Tr(
             "FFmpeg cannot start without the system library $library. Install it with the package manager.",
             "FFmpeg не запускается без системной библиотеки $library. Установите её через менеджер пакетов.",

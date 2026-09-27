@@ -230,6 +230,51 @@ class PdfReaderTest {
         val doc = PdfDocument.parse(threePages().finish(trailer))
         assertEquals(PdfNull, doc.resolve(PdfRef(55, 0)))
         assertEquals(PdfNull, doc.resolve(null))
+        assertEquals(PdfNull, doc.resolve(PdfRef(1_000_000_000, 0)))
+        assertEquals(PdfNull, doc.resolve(PdfRef(Int.MAX_VALUE, 0)))
+        assertThreePages(doc)
+    }
+
+    private fun freedTitle(pdf: RawPdf, firstTable: String, info: String): ByteArray {
+        val firstXref = pdf.size
+        pdf.raw(firstTable).raw("trailer\n<< /Size 13 /Root 1 0 R /Info 12 0 R >>\nstartxref\n$firstXref\n%%EOF\n")
+        pdf.obj(11, "<< /Title (New) >>")
+        val update = pdf.size
+        pdf.raw("xref\n0 1\n0000000000 65535 f\r\n12 1\n0000000000 00001 f\r\n")
+        return pdf.raw("trailer\n<< /Size 13 /Root 1 0 R /Info $info /Prev $firstXref >>\nstartxref\n$update\n%%EOF\n").bytes()
+    }
+
+    @Test
+    fun danglingReferencesLeaveTheXrefAlone() {
+        val pdf = threePages().obj(12, "<< /Title (Old) >>")
+        val doc = PdfDocument.parse(freedTitle(pdf, pdf.xrefTable(), "999 0 R"))
+        assertEquals(emptyMap(), doc.info)
+        assertEquals(PdfNull, doc.resolve(PdfRef(12, 0)))
+        assertFalse(doc.repaired)
+        assertThreePages(doc)
+    }
+
+    @Test
+    fun repairAfterOpeningOnlyAddsWhatIsMissing() {
+        val pdf = threePages().obj(12, "<< /Title (Old) >>")
+        val table = StringBuilder("xref\n0 10\n0000000000 65535 f\r\n")
+        for (n in 1..9) table.append("%010d 00000 n\r\n".format(pdf.offsets.getValue(n)))
+        table.append("12 1\n%010d 00000 n\r\n".format(pdf.offsets.getValue(12)))
+        val doc = PdfDocument.parse(freedTitle(pdf, table.toString(), "11 0 R"))
+        assertEquals("New", doc.info["Title"])
+        assertTrue(doc.repaired)
+        assertEquals(PdfNull, doc.resolve(PdfRef(12, 0)))
+        assertThreePages(doc)
+    }
+
+    @Test
+    fun objectsInsideStreamsAreNotRecovered() {
+        val pdf = threePages()
+        val attached = latin1("%PDF-1.4\n4 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 8 0 R /Fake true >>\nendobj\ntrailer\n<< /Root 99 0 R >>\n")
+        pdf.stream(10, "<< /Type /EmbeddedFile /Length ${attached.size} >>", attached)
+        val doc = PdfDocument.parse(pdf.raw("trailer\n<< /Root 1 0 R /Size 11 >>\nstartxref\n77\n%%EOF\n").bytes())
+        assertTrue(doc.repaired)
+        assertEquals(null, doc.page(0).dict["Fake"])
         assertThreePages(doc)
     }
 

@@ -34,7 +34,7 @@ kotlin {
     }
 }
 
-// Browser media, PDF and barcode libraries are loaded on demand from vendor/, so they stay out of the app bundle.
+// media, PDF and barcode libraries load on demand from vendor/ and stay out of the app bundle
 val vendorScripts = tasks.register<Sync>("vendorScripts") {
     dependsOn(":kotlinWasmNpmInstall")
     val modules = rootProject.layout.buildDirectory.dir("wasm/node_modules")
@@ -51,8 +51,7 @@ val vendorScripts = tasks.register<Sync>("vendorScripts") {
     into(layout.buildDirectory.dir("vendor/vendor"))
 }
 
-// The static pages quote the catalog size. It is counted from the category lists at build time, so the numbers on
-// the splash, in the meta tags and in the manifest always match ToolRegistry.
+// catalog size for the static pages, counted from the category lists at build time
 val catalogDir = rootProject.layout.projectDirectory.dir("shared/src/commonMain/kotlin/com/vasmarfas/card/tools")
 val toolCount = catalogDir.asFile.listFiles().orEmpty().filter { it.isDirectory }.sumOf { dir ->
     dir.listFiles { file -> file.name.endsWith("Tools.kt") }.orEmpty().sumOf { file ->
@@ -94,8 +93,7 @@ tasks.named<ProcessResources>("wasmJsProcessResources") {
     }
 }
 
-// Webpack names the wasm files by hash. Once they exist, index.html gets preload hints and their byte counts for the
-// splash progress bar, since a compressed response does not tell the page how many bytes the body will unpack to.
+// the splash bar needs unpacked sizes, a compressed response does not give them
 listOf("wasmJsBrowserDistribution" to "productionExecutable", "wasmJsBrowserDevelopmentExecutableDistribution" to "developmentExecutable")
     .forEach { (distribution, variant) ->
         val dist = layout.buildDirectory.dir("dist/wasmJs/$variant")

@@ -27,6 +27,7 @@ import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
+import org.jetbrains.compose.resources.stringResource
 
 val bodyMetricsTool = Tool(
     id = "body-metrics",
@@ -140,7 +141,7 @@ private fun BodyMetricsScreen() {
                 Res.string.fat.str(),
             ),
             rows = leans.map {
-                listOf(it.name, "${it.value.fmt(1)} ${Res.string.unit_kg.str()}", "${((weight - it.value) / weight * 100).fmt(1)} %")
+                listOf(it.name, "${it.value.fmt(1)} ${Res.string.unit_kg.str()}", stringResource(Res.string.percent_value, ((weight - it.value) / weight * 100).fmt(1)))
             },
             weights = listOf(1f, 1.2f, 1f),
             mono = false,

@@ -153,6 +153,7 @@ private fun StressTestScreen() {
     }
 
     val summary = StressSummary(samples.toList())
+    val secondUnit = Res.string.unit_s.str()
 
     ToolSection(Res.string.compute_power.str()) {
         InteractiveChart(
@@ -163,7 +164,7 @@ private fun StressTestScreen() {
                     points = samples.map { it.mwips.toFloat() },
                 ),
             ),
-            xLabel = { elapsedLabel(samples.getOrNull(it)?.second ?: 0) },
+            xLabel = { elapsedLabel(samples.getOrNull(it)?.second ?: 0, secondUnit) },
         )
         KeyValueRow(Res.string.peak.str(), "${summary.peakMwips.fmt(1)} ${Res.string.unit_mwips.str()}", copyable = false)
         KeyValueRow(Res.string.average.str(), "${summary.averageMwips.fmt(1)} ${Res.string.unit_mwips.str()}", copyable = false)
@@ -183,7 +184,7 @@ private fun StressTestScreen() {
                         points = temperatures.map { (it ?: 0.0).toFloat() },
                     ),
                 ),
-                xLabel = { elapsedLabel(samples.getOrNull(it)?.second ?: 0) },
+                xLabel = { elapsedLabel(samples.getOrNull(it)?.second ?: 0, secondUnit) },
                 yFormat = { "${it.toDouble().fmt(1)} °C" },
             )
             summary.peakCelsius?.let {
@@ -209,8 +210,8 @@ private fun StressTestScreen() {
     }
 }
 
-private fun elapsedLabel(second: Int): String {
+private fun elapsedLabel(second: Int, unit: String): String {
     val minutes = second / 60
     val rest = second % 60
-    return if (minutes == 0) "${rest}s" else "$minutes:${rest.toString().padStart(2, '0')}"
+    return if (minutes == 0) "$rest $unit" else "$minutes:${rest.toString().padStart(2, '0')}"
 }

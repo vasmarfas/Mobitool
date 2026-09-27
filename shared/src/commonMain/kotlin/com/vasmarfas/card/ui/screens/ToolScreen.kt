@@ -92,7 +92,7 @@ fun ToolScreen(toolId: String, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val addedText = Res.string.added_to_home.str()
     val removedText = Res.string.removed_from_home.str()
-    LaunchedEffect(toolId) { if (tool != null) settings.markRecent(toolId) }
+    LaunchedEffect(toolId) { if (tool != null) settings.markRecent(tool.id) }
     LaunchedEffect(chrome.immersive) { setSystemBarsHidden(chrome.immersive) }
     DisposableEffect(Unit) { onDispose { setSystemBarsHidden(false) } }
     NavigationBackHandler(
@@ -173,7 +173,7 @@ fun ToolScreen(toolId: String, onBack: () -> Unit) {
                     title = Res.string.nothing_found.str(),
                     description = Res.string.unknown_tool_hint.str(),
                 ) {
-                    ActionButton(text = Res.string.tools.str(), onClick = onBack)
+                    ActionButton(text = Res.string.tools_short.str(), onClick = onBack)
                 }
             }
             return@Scaffold

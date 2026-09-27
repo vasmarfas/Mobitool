@@ -152,6 +152,9 @@ private val numpadChars = mapOf(
 private fun charOf(key: Key, codePoint: Int): String = numpadChars[key]
     ?: if (key in textKeys && codePoint in 0x20..0x10FFFF && codePoint != 0x7F) codePoint.toChar().toString() else "—"
 
+private fun eventRow(type: String, key: String, char: String, code: String, modifiers: String): String =
+    type.padEnd(8) + key.take(24).padEnd(26) + char.padEnd(11) + code.padEnd(13) + modifiers
+
 val keyboardTesterTool = Tool(
     id = "keyboard-tester",
     category = ToolCategory.DEVICE,
@@ -201,7 +204,7 @@ private fun KeyboardTesterScreen() {
                 val name = keyName(e.key)
                 val char = charOf(e.key, e.utf16CodePoint)
                 if (down) last = PressedKey(name, e.key.keyCode, char, modifiers)
-                events.add(0, "${type.padEnd(8)}${name.take(24).padEnd(26)}${char.padEnd(6)}${e.key.keyCode.toString().padEnd(12)}$modifiers")
+                events.add(0, eventRow(type, name, char, e.key.keyCode.toString(), modifiers))
                 while (events.size > MAX_EVENTS) events.removeAt(events.lastIndex)
                 true
             }
@@ -265,7 +268,14 @@ private fun KeyboardTesterScreen() {
         )
         if (events.isNotEmpty()) {
             ResultCard(Res.string.last_events.str()) {
-                MonoTable(listOf("Type    Key                       Char  Code        Modifiers") + events.toList())
+                val header = eventRow(
+                    Res.string.type.str(),
+                    Res.string.keyboard_key.str(),
+                    Res.string.keyboard_char.str(),
+                    Res.string.keyboard_key_code.str(),
+                    Res.string.keyboard_modifiers.str(),
+                )
+                MonoTable(listOf(header) + events.toList())
             }
         }
     }

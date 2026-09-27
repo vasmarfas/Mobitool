@@ -31,6 +31,7 @@ import com.vasmarfas.card.ui.components.monoFamily
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.pluralStringResource
 
 private enum class SleepMode { WAKE_AT, BED_AT }
 
@@ -89,7 +90,7 @@ private fun SleepCalculatorScreen() {
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = "${option.cycles} ${Res.string.cycles.str()} · ${option.hours.fmt(1)} ${Res.string.h_of_sleep.str()}",
+                    text = "${pluralStringResource(Res.plurals.sleep_cycles, option.cycles, option.cycles)} · ${option.hours.fmt(1)} ${Res.string.h_of_sleep.str()}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

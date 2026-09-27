@@ -114,7 +114,7 @@ internal class MediaCache(private val scope: CoroutineScope) {
             val info = runCatching { probe(file) }.getOrNull() ?: return@launch
             when {
                 kind == ClipKind.IMAGE -> runCatching {
-                    decodeRawImage(file.readBytes())?.bitmap?.let { frames[file] = listOf(0L to it.scaled(160, (160L * it.height / it.width.coerceAtLeast(1)).toInt())) }
+                    decodeRawImage(file.readBytes(), 160)?.bitmap?.let { frames[file] = listOf(0L to it.scaled(160, (160L * it.height / it.width.coerceAtLeast(1)).toInt())) }
                 }
                 kind == ClipKind.VIDEO && info.hasVideo && info.durationMs > 0 -> runCatching {
                     val count = (info.durationMs / 1000).coerceIn(1, 30)

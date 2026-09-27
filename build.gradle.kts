@@ -11,13 +11,15 @@ plugins {
     alias(libs.plugins.kotlinSerialization) apply false
 }
 
-// Single source of truth for the version; the pipeline overrides it through the environment.
+// the pipeline overrides the version through the environment
 val appVersionName: String = System.getenv("APP_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "1.0.0"
 
-// Play and App Store Connect take only a growing integer, so 1.4.12 packs into 10412
-val appVersionCode: Int = System.getenv("APP_VERSION_CODE")?.toIntOrNull()
-    ?: appVersionName.substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
-        .let { (it.getOrElse(0) { 0 } * 100 + it.getOrElse(1) { 0 }) * 100 + it.getOrElse(2) { 0 } }
+// Play and App Store Connect take only a growing integer: 1.4.12-rc2 packs into 1041202, the final 1.4.12 into 1041299
+val appVersionCode: Int = System.getenv("APP_VERSION_CODE")?.toIntOrNull() ?: run {
+    val (major, minor, patch) = appVersionName.substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 } + listOf(0, 0, 0)
+    val stage = if ('-' in appVersionName) appVersionName.takeLastWhile { it.isDigit() }.toIntOrNull() ?: 0 else 99
+    ((major * 100 + minor) * 100 + patch) * 100 + stage
+}
 
 extra["appVersionName"] = appVersionName
 extra["appVersionCode"] = appVersionCode

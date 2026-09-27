@@ -89,6 +89,9 @@ object Inflate {
 
     internal fun inflateUpTo(data: ByteArray, offset: Int, length: Int, maxSize: Int): ByteArray =
         Inflater(data, offset, offset + length, maxSize, maxSize).run()
+
+    fun inflatePartial(data: ByteArray, offset: Int = 0): ByteArray =
+        Inflater(data, offset, data.size, (data.size - offset) * 4, MAX_ARRAY_SIZE, partial = true).run()
 }
 
 private class HuffmanTable(private val fastBits: Int, maxSymbols: Int) {
@@ -148,7 +151,14 @@ private class HuffmanTable(private val fastBits: Int, maxSymbols: Int) {
     }
 }
 
-private class Inflater(private val src: ByteArray, private var pos: Int, private val end: Int, sizeHint: Int, private val maxSize: Int) {
+private class Inflater(
+    private val src: ByteArray,
+    private var pos: Int,
+    private val end: Int,
+    sizeHint: Int,
+    private val maxSize: Int,
+    private val partial: Boolean = false,
+) {
     private var out: ByteArray
     private var outPos = 0
     private var bitBuffer = 0L
@@ -165,18 +175,22 @@ private class Inflater(private val src: ByteArray, private var pos: Int, private
     }
 
     fun run(): ByteArray {
-        while (true) {
-            val header = bits(3)
-            when (header ushr 1) {
-                0 -> storedBlock()
-                1 -> huffmanBlock(FIXED_LITERAL_TABLE, FIXED_DISTANCE_TABLE)
-                2 -> {
-                    readDynamicTables()
-                    huffmanBlock(literalTable, distanceTable)
+        try {
+            while (true) {
+                val header = bits(3)
+                when (header ushr 1) {
+                    0 -> storedBlock()
+                    1 -> huffmanBlock(FIXED_LITERAL_TABLE, FIXED_DISTANCE_TABLE)
+                    2 -> {
+                        readDynamicTables()
+                        huffmanBlock(literalTable, distanceTable)
+                    }
+                    else -> throw DeflateException("Invalid block type")
                 }
-                else -> throw DeflateException("Invalid block type")
+                if (header and 1 != 0) break
             }
-            if (header and 1 != 0) break
+        } catch (e: DeflateException) {
+            if (!partial || outPos == 0) throw e
         }
         return if (outPos == out.size) out else out.copyOf(outPos)
     }

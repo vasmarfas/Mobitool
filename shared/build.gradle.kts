@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.TestExecutable
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
-// FFmpeg ships per OS; each desktop package is built on its own OS, so the host decides
+// FFmpeg ships per OS and every desktop package is built on its own OS, so the host decides
 val javacppPlatform: String = run {
     val os = System.getProperty("os.name").lowercase()
     val arch = when (val a = System.getProperty("os.arch").lowercase()) {
@@ -166,8 +166,7 @@ kotlin {
 }
 
 
-// Compose Resources only ever resolves the active locale, so a search that has to match both
-// languages at once needs its own copy of the tables. Regenerated from the same strings.xml.
+// Compose Resources resolves only the active locale, a search that matches both languages needs its own copy
 val generateStringIndex = tasks.register("generateStringIndex") {
     val english = layout.projectDirectory.file("src/commonMain/composeResources/values/strings.xml").asFile
     val russian = layout.projectDirectory.file("src/commonMain/composeResources/values-ru/strings.xml").asFile
@@ -235,13 +234,10 @@ val generateStringIndex = tasks.register("generateStringIndex") {
             out.appendLine("private val $name: Map<String, String> by lazy { HashMap<String, String>(${rows.size}).also { $calls } }")
             out.appendLine()
         }
-        out.appendLine("/** The stored English text, or null when the key is missing from values/strings.xml. */")
         out.appendLine("fun StringResource.english(): String? = en[key]")
         out.appendLine()
-        out.appendLine("/** The stored Russian text, or null when the key is missing from values-ru/strings.xml. */")
         out.appendLine("fun StringResource.russian(): String? = ru[key]")
         out.appendLine()
-        out.appendLine("/** Matches the query against both translations, whichever language the UI is in. */")
         out.appendLine("fun StringResource.matches(query: String): Boolean =")
         out.appendLine("    english()?.contains(query, ignoreCase = true) == true ||")
         out.appendLine("        russian()?.contains(query, ignoreCase = true) == true")
@@ -297,8 +293,7 @@ tasks.matching { it.name.contains("Framework") }.configureEach {
     dependsOn(rootProject.tasks.named("syncIosVersion"))
 }
 
-// PDFBox logs through commons-logging, which would pick the SLF4J API that Ktor brings and drop
-// the warnings the PDF tests assert on; java.util.logging keeps them visible.
+// commons-logging would pick Ktor's SLF4J and drop the PDFBox warnings the tests assert on
 tasks.named<Test>("jvmTest") {
     systemProperty("org.apache.commons.logging.LogFactory", "org.apache.commons.logging.impl.LogFactoryImpl")
     systemProperty("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.Jdk14Logger")

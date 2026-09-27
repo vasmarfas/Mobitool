@@ -13,8 +13,8 @@ import kotlinx.coroutines.isActive
 actual fun microphoneSpectrumFlow(fftSize: Int): Flow<SpectrumFrame> = flow {
     val sampleRate = 44_100
     val format = AudioFormat(sampleRate.toFloat(), 16, 1, true, false)
-    val line = runCatching { AudioSystem.getTargetDataLine(format) as TargetDataLine }.getOrNull() ?: return@flow
-    line.open(format, fftSize * 4)
+    val line = runCatching { AudioSystem.getTargetDataLine(format) as TargetDataLine }.getOrNull() ?: throw IllegalStateException("NotFoundError")
+    runCatching { line.open(format, fftSize * 4) }.onFailure { throw IllegalStateException("NotReadableError") }
     line.start()
     val hop = minOf(fftSize, SpectrumHop)
     val bytes = ByteArray(hop * 2)
@@ -25,10 +25,9 @@ actual fun microphoneSpectrumFlow(fftSize: Int): Flow<SpectrumFrame> = flow {
             var filled = 0
             while (filled < bytes.size) {
                 val read = line.read(bytes, filled, bytes.size - filled)
-                if (read <= 0) break
+                if (read <= 0) throw IllegalStateException("NotReadableError")
                 filled += read
             }
-            if (filled < bytes.size) break
             samples.copyInto(samples, 0, hop, fftSize)
             for (i in 0 until hop) {
                 val value = ((bytes[i * 2 + 1].toInt() shl 8) or (bytes[i * 2].toInt() and 0xFF)).toShort()

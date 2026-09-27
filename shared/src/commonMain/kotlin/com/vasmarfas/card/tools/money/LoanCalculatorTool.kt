@@ -8,7 +8,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.core.toDoubleLenient
@@ -24,6 +23,7 @@ import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
 import com.vasmarfas.card.ui.components.SwitchRow
 import kotlin.math.roundToInt
+import org.jetbrains.compose.resources.stringResource
 
 private enum class TermUnit { MONTHS, YEARS }
 
@@ -82,7 +82,7 @@ private fun LoanCalculatorScreen() {
         label = { if (it == TermUnit.MONTHS) Res.string.months.str() else Res.string.years.str() },
     )
     if (months != null && months > MAX_MONTHS) {
-        ErrorText(Tr("Term is limited to $MAX_MONTHS months", "Срок ограничен $MAX_MONTHS месяцами").str())
+        ErrorText(stringResource(Res.string.loan_term_limit, MAX_MONTHS))
     } else if (principal != null && rate != null && months != null) {
         val result = remember(principal, rate, months, type) { Loan.schedule(principal, rate, months, type) }
         val payment = result.schedule.first().payment
@@ -98,7 +98,7 @@ private fun LoanCalculatorScreen() {
             }
             KeyValueRow(Res.string.total_paid.str(), result.total.fmt(2, grouping = true))
             KeyValueRow(Res.string.loan_total_interest.str(), result.interest.fmt(2, grouping = true))
-            KeyValueRow(Res.string.overpayment.str(), "${(result.interest / principal * 100).fmt(1)}%", copyable = false)
+            KeyValueRow(Res.string.overpayment.str(), stringResource(Res.string.percent_value, (result.interest / principal * 100).fmt(1)), copyable = false)
             KeyValueRow(Res.string.months.str(), months.toString(), copyable = false)
         }
         SwitchRow(

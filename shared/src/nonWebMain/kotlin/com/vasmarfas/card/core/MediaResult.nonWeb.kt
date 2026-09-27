@@ -33,7 +33,16 @@ actual fun MediaResult.discard() {
     runCatching { SystemFileSystem.delete(Path(file.path), mustExist = false) }
 }
 
+private var sweptStale = false
+
 internal fun tempPath(extension: String): String {
-    val name = "media-${currentEpochMillis()}-${Random.nextInt(100_000, 999_999)}.$extension"
+    val now = currentEpochMillis()
+    if (!sweptStale) {
+        sweptStale = true
+        runCatching { SystemFileSystem.list(SystemTemporaryDirectory) }.getOrDefault(emptyList())
+            .filter { it.name.startsWith("media-") && (it.name.substringAfter('-').substringBefore('-').toLongOrNull() ?: now) < now - 86_400_000 }
+            .forEach { runCatching { SystemFileSystem.delete(it, mustExist = false) } }
+    }
+    val name = "media-$now-${Random.nextInt(100_000, 999_999)}.$extension"
     return Path(SystemTemporaryDirectory, name).toString()
 }

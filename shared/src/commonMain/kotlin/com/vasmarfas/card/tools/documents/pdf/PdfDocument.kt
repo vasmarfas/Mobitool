@@ -49,6 +49,8 @@ class PdfDocument private constructor(private val data: ByteArray) {
     var repaired: Boolean = false
         private set
 
+    private var opened = false
+
     val encrypted: Boolean get() = security != null
 
     val catalog: PdfDict get() = resolve(trailer["Root"]) as? PdfDict ?: PdfDict()
@@ -89,6 +91,7 @@ class PdfDocument private constructor(private val data: ByteArray) {
         setUpEncryption(password)
         val declared = catalog.name("Version")
         if (declared != null && declared.length == 3 && declared[1] == '.' && declared > version) version = declared
+        opened = true
     }
 
     private fun readVersion(at: Int): String {
@@ -261,7 +264,7 @@ class PdfDocument private constructor(private val data: ByteArray) {
     }
 
     private fun load(number: Int): PdfObject {
-        if (number <= 0) return PdfNull
+        if (number <= 0 || number > maxObjectNumber) return PdfNull
         if (number < cache.size) cache[number]?.let { return it }
         for (i in 0 until loadingDepth) if (loading[i] == number) return PdfNull
         if (loadingDepth == loading.size) return PdfNull
@@ -271,6 +274,7 @@ class PdfDocument private constructor(private val data: ByteArray) {
         } finally {
             loadingDepth--
         }
+        if (number >= xref.size) return obj
         if (number >= cache.size) cache = cache.copyOf(max(number + 1, max(xref.size, cache.size * 2)))
         cache[number] = obj
         return obj
@@ -278,7 +282,7 @@ class PdfDocument private constructor(private val data: ByteArray) {
 
     private fun locate(number: Int): PdfObject {
         locateOnce(number)?.let { return it }
-        if (!repaired) {
+        if (!repaired && number < (trailer.int("Size") ?: Int.MAX_VALUE)) {
             repair()
             locateOnce(number)?.let { return it }
         }
@@ -346,11 +350,18 @@ class PdfDocument private constructor(private val data: ByteArray) {
         var highest = 0
         for (k in 0 until scan.count) highest = max(highest, scan.numbers[k])
         val done = BooleanArray(min(highest, maxObjectNumber) + 1)
+        if (opened) {
+            for (k in 0 until scan.count) {
+                val number = scan.numbers[k]
+                if (number in 1..maxObjectNumber && xref.type(number) == IN_FILE && leadsTo(xref.field(number), scan.offsets[k])) done[number] = true
+            }
+        }
         for (k in scan.count - 1 downTo 0) {
             val number = scan.numbers[k]
             if (number <= 0 || number > maxObjectNumber || done[number]) continue
             done[number] = true
-            if (xref.type(number) == COMPRESSED) continue
+            val type = xref.type(number)
+            if (type == COMPRESSED || (opened && type == FREE)) continue
             xref.set(number, IN_FILE, scan.offsets[k], scan.generations[k])
             if (number < cache.size && cache[number] == PdfNull) cache[number] = null
         }
@@ -365,6 +376,9 @@ class PdfDocument private constructor(private val data: ByteArray) {
         }
         rebuildTrailer(scan)
     }
+
+    private fun leadsTo(offset: Int, header: Int): Boolean =
+        intArrayOf(offset, offset + headerOffset).any { at -> PdfLexer(data, names, at).also { it.skipWhitespace() }.pos == header }
 
     private fun rebuildTrailer(scan: ScannedObjects) {
         val found = PdfDict()

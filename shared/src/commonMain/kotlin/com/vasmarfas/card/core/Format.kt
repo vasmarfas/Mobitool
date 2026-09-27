@@ -1,5 +1,6 @@
 package com.vasmarfas.card.core
 
+import com.vasmarfas.card.tools.converters.fmtSig
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.roundToLong
@@ -8,6 +9,7 @@ fun Double.fmt(maxFraction: Int = 2, minFraction: Int = 0, grouping: Boolean = f
     if (isNaN()) return "NaN"
     if (isInfinite()) return if (this > 0) "∞" else "-∞"
     val factor = 10.0.pow(maxFraction)
+    if (abs(this) * factor >= Long.MAX_VALUE) return fmtSig(15)
     val rounded = (abs(this) * factor).roundToLong()
     var intPart = (rounded / factor.toLong()).toString()
     var frac = (rounded % factor.toLong()).toString().padStart(maxFraction, '0')
@@ -35,9 +37,15 @@ private fun groupThousands(digits: String): String {
 }
 
 fun formatBytes(bytes: Long, binary: Boolean = true): String {
+    val ru = appLang == Lang.RU
     val unit = if (binary) 1024.0 else 1000.0
-    if (bytes < unit) return "$bytes B"
-    val units = if (binary) listOf("KiB", "MiB", "GiB", "TiB", "PiB") else listOf("kB", "MB", "GB", "TB", "PB")
+    if (bytes < unit) return if (ru) "$bytes Б" else "$bytes B"
+    val units = when {
+        binary && ru -> listOf("КиБ", "МиБ", "ГиБ", "ТиБ", "ПиБ")
+        binary -> listOf("KiB", "MiB", "GiB", "TiB", "PiB")
+        ru -> listOf("кБ", "МБ", "ГБ", "ТБ", "ПБ")
+        else -> listOf("kB", "MB", "GB", "TB", "PB")
+    }
     var value = bytes.toDouble()
     var idx = -1
     while (value >= unit && idx < units.lastIndex) {
@@ -61,18 +69,25 @@ fun formatDurationMs(ms: Long): String {
     }
 }
 
-fun String.toDoubleLenient(): Double? = trim().replace(',', '.').replace(" ", "").toDoubleOrNull()
+private val thousandsCommas = Regex("[-+]?[1-9]\\d{0,2}(,\\d{3})+(\\.\\d+)?")
+
+fun String.normalizeNumber(): String {
+    val s = filterNot { it.isWhitespace() }
+    return if (appLang == Lang.EN && thousandsCommas.matches(s)) s.replace(",", "") else s.replace(',', '.')
+}
+
+fun String.toDoubleLenient(): Double? = normalizeNumber().toDoubleOrNull()
 
 fun formatCount(n: Int): String {
-    val point = if (appLang == Lang.RU) ',' else '.'
-    fun short(value: Int, unit: Int, suffix: Char): String {
+    val ru = appLang == Lang.RU
+    fun short(value: Int, unit: Int, suffix: String): String {
         val tenths = (value + unit / 20) / (unit / 10)
-        return if (tenths < 100 && tenths % 10 != 0) "${tenths / 10}$point${tenths % 10}$suffix" else "${(value + unit / 2) / unit}$suffix"
+        return if (tenths < 100 && tenths % 10 != 0) "${tenths / 10}.${tenths % 10}$suffix" else "${(value + unit / 2) / unit}$suffix"
     }
     return when {
         n < 1_000 -> n.toString()
-        n < 999_500 -> short(n, 1_000, 'K')
-        else -> short(n, 1_000_000, 'M')
+        n < 999_500 -> short(n, 1_000, if (ru) "\u00A0тыс." else "K")
+        else -> short(n, 1_000_000, if (ru) "\u00A0млн" else "M")
     }
 }
 

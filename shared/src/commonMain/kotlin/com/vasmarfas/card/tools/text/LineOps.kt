@@ -49,13 +49,26 @@ object LineOps {
                 i = ie
                 j = je
             } else {
-                val cmp = ca.lowercaseChar().compareTo(cb.lowercaseChar())
+                val cmp = letterWeight(ca) - letterWeight(cb)
                 if (cmp != 0) return cmp
                 i++
                 j++
             }
         }
         return (a.length - i) - (b.length - j)
+    }
+
+    fun compareAlphabetical(a: String, b: String): Int {
+        for (k in 0 until minOf(a.length, b.length)) {
+            val cmp = letterWeight(a[k]) - letterWeight(b[k])
+            if (cmp != 0) return cmp
+        }
+        return a.length - b.length
+    }
+
+    private fun letterWeight(c: Char): Int {
+        val lower = c.lowercaseChar()
+        return if (lower == 'ё') 'е'.code * 2 + 1 else lower.code * 2
     }
 
     fun unescape(separator: String): String = separator.replace("\\t", "\t").replace("\\n", "\n")
@@ -67,9 +80,10 @@ object LineOps {
         } else {
             { s -> s }
         }
+        val alphabetical = if (options.ignoreCase) Comparator(::compareAlphabetical) else Comparator(::compareAlphabetical).thenBy { it }
         val out = when (op) {
-            LineOp.SORT_ASC -> lines.sortedBy(key)
-            LineOp.SORT_DESC -> lines.sortedByDescending(key)
+            LineOp.SORT_ASC -> lines.sortedWith(alphabetical)
+            LineOp.SORT_DESC -> lines.sortedWith(alphabetical.reversed())
             LineOp.SORT_NATURAL -> lines.sortedWith(Comparator { a, b -> compareNatural(a, b) })
             LineOp.SORT_LENGTH -> lines.sortedBy { it.length }
             LineOp.DEDUPE -> lines.distinctBy(key)

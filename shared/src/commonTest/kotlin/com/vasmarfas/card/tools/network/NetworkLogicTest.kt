@@ -1,7 +1,9 @@
 package com.vasmarfas.card.tools.network
 
+import com.vasmarfas.card.resources.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -82,9 +84,33 @@ class Ipv6Test {
 class SubnetMathTest {
     @Test
     fun equalSplit() {
-        val parts = SubnetMath.split(Ipv4.parseSubnet("192.168.0.0/24")!!, 4)
+        val parts = SubnetMath.split(Ipv4.parseSubnet("192.168.0.0/24")!!, 4).toList()
         assertEquals(4, parts.size)
         assertEquals("192.168.0.64/26", "${Ipv4.format(parts[1].network)}/${parts[1].prefix}")
+    }
+
+    @Test
+    fun splitBeyondTheAddressSpace() {
+        assertTrue(SubnetMath.split(Ipv4.parseSubnet("10.0.0.0/8")!!, 1_073_741_825).none())
+        val last = SubnetMath.split(Ipv4.parseSubnet("10.0.0.0/8")!!, 16_777_216).take(3).toList().last()
+        assertEquals("10.0.0.2/32", "${Ipv4.format(last.network)}/${last.prefix}")
+    }
+
+    @Test
+    fun bareAddressIsOneHost() {
+        assertEquals(32, Ipv4.parseBlock("8.8.8.8")!!.prefix)
+        assertEquals(24, Ipv4.parseBlock("10.0.0.0/24")!!.prefix)
+        val result = SubnetMath.summarize(listOf("8.8.8.8", "8.8.4.4").map { Ipv4.parseBlock(it)!! })
+        assertEquals(listOf("8.8.4.4/32", "8.8.8.8/32"), result.map { "${Ipv4.format(it.network)}/${it.prefix}" })
+    }
+
+    @Test
+    fun reservedRangesAreNotPublic() {
+        assertTrue(Ipv4.parseSubnet("8.8.8.8/32")!!.isPublic)
+        assertTrue(Ipv4.parseSubnet("240.1.2.3/4")!!.isReserved)
+        assertTrue(Ipv4.parseSubnet("0.0.0.0/8")!!.isThisNetwork)
+        assertTrue(Ipv4.parseSubnet("255.255.255.255/32")!!.isBroadcast)
+        listOf("240.1.2.3/4", "0.0.0.0/8", "255.255.255.255/32").forEach { assertFalse(Ipv4.parseSubnet(it)!!.isPublic, it) }
     }
 
     @Test
@@ -117,9 +143,28 @@ class DnsMessageTest {
         val bytes = DnsMessage.buildQuery("example.com", 1, 0x1234)
         assertEquals(0x12, bytes[0].toInt() and 0xFF)
         assertEquals(0x34, bytes[1].toInt() and 0xFF)
+        assertEquals(0x0120, ((bytes[2].toInt() and 0xFF) shl 8) or (bytes[3].toInt() and 0xFF))
+        assertEquals(1, bytes[11].toInt())
         assertEquals(7, bytes[12].toInt())
         assertEquals('e'.code, bytes[13].toInt())
-        assertEquals(1, bytes[bytes.size - 1].toInt())
+        assertEquals(1, bytes[28].toInt())
+        assertEquals(41, bytes[31].toInt())
+        assertEquals(1232, ((bytes[32].toInt() and 0xFF) shl 8) or (bytes[33].toInt() and 0xFF))
+        assertEquals(40, bytes.size)
+    }
+
+    @Test
+    fun wireAndJsonReadTheSame() {
+        val soa = byteArrayOf(0x12, 0x34, 0x81.toByte(), 0x80.toByte(), 0, 0, 0, 1, 0, 0, 0, 0) +
+            byteArrayOf(0, 0, 6, 0, 1, 0, 0, 0x0E, 0x10, 0, 30) +
+            byteArrayOf(2) + "ns".encodeToByteArray() + byteArrayOf(0) + byteArrayOf(4) + "host".encodeToByteArray() + byteArrayOf(0) +
+            byteArrayOf(0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5)
+        assertEquals("ns host 1 2 3 4 5", DnsMessage.parse(soa).answers[0].data)
+        assertEquals("ns host 1 2 3 4 5", DnsClient.jsonData(6, "ns. host. 1 2 3 4 5"))
+        assertEquals("v=spf1 -allpart two", DnsClient.jsonData(16, "\"v=spf1 -all\" \"part two\""))
+        assertEquals("v=spf1 -all", DnsClient.jsonData(16, "v=spf1 -all"))
+        assertEquals("0 issue letsencrypt.org", DnsClient.jsonData(257, "0 issue \"letsencrypt.org\""))
+        assertEquals("10 mail.example.com", DnsClient.jsonData(15, "10 mail.example.com."))
     }
 
     @Test
@@ -151,8 +196,25 @@ class MacAndPortsTest {
     fun portSpec() {
         assertEquals(listOf(22, 80, 443, 8000, 8001, 8002), parsePorts("22, 80,443 8000-8002"))
         assertEquals(emptyList(), parsePorts("0, 70000"))
+        assertEquals(65535, parsePorts("1-65535").size)
+        assertEquals(65535, parsePorts("0-2000000000").size)
+        assertEquals(listOf(65534, 65535), parsePorts("65534-70000"))
         assertTrue(WellKnownPorts.search("ssh").any { it.port == 22 })
         assertEquals("HTTPS", WellKnownPorts.service(443))
+    }
+
+    @Test
+    fun portDescriptionsInBothLanguages() {
+        assertTrue(WellKnownPorts.search("mail transfer").any { it.port == 25 })
+        assertTrue(WellKnownPorts.search("почт").any { it.port == 25 })
+        WellKnownPorts.all.forEach { assertNotNull(it.description.russian(), it.port.toString()) }
+    }
+
+    @Test
+    fun rdapAsksForAsciiNames() {
+        assertEquals("https://rdap.org/domain/xn--e1afmkfd.xn--p1ai", Rdap.url("пример.рф"))
+        assertEquals("https://rdap.org/ip/8.8.8.8", Rdap.url("8.8.8.8"))
+        assertEquals("https://rdap.org/autnum/15169", Rdap.url("AS15169"))
     }
 
     @Test

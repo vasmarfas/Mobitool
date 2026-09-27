@@ -22,6 +22,7 @@ import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.MonoTable
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.ToolInputField
+import org.jetbrains.compose.resources.stringResource
 
 val cronParserTool = Tool(
     id = "cron-parser",
@@ -54,7 +55,7 @@ private fun CronParserScreen() {
     )
     if (expr == null) {
         val error = result.exceptionOrNull()
-        if (input.isNotBlank()) ErrorText(if (error is CronException) error.text.str() else error?.message ?: "")
+        if (input.isNotBlank()) ErrorText(if (error is CronException) stringResource(error.text, *error.args) else error?.message ?: "")
         return
     }
     val now = remember(input) { localDateTime(currentEpochMillis()) }

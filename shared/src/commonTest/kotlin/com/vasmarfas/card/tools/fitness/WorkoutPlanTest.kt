@@ -77,4 +77,12 @@ class WorkoutPlanTest {
         assertEquals(1, twoSets.count { it.kind == StepKind.COOLDOWN })
         assertEquals(8 * 30 + 6 * 15 + 60 + 120, WorkoutSteps.totalSeconds(twoSets))
     }
+
+    @Test
+    fun intervalsOutsideTheLimitsBuildNothing() {
+        assertTrue(WorkoutSteps.interval(10, 0, 10, 8, 1, 60, 0).isEmpty())
+        assertTrue(WorkoutSteps.interval(10, 20, 10, 100_000_000, 1, 60, 0).isEmpty())
+        assertTrue(WorkoutSteps.interval(10, 20, 10, 8, WorkoutSteps.MAX_SETS + 1, 60, 0).isEmpty())
+        assertEquals(WorkoutSteps.MAX_ROUNDS, WorkoutSteps.interval(0, 20, 0, WorkoutSteps.MAX_ROUNDS, 1, 0, 0).size)
+    }
 }

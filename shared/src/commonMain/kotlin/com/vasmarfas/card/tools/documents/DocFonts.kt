@@ -22,16 +22,14 @@ class FontFamily(val regular: TrueTypeFont, val bold: TrueTypeFont, val italic: 
 
 class DocFonts(val body: FontFamily, val headings: FontFamily, val code: FontFamily)
 
-// text goes out as two-byte glyph ids (Identity-H), so the subset keeps the original ids and ToUnicode
-// makes the text searchable again. The bundled fonts have no ruble sign, so a ruble face is a second
-// copy whose ToUnicode maps its Р to U+20BD: drawn as Р with a bar, copied as ₽
+// the ruble face is a second copy whose ToUnicode maps its Р to U+20BD
 internal class Face(val font: TrueTypeFont, val resource: String, val ref: PdfRef, val ruble: Boolean = false) {
     private val used = HashMap<Int, Int>()
 
     fun scale(size: Float): Float = size / font.unitsPerEm
 
     fun use(glyph: Int, codePoint: Int) {
-        if (glyph !in used) used[glyph] = codePoint
+        if (glyph !in used) used[glyph] = if (ruble || font.glyphId(codePoint) == glyph) codePoint else '?'.code
     }
 
     fun write(writer: PdfWriter) {

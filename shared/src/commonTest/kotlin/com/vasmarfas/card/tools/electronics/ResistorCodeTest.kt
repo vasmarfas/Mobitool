@@ -16,6 +16,10 @@ class ResistorCodeTest {
         assertEquals(1.0, six.tolerance, 1e-9)
         assertEquals(50, six.tempco)
         assertNull(ResistorCode.decode(listOf(ResistorColor.GOLD, ResistorColor.VIOLET, ResistorColor.RED, ResistorColor.GOLD)))
+        val fiveBands = listOf(ResistorColor.BROWN, ResistorColor.BLACK, ResistorColor.BLACK, ResistorColor.BROWN, ResistorColor.BROWN)
+        assertEquals(250, ResistorCode.decode(fiveBands + ResistorColor.BLACK)?.tempco)
+        assertEquals(20, ResistorCode.decode(fiveBands + ResistorColor.GREEN)?.tempco)
+        assertEquals(1, ResistorCode.decode(fiveBands + ResistorColor.GREY)?.tempco)
     }
 
     @Test

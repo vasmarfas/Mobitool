@@ -7,6 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.TimeSource
 import org.apache.pdfbox.Loader
 import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
@@ -103,5 +104,46 @@ class PdfContentTest {
         assertEquals(rect.bounds.left, grown.bounds.left, 1e-6)
         assertEquals(rect.bounds.bottom, grown.bounds.bottom, 1e-6)
         assertEquals(rect.bounds.width * 2, grown.bounds.width, 1e-6)
+    }
+
+    private fun rawPage(resources: String, operators: String, extra: (RawPdf) -> Unit = {}): ByteArray {
+        val pdf = RawPdf()
+        pdf.obj(1, "<< /Type /Catalog /Pages 2 0 R >>")
+        pdf.obj(2, "<< /Type /Pages /Kids [4 0 R] /Count 1 >>")
+        pdf.obj(3, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+        pdf.obj(4, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Contents 5 0 R /Resources $resources >>")
+        val data = latin1(operators)
+        pdf.stream(5, "<< /Length ${data.size} >>", data)
+        extra(pdf)
+        return pdf.finish("<< /Size ${pdf.offsets.lastKey() + 1} /Root 1 0 R >>")
+    }
+
+    @Test
+    fun movedTextKeepsItsStatesAndItsFontName() {
+        val operators = "/G1 gs ".repeat(20_000) + "/G2 gs /G1 gs " + (0 until 5_000).joinToString("\n") { "BT /F#20A 12 Tf 10 ${it % 700 + 20} Td (Line $it) Tj ET" }
+        val bytes = rawPage("<< /Font << /F#20A 3 0 R >> /ExtGState << /G1 << /CA 0.5 >> /G2 << /ca 0.8 >> >> >>", operators)
+        val mark = TimeSource.Monotonic.markNow()
+        val page = content(bytes)
+        assertTrue(mark.elapsedNow().inWholeSeconds < 5)
+        assertEquals(5_000, page.runs.size)
+        val out = page.rewrite(emptySet(), mapOf(page.runs[3].op to doubleArrayOf(1.0, 0.0, 0.0, 1.0, 100.0, 0.0)))
+        val tail = String(out, Charsets.ISO_8859_1).substringAfterLast("\nQ\n")
+        assertEquals(listOf("/G2 gs", "/G1 gs"), Regex("/G\\d gs").findAll(tail).map { it.value }.toList())
+        val moved = content(replaced(bytes, out)).runs.single { run -> run.glyphs.joinToString("") { it.text } == "Line 3" }
+        assertEquals(110.0, moved.glyphs.first().x0, 1e-6)
+    }
+
+    @Test
+    fun formsDrawingFormsStopWithinABudget() {
+        val bytes = rawPage("<< /XObject << /X 10 0 R >> /Font << /F1 3 0 R >> >>", "BT /F1 12 Tf 10 780 Td (Top) Tj ET /X Do BT /F1 12 Tf 10 20 Td (Bottom) Tj ET") { pdf ->
+            for (level in 0..10) {
+                val data = latin1(if (level == 10) "BT /F1 12 Tf 10 400 Td (Inside) Tj ET" else "/X Do ".repeat(10))
+                pdf.stream(10 + level, "<< /Subtype /Form /BBox [0 0 600 800] /Resources << /XObject << /X ${11 + level} 0 R >> /Font << /F1 3 0 R >> >> /Length ${data.size} >>", data)
+            }
+        }
+        val mark = TimeSource.Monotonic.markNow()
+        val text = PdfText.extract(PdfDocument.parse(bytes), 0)
+        assertTrue(mark.elapsedNow().inWholeSeconds < 5)
+        assertEquals(listOf("Top", "Inside", "Bottom"), text.lines())
     }
 }

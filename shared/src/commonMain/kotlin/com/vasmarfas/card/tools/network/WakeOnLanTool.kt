@@ -35,6 +35,7 @@ import com.vasmarfas.card.ui.components.ToolInputField
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import org.jetbrains.compose.resources.getString
 
 val wakeOnLanTool = Tool(
     id = "wake-on-lan",
@@ -43,7 +44,7 @@ val wakeOnLanTool = Tool(
     description = Res.string.wake_on_lan_description,
     icon = Icons.Filled.PowerSettingsNew,
     keywords = listOf("wol", "magic packet", "wake", "включить", "пробуждение"),
-    platforms = PlatformKind.native,
+    platforms = PlatformKind.jvm,
 ) { WakeOnLanScreen() }
 
 @Serializable
@@ -60,7 +61,6 @@ private object WolStore {
 
 @Composable
 private fun WakeOnLanScreen() {
-    val magicPacketSentToText = Res.string.magic_packet_sent_to.str()
     val failedToSendThePacketText = Res.string.failed_to_send_the_packet.str()
     var name by rememberSaveable { mutableStateOf("") }
     var mac by rememberSaveable { mutableStateOf("") }
@@ -70,32 +70,32 @@ private fun WakeOnLanScreen() {
     var status by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    val validMac = MacAddress.normalize(mac) != null
+    val normalized = MacAddress.normalize(mac)
 
     fun send(device: WolDevice) {
         status = null; error = null
         scope.launch {
             val ok = wakeOnLan(device.mac, device.broadcast, device.port)
-            if (ok) status = magicPacketSentToText + " ${device.mac} via ${device.broadcast}:${device.port}"
+            if (ok) status = getString(Res.string.magic_packet_sent_to, device.mac, "${device.broadcast}:${device.port}")
             else error = failedToSendThePacketText
         }
     }
 
     ToolInputField(value = name, onValueChange = { name = it }, label = Res.string.device_name_optional.str())
-    ToolInputField(value = mac, onValueChange = { mac = it }, label = Res.string.mac_address.str(), isError = mac.isNotBlank() && !validMac, monospace = true)
+    ToolInputField(value = mac, onValueChange = { mac = it }, label = Res.string.mac_address.str(), isError = mac.isNotBlank() && normalized == null, monospace = true)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ToolInputField(value = broadcast, onValueChange = { broadcast = it }, label = Res.string.broadcast_address.str(), modifier = Modifier.weight(2f), keyboardType = KeyboardType.Uri, monospace = true)
         NumberField(value = port, onValueChange = { port = it }, label = Res.string.port.str(), modifier = Modifier.weight(1f))
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ActionButton(text = Res.string.wake.str(), onClick = { send(WolDevice(name, mac, broadcast, port.toIntOrNull() ?: 9)) }, enabled = validMac)
+        ActionButton(text = Res.string.wake.str(), onClick = { send(WolDevice(name, MacAddress.colon(normalized!!), broadcast, port.toIntOrNull() ?: 9)) }, enabled = normalized != null)
         TextButton(
             onClick = {
-                val device = WolDevice(name.ifBlank { mac }, MacAddress.colon(MacAddress.normalize(mac)!!), broadcast, port.toIntOrNull() ?: 9)
+                val device = WolDevice(name.ifBlank { mac }, MacAddress.colon(normalized!!), broadcast, port.toIntOrNull() ?: 9)
                 devices = devices.filter { it.mac != device.mac } + device
                 WolStore.save(devices)
             },
-            enabled = validMac,
+            enabled = normalized != null,
         ) { Text(Res.string.save.str()) }
     }
     status?.let { Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium) }

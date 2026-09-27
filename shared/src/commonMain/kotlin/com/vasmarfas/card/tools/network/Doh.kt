@@ -5,6 +5,7 @@ import com.vasmarfas.card.core.Net
 import com.vasmarfas.card.core.NetCapabilities
 import com.vasmarfas.card.core.Prefs
 import com.vasmarfas.card.core.str
+import com.vasmarfas.card.core.tcpDnsQuery
 import com.vasmarfas.card.core.udpQuery
 import com.vasmarfas.card.resources.*
 import io.ktor.client.request.get
@@ -25,6 +26,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 
 enum class DohFlavour(val label: StringResource) {
     AUTO(Res.string.auto),
@@ -125,8 +127,9 @@ object DnsClient {
     suspend fun queryUdp(server: String, name: String, typeCode: Int): DnsResponse {
         val id = Random.nextInt(1, 0xFFFF)
         val payload = DnsMessage.buildQuery(name, typeCode, id)
-        val response = udpQuery(server, 53, payload, 4000) ?: throw IllegalStateException("No response from $server")
-        return DnsMessage.parse(response)
+        val response = DnsMessage.parse(udpQuery(server, 53, payload, 4000) ?: error(getString(Res.string.dns_no_response, server)))
+        if (!response.truncated) return response
+        return tcpDnsQuery(server, payload, 4000)?.let(DnsMessage::parse) ?: response
     }
 
     suspend fun queryDoh(url: String, name: String, typeCode: Int, flavour: DohFlavour = DohFlavour.AUTO): DnsResponse {
@@ -159,17 +162,19 @@ object DnsClient {
         if (!response.status.isSuccess()) throw IllegalStateException("HTTP ${response.status.value} ${response.status.description}")
         val obj = Net.json.parseToJsonElement(response.bodyAsText()).jsonObject
         fun records(key: String): List<DnsRecord> = obj[key]?.jsonArray?.map { it.jsonObject }?.map { r ->
+            val type = r["type"]?.jsonPrimitive?.intOrNull ?: 0
             DnsRecord(
                 name = r["name"]?.jsonPrimitive?.content?.trimEnd('.') ?: "",
-                type = r["type"]?.jsonPrimitive?.intOrNull ?: 0,
+                type = type,
                 ttl = r["TTL"]?.jsonPrimitive?.longOrNull ?: 0,
-                data = r["data"]?.jsonPrimitive?.content?.let(::cleanDohData) ?: "",
+                data = r["data"]?.jsonPrimitive?.content?.let { jsonData(type, it) } ?: "",
             )
         } ?: emptyList()
         return DnsResponse(
             id = 0,
             rcode = obj["Status"]?.jsonPrimitive?.intOrNull ?: 0,
-            authoritative = obj["AD"]?.jsonPrimitive?.booleanOrNull ?: false,
+            authoritative = false,
+            authenticData = obj["AD"]?.jsonPrimitive?.booleanOrNull ?: false,
             truncated = obj["TC"]?.jsonPrimitive?.booleanOrNull ?: false,
             answers = records("Answer"),
             authority = records("Authority"),
@@ -186,5 +191,11 @@ object DnsClient {
         return DnsMessage.parse(response.readRawBytes())
     }
 
-    private fun cleanDohData(data: String): String = data.trim().trimEnd('.').replace("\"", "")
+    private val quoted = Regex("\"((?:[^\"\\\\]|\\\\.)*)\"")
+
+    fun jsonData(type: Int, data: String): String {
+        val text = data.trim()
+        if (type == 16 || type == 99) return quoted.findAll(text).joinToString("") { it.groupValues[1] }.ifEmpty { text }
+        return text.split(' ').joinToString(" ") { if (it.length > 1) it.trimEnd('.') else it }.replace("\"", "")
+    }
 }

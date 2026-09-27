@@ -82,7 +82,8 @@ private fun ContrastCheckerScreen() {
         ErrorText(Res.string.unknown_color_format.str())
         return
     }
-    val check = Wcag.check(fg, bg)
+    val shown = Wcag.over(fg, bg)
+    val check = Wcag.check(shown, bg)
     Preview(fg, bg)
     AnswerCard("${Wcag.rounded(check.ratio).fmt(2)} : 1", Res.string.contrast_ratio.str())
     ResultCard {
@@ -92,7 +93,7 @@ private fun ContrastCheckerScreen() {
         VerdictRow(Res.string.aaa_large_text.str(), check.aaaLarge)
     }
     if (!check.aaNormal) {
-        val fixed = Wcag.nearestPassing(fg, bg, 4.5)
+        val fixed = Wcag.nearestPassing(shown, bg, 4.5)
         ResultCard(Res.string.nearest_passing_text_color.str()) {
             if (fixed == null) {
                 Text(Res.string.contrast_no_lightness.str())

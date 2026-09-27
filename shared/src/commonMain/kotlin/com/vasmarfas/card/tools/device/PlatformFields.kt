@@ -57,6 +57,22 @@ private val fieldNames: Map<String, StringResource> = mapOf(
     "Device memory" to Res.string.platform_field_device_memory,
     "Max heap" to Res.string.platform_field_max_heap,
     "User" to Res.string.platform_field_user,
+    "Transport" to Res.string.platform_field_transport,
+    "Downstream" to Res.string.platform_field_downstream,
+    "Upstream" to Res.string.platform_field_upstream,
+    "Metered" to Res.string.platform_field_metered,
+    "Validated" to Res.string.platform_field_validated,
+    "Interface" to Res.string.platform_field_interface,
+    "Addresses" to Res.string.platform_field_addresses,
+    "Gateway" to Res.string.platform_field_gateway,
+    "Domains" to Res.string.platform_field_domains,
+    "Link speed" to Res.string.platform_field_link_speed,
+    "Frequency" to Res.string.platform_field_frequency,
+    "Wi-Fi standard" to Res.string.platform_field_wifi_standard,
+    "Wi-Fi enabled" to Res.string.platform_field_wifi_enabled,
+    "5 GHz supported" to Res.string.platform_field_5ghz,
+    "6 GHz supported" to Res.string.platform_field_6ghz,
+    "Raw" to Res.string.platform_field_raw,
 )
 
 private val fieldValues: Map<String, StringResource> = mapOf(
@@ -83,6 +99,11 @@ private val fieldValues: Map<String, StringResource> = mapOf(
     "portrait-secondary" to Res.string.platform_portrait_upside_down,
     "landscape-primary" to Res.string.platform_state_landscape,
     "landscape-secondary" to Res.string.platform_landscape_upside_down,
+    "Cellular" to Res.string.platform_state_cellular,
+    "other" to Res.string.platform_state_other,
+    "charging (high)" to Res.string.platform_state_charging_high,
+    "charging (low)" to Res.string.platform_state_charging_low,
+    "charging (critical)" to Res.string.platform_state_charging_critical,
 )
 
 private val sensorNames: Map<SensorType, StringResource> = mapOf(

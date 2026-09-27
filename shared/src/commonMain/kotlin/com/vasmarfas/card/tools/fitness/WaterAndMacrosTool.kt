@@ -28,6 +28,7 @@ import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
 import com.vasmarfas.card.ui.components.ToolSection
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.pluralStringResource
 
 val waterAndMacrosTool = Tool(
     id = "water-and-macros",
@@ -138,7 +139,7 @@ private fun WaterAndMacrosScreen() {
         options = listOf(3, 4, 5, 6),
         selected = meals,
         onSelect = { meals = it },
-        label = { "$it ${Res.string.meals.str()}" },
+        label = { pluralStringResource(Res.plurals.meal_count, it, it) },
     )
 
     val tdee = tdeeText.toDoubleLenient()

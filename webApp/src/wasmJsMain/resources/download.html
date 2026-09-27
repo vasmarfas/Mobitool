@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Скачать vasmarfas Mobitool — Android, iOS, Windows, macOS, Linux</title>
-    <meta name="description" content="Где взять vasmarfas Mobitool: Google Play, RuStore, App Store, Mac App Store, Microsoft Store, файлы APK / DEB / RPM / MSI / DMG на GitHub и веб-версия. Таблица: какие инструменты работают на каждой платформе.">
+    <title data-en="Get vasmarfas Mobitool — Android, iOS, Windows, macOS, Linux">Скачать vasmarfas Mobitool — Android, iOS, Windows, macOS, Linux</title>
+    <meta name="description" content="Где взять vasmarfas Mobitool: Google Play, RuStore, App Store, Mac App Store, Microsoft Store, файлы APK / DEB / RPM / MSI / DMG на GitHub и веб-версия. Таблица: какие инструменты работают на каждой платформе." data-en="Where to get vasmarfas Mobitool: Google Play, RuStore, App Store, Mac App Store, Microsoft Store, APK / DEB / RPM / MSI / DMG files on GitHub and the web version. Plus a table of which tools work on which platform.">
     <meta name="author" content="vasmarfas">
     <meta name="color-scheme" content="light dark">
     <meta name="theme-color" content="#fff9ef" media="(prefers-color-scheme: light)">
@@ -18,16 +18,16 @@
     <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
     <link rel="manifest" href="manifest.webmanifest">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Скачать vasmarfas Mobitool">
-    <meta property="og:description" content="Google Play, RuStore, App Store, Mac App Store, Microsoft Store, файлы на GitHub и веб-версия. Плюс таблица, какие инструменты работают на какой платформе.">
+    <meta property="og:title" content="Скачать vasmarfas Mobitool" data-en="Get vasmarfas Mobitool">
+    <meta property="og:description" content="Google Play, RuStore, App Store, Mac App Store, Microsoft Store, файлы на GitHub и веб-версия. Плюс таблица, какие инструменты работают на какой платформе." data-en="Google Play, RuStore, App Store, Mac App Store, Microsoft Store, files on GitHub and the web version. Plus a table of which tools work on which platform.">
     <meta property="og:url" content="https://vasmarfas.com/download.html">
     <meta property="og:image" content="https://vasmarfas.com/og-image.png">
     <meta property="og:site_name" content="vasmarfas">
-    <meta property="og:locale" content="ru_RU">
-    <meta property="og:locale:alternate" content="en_US">
+    <meta property="og:locale" content="ru_RU" data-en="en_US">
+    <meta property="og:locale:alternate" content="en_US" data-en="ru_RU">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Скачать vasmarfas Mobitool">
-    <meta name="twitter:description" content="Магазины приложений, файлы на GitHub, веб-версия и таблица совместимости инструментов.">
+    <meta name="twitter:title" content="Скачать vasmarfas Mobitool" data-en="Get vasmarfas Mobitool">
+    <meta name="twitter:description" content="Магазины приложений, файлы на GitHub, веб-версия и таблица совместимости инструментов." data-en="App stores, files on GitHub, the web version and a table of tool compatibility.">
     <meta name="twitter:image" content="https://vasmarfas.com/og-image.png">
     <style>
         :root {
@@ -232,6 +232,14 @@
 
         .chip:hover {
             border-color: var(--accent);
+        }
+
+        .chip.is-soon,
+        .chip.is-soon:hover {
+            border-style: dashed;
+            border-color: var(--line);
+            color: var(--muted);
+            cursor: default;
         }
 
         .matrix {
@@ -467,7 +475,7 @@
 
             <div class="card">
                 <h3>Mac App Store</h3>
-                <p class="card-note" data-en="macOS, the same app as on the iPhone">macOS, то же приложение, что и на iPhone</p>
+                <p class="card-note" data-en="Macs with Apple Silicon, macOS 12 and newer, the desktop version">Mac на Apple Silicon, macOS 12 и новее, версия для компьютера</p>
                 <a class="btn" data-link="macAppStore" data-cta="install">Скоро</a>
             </div>
 
@@ -485,8 +493,9 @@
                     <a class="chip" data-link="githubDeb" data-fallback="githubReleases">DEB</a>
                     <a class="chip" data-link="githubRpm" data-fallback="githubReleases">RPM</a>
                     <a class="chip" data-link="githubMsi" data-fallback="githubReleases">MSI</a>
-                    <a class="chip" data-link="githubDmg" data-fallback="githubReleases">DMG</a>
+                    <a class="chip" data-link="githubDmg" data-fallback="githubReleases">DMG (Apple Silicon)</a>
                 </div>
+                <a class="btn" data-link="githubReleases" data-cta="open">Скоро</a>
             </div>
 
             <div class="card">
@@ -497,7 +506,7 @@
         </div>
 
         <h2 data-en="What works where">Что где работает</h2>
-        <p class="lead-sub" data-en="Most of the tools are pure calculation and behave the same everywhere. The differences are where a system API is needed: sockets, sensors, the microphone.">Большая часть инструментов — это расчёты, они одинаковы везде. Разница там, где нужен системный API: сокеты, датчики, микрофон.</p>
+        <p class="lead-sub" data-en="Most of the tools are pure calculation and behave the same everywhere. The differences are where a system API is needed: sockets, sensors, the vibration motor, the keyboard.">Большая часть инструментов только считает и поэтому работает везде одинаково. Разница там, где нужен системный API: сокеты, датчики, вибромотор, клавиатура.</p>
 
         <table class="matrix">
             <caption data-en="Tool availability by platform">Доступность инструментов по платформам</caption>
@@ -513,11 +522,30 @@
             <tbody>
             <tr>
                 <th scope="row">
-                    <span data-en="Socket networking">Сеть на сокетах</span>
-                    <span class="row-note" data-en="ping, traceroute, port scanner, LAN scanner, Wake-on-LAN, DNS over UDP, whois">пинг, трассировка, сканер портов, сканер сети, Wake-on-LAN, DNS через UDP, whois</span>
+                    <span data-en="Network over HTTP">Сеть через HTTP</span>
+                    <span class="row-note" data-en="ping over HTTP, whois over RDAP, DNS over HTTPS, HTTP requests">пинг по HTTP, whois через RDAP, DNS через HTTPS, HTTP-запросы</span>
                 </th>
                 <td class="ok"><span class="cell-label">Android</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
                 <td class="ok"><span class="cell-label">iOS</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="ok"><span class="cell-label" data-en="Desktop">Десктоп</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="ok"><span class="cell-label" data-en="Browser">Браузер</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <span data-en="Socket networking">Сеть на сокетах</span>
+                    <span class="row-note" data-en="ICMP and TCP ping, traceroute, port scanner, LAN scanner, DNS over UDP, whois over port 43, network interfaces">пинг по ICMP и TCP, трассировка, сканер портов, сканер сети, DNS через UDP, whois через порт 43, сетевые интерфейсы</span>
+                </th>
+                <td class="ok"><span class="cell-label">Android</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="ok"><span class="cell-label">iOS</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="ok"><span class="cell-label" data-en="Desktop">Десктоп</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="no"><span class="cell-label" data-en="Browser">Браузер</span><span class="mark" aria-hidden="true">—</span><span class="sr" data-en="not available">недоступно</span></td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <span>Wake-on-LAN</span>
+                </th>
+                <td class="ok"><span class="cell-label">Android</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="no"><span class="cell-label">iOS</span><span class="mark" aria-hidden="true">—</span><span class="sr" data-en="not available">недоступно</span></td>
                 <td class="ok"><span class="cell-label" data-en="Desktop">Десктоп</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
                 <td class="no"><span class="cell-label" data-en="Browser">Браузер</span><span class="mark" aria-hidden="true">—</span><span class="sr" data-en="not available">недоступно</span></td>
             </tr>
@@ -543,7 +571,7 @@
             <tr>
                 <th scope="row">
                     <span data-en="Sensors">Датчики</span>
-                    <span class="row-note" data-en="compass, bubble level, accelerometer, magnetometer, light meter, barometer, pedometer, GPS">компас, уровень, акселерометр, магнитометр, люксметр, барометр, шагомер, GPS</span>
+                    <span class="row-note" data-en="compass, bubble level, accelerometer, magnetometer, light meter, GPS">компас, уровень, акселерометр, магнитометр, люксметр, GPS</span>
                 </th>
                 <td class="ok"><span class="cell-label">Android</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
                 <td class="ok"><span class="cell-label">iOS</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
@@ -552,8 +580,35 @@
             </tr>
             <tr>
                 <th scope="row">
+                    <span data-en="Barometer and pedometer">Барометр и шагомер</span>
+                </th>
+                <td class="ok"><span class="cell-label">Android</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="ok"><span class="cell-label">iOS</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="no"><span class="cell-label" data-en="Desktop">Десктоп</span><span class="mark" aria-hidden="true">—</span><span class="sr" data-en="not available">недоступно</span></td>
+                <td class="no"><span class="cell-label" data-en="Browser">Браузер</span><span class="mark" aria-hidden="true">—</span><span class="sr" data-en="not available">недоступно</span></td>
+            </tr>
+            <tr>
+                <th scope="row">
                     <span data-en="Microphone">Микрофон</span>
-                    <span class="row-note" data-en="sound meter">шумомер</span>
+                    <span class="row-note" data-en="sound meter, tuner, spectrum analyzer">шумомер, тюнер, анализатор спектра</span>
+                </th>
+                <td class="ok"><span class="cell-label">Android</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="ok"><span class="cell-label">iOS</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="ok"><span class="cell-label" data-en="Desktop">Десктоп</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="ok"><span class="cell-label" data-en="Browser">Браузер</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <span data-en="Vibration test">Тест вибрации</span>
+                </th>
+                <td class="ok"><span class="cell-label">Android</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="ok"><span class="cell-label">iOS</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+                <td class="no"><span class="cell-label" data-en="Desktop">Десктоп</span><span class="mark" aria-hidden="true">—</span><span class="sr" data-en="not available">недоступно</span></td>
+                <td class="ok"><span class="cell-label" data-en="Browser">Браузер</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <span data-en="Keyboard tester">Тестер клавиатуры</span>
                 </th>
                 <td class="ok"><span class="cell-label">Android</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
                 <td class="no"><span class="cell-label">iOS</span><span class="mark" aria-hidden="true">—</span><span class="sr" data-en="not available">недоступно</span></td>
@@ -563,7 +618,7 @@
             <tr>
                 <th scope="row">
                     <span data-en="Everything else">Всё остальное</span>
-                    <span class="row-note" data-en="converters, calculators, text, developer, security, colour and design, time, device, everyday, 3D printing, sport and health">конвертеры, калькуляторы, текст, разработчику, безопасность, цвет и дизайн, время, устройство, быт, 3D-печать, спорт и здоровье</span>
+                    <span class="row-note" data-en="photo, video and audio, documents and PDF, money, converters, calculators, text, developer, security, color and design, time, sound, device, everyday, electronics, 3D printing, sport and health">фото, видео и аудио, документы и PDF, деньги, конвертеры, калькуляторы, текст, разработчику, безопасность, цвет и дизайн, время, звук, устройство, быт, электроника, 3D-печать, спорт и здоровье</span>
                 </th>
                 <td class="ok"><span class="cell-label">Android</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
                 <td class="ok"><span class="cell-label">iOS</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
@@ -574,13 +629,14 @@
         </table>
 
         <ul class="notes">
-            <li data-en="The browser has neither raw sockets nor TCP, so ping, traceroute and the scanners exist only in the apps.">В браузере нет ни сырых сокетов, ни TCP, поэтому пинг, трассировка и сканеры есть только в приложениях.</li>
-            <li data-en="DNS lookups in the browser go over DNS-over-HTTPS; you cannot point them at your own UDP server.">DNS-запросы в браузере идут через DNS-over-HTTPS; свой UDP-сервер указать нельзя.</li>
-            <li data-en="Desktops have no sensors, so the compass, pedometer and GPS speedometer stay on the phone and in the browser.">На десктопе нет датчиков, поэтому компас, шагомер и GPS-спидометр остаются на телефоне и в браузере.</li>
+            <li data-en="The browser has neither raw sockets nor TCP: ping works there over HTTP only, whois over RDAP only, and traceroute and the scanners exist only in the apps.">В браузере нет ни сырых сокетов, ни TCP: пинг там работает только по HTTP, whois только через RDAP, а трассировка и сканеры есть только в приложениях.</li>
+            <li data-en="DNS lookups in the browser go over DNS-over-HTTPS, so you cannot point them at your own UDP server.">DNS-запросы в браузере идут через DNS-over-HTTPS, свой UDP-сервер указать нельзя.</li>
+            <li data-en="Wake-on-LAN sends a broadcast packet, and on iOS that needs a separate multicast entitlement from Apple, which the app does not have yet.">Wake-on-LAN отправляет широковещательный пакет, а на iOS для этого нужно отдельное разрешение Apple (multicast entitlement), которого у приложения пока нет.</li>
+            <li data-en="Desktops have no sensors: the compass and the GPS speedometer work on the phone and in the browser, the barometer and the pedometer on the phone only.">На десктопе нет датчиков: компас и GPS-спидометр работают на телефоне и в браузере, барометр и шагомер только на телефоне.</li>
         </ul>
 
         <div class="pick">
-            <p data-en="Sensors and network diagnostics are the reason to install the mobile app: that is where the full set works.">Датчики и сетевая диагностика — повод поставить мобильное приложение: там работает полный набор.</p>
+            <p data-en="Sensors and network diagnostics are the reason to install the app on the phone. Android has the full set.">Ради датчиков и сетевой диагностики стоит поставить приложение на телефон. Полный набор есть на Android.</p>
             <p data-en="The browser is the fastest way to open a converter or a calculator without installing anything.">Браузер — самый быстрый способ открыть конвертер или калькулятор, ничего не устанавливая.</p>
         </div>
     </main>
@@ -611,7 +667,7 @@
             appStore: "",
             macAppStore: "",
             microsoftStore: "",
-            githubReleases: "https://github.com/vasmarfas/mobitool/releases",
+            githubReleases: "",
             githubApk: "",
             githubDeb: "",
             githubRpm: "",
@@ -637,7 +693,8 @@
             }
         };
 
-        var storageKey = "vasmarfas.lang";
+        // the app keeps the language under the same key, so the site and this page agree
+        var storageKey = "settings.lang";
         var buttons = { ru: document.getElementById("lang-ru"), en: document.getElementById("lang-en") };
         var description = document.querySelector('meta[name="description"]');
 
@@ -664,7 +721,7 @@
             document.documentElement.lang = lang;
             document.title = page[lang].title;
             if (description) description.setAttribute("content", page[lang].description);
-            document.querySelectorAll("[data-en]").forEach(function (el) {
+            document.body.querySelectorAll("[data-en]").forEach(function (el) {
                 if (el.dataset.ru === undefined) el.dataset.ru = el.textContent;
                 el.textContent = lang === "en" ? el.dataset.en : el.dataset.ru;
             });
@@ -676,8 +733,7 @@
             var saved = null;
             try { saved = localStorage.getItem(storageKey); } catch (e) {}
             if (saved === "ru" || saved === "en") return saved;
-            if (/^ru/i.test(navigator.language || "") || /\.ru$/i.test(location.hostname)) return "ru";
-            return "en";
+            return /^ru/i.test(navigator.language || "") ? "ru" : "en";
         }
 
         function choose(lang) {

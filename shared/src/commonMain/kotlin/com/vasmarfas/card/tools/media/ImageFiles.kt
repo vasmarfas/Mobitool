@@ -25,6 +25,7 @@ import com.vasmarfas.card.core.encode
 import com.vasmarfas.card.core.flattened
 import com.vasmarfas.card.core.formatBytes
 import com.vasmarfas.card.core.imageBitmapOf
+import com.vasmarfas.card.core.limitedTo
 import com.vasmarfas.card.core.oriented
 import com.vasmarfas.card.core.pixels
 import com.vasmarfas.card.core.saveBytes
@@ -38,11 +39,14 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-suspend fun decodeImage(bytes: ByteArray): ImageBitmap? {
-    decodeRawImage(bytes)?.let { return if (it.oriented) it.bitmap else it.bitmap.oriented(Exif.orientation(bytes)) }
+suspend fun decodeImage(bytes: ByteArray, maxSide: Int = 0): ImageBitmap? {
+    decodeRawImage(bytes, maxSide)?.let {
+        val bitmap = it.bitmap.limitedTo(maxSide)
+        return if (it.oriented) bitmap else bitmap.oriented(Exif.orientation(bytes))
+    }
     if (ImageMetadata.detect(bytes) != ImageContainer.TIFF) return null
     val tiff = runCatching { Tiff.decode(bytes) }.getOrNull() ?: return null
-    return imageBitmapOf(tiff.pixels, tiff.width, tiff.height)
+    return imageBitmapOf(tiff.pixels, tiff.width, tiff.height).limitedTo(maxSide)
 }
 
 enum class ImageTarget(val title: String, val extension: String, val lossy: Boolean, val transparent: Boolean) {
@@ -55,6 +59,11 @@ enum class ImageTarget(val title: String, val extension: String, val lossy: Bool
 }
 
 val iconSides = listOf(16, 24, 32, 48, 64, 128, 256)
+
+private const val ARRAY_ENCODED_SIDE = 3072
+
+fun ImageBitmap.limitedFor(target: ImageTarget, colors: Int): ImageBitmap =
+    if (target == ImageTarget.GIF || target == ImageTarget.BMP || target == ImageTarget.PNG && colors > 0) limitedTo(ARRAY_ENCODED_SIDE) else this
 
 fun encodeImage(
     image: ImageBitmap,

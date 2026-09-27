@@ -26,6 +26,7 @@ import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.LoadingRow
 import com.vasmarfas.card.ui.components.ResultCard
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.pluralStringResource
 
 val discoveryTool = Tool(
     id = "device-discovery",
@@ -86,7 +87,7 @@ private fun DiscoveryScreen() {
         }
     }
     mdns?.let { services ->
-        ResultCard(title = "mDNS · ${services.size} " + Res.string.service_types.str()) {
+        ResultCard(title = "mDNS · " + pluralStringResource(Res.plurals.mdns_service_type_count, services.size, services.size)) {
             if (services.isEmpty()) Text(Res.string.no_results.str(), style = MaterialTheme.typography.bodyMedium)
             services.forEach { (type, records) ->
                 val instances = records.filter { it.type == 12 }.map { it.data }

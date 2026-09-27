@@ -31,8 +31,6 @@ import androidx.compose.ui.unit.dp
 import com.vasmarfas.card.core.Analytics
 import com.vasmarfas.card.core.AnalyticsEvent
 import com.vasmarfas.card.core.AnalyticsParam
-import com.vasmarfas.card.core.Lang
-import com.vasmarfas.card.core.LocalLang
 import com.vasmarfas.card.core.openUrl
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.data.Education
@@ -46,7 +44,7 @@ import com.vasmarfas.card.ui.components.PageMaxWidth
 import com.vasmarfas.card.ui.components.SectionTitle
 import com.vasmarfas.card.ui.components.TagChips
 
-// newest start first; when two jobs start the same month the one still running goes above
+// newest start first, of two jobs started the same month the running one goes above
 private val byRecency = compareByDescending<Experience> { it.from }.thenByDescending { it.to ?: "9999-99" }
 
 @Composable
@@ -120,20 +118,22 @@ fun ResumeScreen() {
     }
 }
 
-private fun formatMonth(value: String, lang: Lang): String {
+private val monthShortNames = listOf(
+    Res.string.month_short_1, Res.string.month_short_2, Res.string.month_short_3, Res.string.month_short_4,
+    Res.string.month_short_5, Res.string.month_short_6, Res.string.month_short_7, Res.string.month_short_8,
+    Res.string.month_short_9, Res.string.month_short_10, Res.string.month_short_11, Res.string.month_short_12,
+)
+
+@Composable
+private fun formatMonth(value: String): String {
     val parts = value.split('-')
     val year = parts.getOrNull(0) ?: return value
     val month = parts.getOrNull(1)?.toIntOrNull() ?: return year
-    val names = if (lang == Lang.RU)
-        listOf("янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек")
-    else
-        listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-    return "${names.getOrNull(month - 1) ?: month} $year"
+    return "${monthShortNames.getOrNull(month - 1)?.str() ?: month} $year"
 }
 
 @Composable
 private fun ExperienceCard(item: Experience) {
-    val lang = LocalLang.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
@@ -153,7 +153,7 @@ private fun ExperienceCard(item: Experience) {
                     }
                 }
             }
-            val period = "${formatMonth(item.from, lang)} — ${item.to?.let { formatMonth(it, lang) } ?: Res.string.present.str()}" +
+            val period = "${formatMonth(item.from)} – ${item.to?.let { formatMonth(it) } ?: Res.string.present.str()}" +
                 (item.location?.let { " · ${it.str()}" } ?: "")
             FindableText(period, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             item.summary?.let { FindableText(it.str(), style = MaterialTheme.typography.bodyMedium) }

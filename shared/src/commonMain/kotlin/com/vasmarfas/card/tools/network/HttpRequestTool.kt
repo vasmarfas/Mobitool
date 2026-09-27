@@ -27,7 +27,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.vasmarfas.card.core.PlatformKind
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.currentPlatform
 import com.vasmarfas.card.core.fmtGrouped
 import com.vasmarfas.card.core.formatBytes
@@ -53,6 +52,7 @@ import com.vasmarfas.card.ui.components.ToolSection
 import com.vasmarfas.card.ui.components.rememberCopy
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 
 val httpRequestTool = Tool(
     id = "http-request",
@@ -114,7 +114,7 @@ private fun HttpRequestScreen() {
                     HttpRequestStore.saveHistory(history)
                 }
                 .onFailure {
-                    val message = it.message ?: it.toString()
+                    val message = networkErrorText(it)
                     error = if (currentPlatform == PlatformKind.WEB) "$message\n${corsNoteText}" else message
                 }
             loading = false
@@ -443,10 +443,14 @@ private fun ResponseSection(
                 MonoText(if (body.length > MAX_VISIBLE_CHARS) body.take(MAX_VISIBLE_CHARS) else body)
                 if (body.length > MAX_VISIBLE_CHARS) {
                     Text(
-                        Tr(
-                            "Showing the first ${MAX_VISIBLE_CHARS.fmtGrouped()} characters of ${body.length.fmtGrouped()}. Copy gives the whole response.",
-                            "Показаны первые ${MAX_VISIBLE_CHARS.fmtGrouped()} символов из ${body.length.fmtGrouped()}. Кнопка копирования отдаёт ответ целиком.",
-                        ).str(),
+                        stringResource(Res.string.output_shown_first, MAX_VISIBLE_CHARS.fmtGrouped(), body.length.fmtGrouped()),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (exchange.truncated) {
+                    Text(
+                        stringResource(Res.string.http_body_cut, formatBytes(HttpRequests.MAX_BODY_BYTES)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

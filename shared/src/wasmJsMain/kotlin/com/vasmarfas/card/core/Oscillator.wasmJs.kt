@@ -1,12 +1,10 @@
 package com.vasmarfas.card.core
 
+// without a sampleRate option the context runs at the output device's own rate
 private fun jsToneContextRate(): Int = js(
     """{
     var t = globalThis.__tone || (globalThis.__tone = {});
-    if (!t.ctx) {
-        var Ctx = window.AudioContext || window.webkitAudioContext;
-        try { t.ctx = new Ctx({ sampleRate: 96000 }); } catch (e) { t.ctx = new Ctx(); }
-    }
+    if (!t.ctx) t.ctx = new (window.AudioContext || window.webkitAudioContext)();
     return Math.round(t.ctx.sampleRate);
 }"""
 )
@@ -18,10 +16,7 @@ private fun jsStartTone(frequencyHz: Double, waveformIndex: Int, volume: Double)
     var waveform = names[waveformIndex];
     var noise = waveform === 'noise';
     var t = globalThis.__tone || (globalThis.__tone = {});
-    if (!t.ctx) {
-        var Ctx = window.AudioContext || window.webkitAudioContext;
-        try { t.ctx = new Ctx({ sampleRate: 96000 }); } catch (e) { t.ctx = new Ctx(); }
-    }
+    if (!t.ctx) t.ctx = new (window.AudioContext || window.webkitAudioContext)();
     var ctx = t.ctx;
     if (ctx.state === 'suspended') ctx.resume();
     var now = ctx.currentTime;

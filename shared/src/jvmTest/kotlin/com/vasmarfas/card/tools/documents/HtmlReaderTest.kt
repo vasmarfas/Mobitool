@@ -250,6 +250,16 @@ class HtmlReaderTest {
     }
 
     @Test
+    fun unknownCharsetsFallBackByScript() {
+        val latin = "<meta charset=\"iso-8859-15\"><p>Caf".encodeToByteArray() + hexToBytes("E9")!!
+        assertEquals("P \"Café\"\n", dumpBlocks(Documents.read(latin, DocFormat.HTML).blocks))
+        val ukrainian = "<meta charset=\"koi8-u\"><p>".encodeToByteArray() + hexToBytes("F0D2C9D7C5D4")!!
+        assertEquals("P \"Привет\"\n", dumpBlocks(Documents.read(ukrainian, DocFormat.HTML).blocks))
+        val unicode = "<meta charset=\"unicode-1-1-utf-8\"><p>Привет".encodeToByteArray()
+        assertEquals("P \"Привет\"\n", dumpBlocks(Documents.read(unicode, DocFormat.HTML).blocks))
+    }
+
+    @Test
     fun deepNestingDoesNotOverflow() {
         val html = "<div>".repeat(50_000) + "глубоко" + "</div>".repeat(50_000) + "<b>".repeat(20_000) + "жирно"
         val doc = read(html)

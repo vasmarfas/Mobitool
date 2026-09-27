@@ -24,9 +24,17 @@ object Wcag {
     }
     fun check(a: Rgba, b: Rgba): ContrastCheck = ContrastCheck(ratio(a, b))
     fun rounded(value: Double): Double = (value * 100).roundToInt() / 100.0
+    fun over(foreground: Rgba, background: Rgba): Rgba {
+        val a = foreground.a / 255.0
+        fun mix(f: Int, b: Int) = (f * a + b * (1 - a)).roundToInt()
+        return Rgba(mix(foreground.r, background.r), mix(foreground.g, background.g), mix(foreground.b, background.b))
+    }
     fun nearestPassing(foreground: Rgba, background: Rgba, target: Double): Rgba? {
+        val darker = relativeLuminance(foreground) < relativeLuminance(background)
+        return search(foreground, background, target, darker) ?: search(foreground, background, target, !darker)
+    }
+    private fun search(foreground: Rgba, background: Rgba, target: Double, darker: Boolean): Rgba? {
         val hsl = ColorMath.toHsl(foreground)
-        val darker = background.let { relativeLuminance(foreground) < relativeLuminance(it) }
         val steps = (0..100).map { if (darker) hsl.l - it / 100.0 else hsl.l + it / 100.0 }
         for (l in steps) {
             if (l < 0.0 || l > 1.0) continue

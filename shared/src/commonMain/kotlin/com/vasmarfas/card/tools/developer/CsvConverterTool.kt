@@ -30,6 +30,7 @@ import io.github.vinceglb.filekit.readBytes
 import io.github.vinceglb.filekit.size
 import kotlinx.serialization.json.JsonArray
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 
 private enum class CsvTarget(val title: StringResource) {
     JSON(Res.string.csv_json),
@@ -97,9 +98,13 @@ private fun CsvConverterScreen() {
             val parsed = remember(input) { JsonTools.parse(input) }
             val element = parsed.getOrNull()
             if (element !is JsonArray) {
+                val failure = parsed.exceptionOrNull()
                 ErrorText(
-                    if (element == null) Res.string.invalid_json.str() + JsonTools.errorMessage(parsed.exceptionOrNull()!!)
-                    else Res.string.csv_expected_a_json_array.str(),
+                    when (failure) {
+                        null -> Res.string.csv_expected_a_json_array.str()
+                        is JsonTooDeepException -> stringResource(Res.string.json_too_deep, JsonTools.MAX_DEPTH)
+                        else -> stringResource(Res.string.invalid_json, JsonTools.errorMessage(failure))
+                    },
                 )
                 return
             }

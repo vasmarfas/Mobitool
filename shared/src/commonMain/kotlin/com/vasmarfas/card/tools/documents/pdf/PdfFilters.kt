@@ -23,7 +23,7 @@ internal object PdfFilters {
         }
     }
 
-    fun decode(data: ByteArray, dict: PdfDict, doc: PdfDocument?): ByteArray {
+    fun decode(data: ByteArray, dict: PdfDict, doc: PdfDocument?, lenient: Boolean = false): ByteArray {
         val filters = filterNames(dict, doc)
         if (filters.isEmpty()) return data
         val parms = parameters(dict, doc, filters.size)
@@ -31,7 +31,7 @@ internal object PdfFilters {
         for (i in filters.indices) {
             val p = parms[i]
             bytes = when (filters[i]) {
-                "FlateDecode", "Fl" -> predict(flate(bytes), p, doc)
+                "FlateDecode", "Fl" -> predict(flate(bytes, lenient), p, doc)
                 "LZWDecode", "LZW" -> predict(lzw(bytes, p?.int("EarlyChange", doc) ?: 1), p, doc)
                 "ASCIIHexDecode", "AHx" -> asciiHex(bytes)
                 "ASCII85Decode", "A85" -> ascii85(bytes)
@@ -43,7 +43,7 @@ internal object PdfFilters {
         return bytes
     }
 
-    fun flate(data: ByteArray): ByteArray {
+    fun flate(data: ByteArray, lenient: Boolean = false): ByteArray {
         if (data.size < 2) return ByteArray(0)
         val cmf = data[0].toInt() and 0xFF
         val flg = data[1].toInt() and 0xFF
@@ -57,6 +57,7 @@ internal object PdfFilters {
         try {
             return Inflate.inflate(data, 0, data.size, data.size * 4)
         } catch (e: DeflateException) {
+            if (lenient) runCatching { return Inflate.inflatePartial(data, if (zlibHeader) 2 else 0) }
             throw PdfException("Corrupt Flate data: ${e.message}")
         }
     }

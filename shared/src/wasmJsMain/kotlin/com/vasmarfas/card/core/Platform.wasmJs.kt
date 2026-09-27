@@ -24,12 +24,6 @@ private fun jsLanguage(): String = js("(navigator.language || 'en')")
 
 private fun jsPlatform(): String = js("(navigator.platform || '')")
 
-private fun jsCoarsePointer(): Boolean = js("window.matchMedia('(pointer: coarse)').matches")
-
-actual val pullToReload: Boolean = jsCoarsePointer()
-
-actual fun reloadPage() = window.location.reload()
-
 fun hideWebSplash() = jsHideSplash()
 
 private fun detectOs(ua: String): Pair<String, String> {
@@ -99,14 +93,18 @@ actual fun secureRandomBytes(count: Int): ByteArray {
 }
 
 private class LocalStorageStore : KeyValueStore {
-    override fun get(key: String): String? = localStorage.getItem(key)
+    private val written = mutableMapOf<String, String>()
+
+    override fun get(key: String): String? = written[key] ?: runCatching { localStorage.getItem(key) }.getOrNull()
 
     override fun put(key: String, value: String) {
+        written[key] = value
         runCatching { localStorage.setItem(key, value) }
     }
 
     override fun remove(key: String) {
-        localStorage.removeItem(key)
+        written.remove(key)
+        runCatching { localStorage.removeItem(key) }
     }
 }
 

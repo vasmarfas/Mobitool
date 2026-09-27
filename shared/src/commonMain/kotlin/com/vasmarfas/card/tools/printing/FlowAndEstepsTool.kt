@@ -25,6 +25,7 @@ import com.vasmarfas.card.ui.components.MonoText
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
+import org.jetbrains.compose.resources.stringResource
 
 private enum class FlowTab { ESTEPS, FLOW, VOLUMETRIC }
 
@@ -104,7 +105,7 @@ private fun EstepsSection() {
     val error = (requested - extruded) / requested * 100.0
     ResultCard {
         KeyValueRow(Res.string.new_e_steps.str(), steps.fmt(3))
-        KeyValueRow(Res.string.correction.str(), "${error.fmt(2)} %")
+        KeyValueRow(Res.string.correction.str(), stringResource(Res.string.percent_value, error.fmt(2)))
         MonoText("M92 E${steps.fmt(3)}\nM500")
     }
     if (error < 0) {
@@ -154,9 +155,9 @@ private fun FlowSection() {
     }
     val flow = Extrusion.newFlowPercent(current, expected, measured)
     ResultCard {
-        KeyValueRow(Res.string.new_flow.str(), "${flow.fmt(2)} %")
+        KeyValueRow(Res.string.new_flow.str(), stringResource(Res.string.percent_value, flow.fmt(2)))
         KeyValueRow(Res.string.extrusion_multiplier.str(), (flow / 100.0).fmt(4))
-        KeyValueRow(Res.string.wall_deviation.str(), "${((measured - expected) / expected * 100).fmt(2)} %")
+        KeyValueRow(Res.string.wall_deviation.str(), stringResource(Res.string.percent_value, ((measured - expected) / expected * 100).fmt(2)))
         MonoText("M221 S${flow.fmt(1)}")
     }
     if (flow < 85 || flow > 115) {
@@ -221,7 +222,7 @@ private fun VolumetricSection() {
     ResultCard {
         KeyValueRow(Res.string.required_flow.str(), "${rate.fmt(2)} ${Res.string.unit_mm3_s.str()}")
         KeyValueRow(Res.string.headroom.str(), "${(maxRate - rate).fmt(2)} ${Res.string.unit_mm3_s.str()}")
-        KeyValueRow(Res.string.flow_load.str(), "${(rate / maxRate * 100).fmt(1)} %")
+        KeyValueRow(Res.string.flow_load.str(), stringResource(Res.string.percent_value, (rate / maxRate * 100).fmt(1)))
         KeyValueRow(Res.string.max_speed_at_this_limit.str(), "${Extrusion.maxSpeed(maxRate, layer, width).fmt(1)} ${Res.string.unit_mm_s.str()}")
     }
     if (rate > maxRate) {

@@ -46,4 +46,17 @@ class UnitsTest {
         assertEquals(1000 to 0, Gradients.endOffset(90))
         assertEquals(0 to 1000, Gradients.endOffset(180))
     }
+
+    @Test
+    fun gradientsPointingUpOrLeftStartFromTheFarEdge() {
+        assertEquals(0 to 1000, Gradients.startOffset(0))
+        assertEquals(0 to 0, Gradients.endOffset(0))
+        assertEquals(0 to 707, Gradients.startOffset(45))
+        assertEquals(707 to 0, Gradients.endOffset(45))
+        assertEquals(1000 to 0, Gradients.startOffset(270))
+        assertEquals(0 to 0, Gradients.endOffset(270))
+        assertEquals(0 to 0, Gradients.startOffset(135))
+        val code = Gradients.composeLinear(0, listOf(Rgba(0, 0, 0), Rgba(255, 255, 255)))
+        assertTrue(code.contains("start = Offset(0f, 1000f),\n    end = Offset(0f, 0f),"), code)
+    }
 }

@@ -11,7 +11,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
@@ -25,6 +24,8 @@ import com.vasmarfas.card.ui.components.ToolInputField
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.readBytes
 import io.github.vinceglb.filekit.size
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 
 private const val MAX_ROWS = 60
 
@@ -38,14 +39,13 @@ val mimeTypesTool = Tool(
 ) { MimeTypesScreen() }
 
 private const val PROBE_BYTES = 2 * 1024 * 1024
-private const val MAX_READ_BYTES = 256L * 1024 * 1024
 
 @Composable
 private fun MimeTypesScreen() {
     var query by rememberSaveable { mutableStateOf("") }
     var probed by remember { mutableStateOf<LoadedFile?>(null) }
     OpenFileButton(label = Res.string.mime_detect_file.str()) { picked ->
-        val bytes = if (picked.size() > MAX_READ_BYTES) ByteArray(0) else picked.readBytes()
+        val bytes = if (picked.size() > wholeFileLimitMb * 1024L * 1024) ByteArray(0) else picked.readBytes()
         probed = LoadedFile(picked.name, if (bytes.size > PROBE_BYTES) bytes.copyOf(PROBE_BYTES / 2) + bytes.copyOfRange(bytes.size - PROBE_BYTES / 2, bytes.size) else bytes)
     }
     probed?.let { FileTypeCard(it) { probed = null } }
@@ -60,13 +60,14 @@ private fun MimeTypesScreen() {
         Text(Res.string.nothing_found.str(), style = MaterialTheme.typography.bodyMedium)
         return
     }
-    ResultCard("${found.size} ${Res.string.types.str()}") {
+    ResultCard(pluralStringResource(Res.plurals.mime_type_count, found.size, found.size)) {
         found.take(MAX_ROWS).forEach { t ->
             val extensions = t.extensions.filter { it.isNotEmpty() }.joinToString(" ") { ".$it" }
-            KeyValueRow(if (extensions.isEmpty()) t.description else "$extensions — ${t.description}", t.type)
+            val description = t.description.str()
+            KeyValueRow(if (extensions.isEmpty()) description else "$extensions · $description", t.type)
         }
         if (found.size > MAX_ROWS) {
-            Text(Tr("Only the first $MAX_ROWS are shown, refine the search.", "Показаны первые $MAX_ROWS, уточните запрос.").str(), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(Res.string.mime_first_rows, MAX_ROWS), style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -79,13 +80,13 @@ private fun FileTypeCard(file: LoadedFile, onClear: () -> Unit) {
     ResultCard(file.name) {
         KeyValueRow(
             Res.string.mime_by_content.str(),
-            content?.let { kind -> MimeTypes.all.firstOrNull { it.type == kind.mime }?.let { "${kind.mime} · ${it.description}" } ?: kind.mime }
+            content?.let { kind -> MimeTypes.all.firstOrNull { it.type == kind.mime }?.let { "${kind.mime} · ${it.description.str()}" } ?: kind.mime }
                 ?: Res.string.mime_not_recognised.str(),
             mono = false,
         )
         KeyValueRow(
             Res.string.mime_by_extension.str(),
-            byName?.let { "${it.type} · ${it.description}" } ?: Res.string.mime_not_recognised.str(),
+            byName?.let { "${it.type} · ${it.description.str()}" } ?: Res.string.mime_not_recognised.str(),
             mono = false,
         )
         if (content != null && byName != null && content.mime != byName.type && content.extension != extension) {

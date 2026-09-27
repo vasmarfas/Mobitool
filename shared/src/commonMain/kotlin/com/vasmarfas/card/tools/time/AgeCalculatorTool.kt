@@ -13,7 +13,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.fmtGrouped
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
@@ -32,6 +31,7 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 
 val ageCalculatorTool = Tool(
     id = "age-calculator",
@@ -93,18 +93,14 @@ private fun AgeCalculatorScreen() {
         return
     }
     val next = Age.untilBirthday(birth, reference)
-    AnswerCard(
-        pluralStringResource(Res.plurals.year_count, result.years, result.years),
-        Tr("${result.months} months ${result.days} days", "${result.months} мес. ${result.days} дн.").str(),
-        copyValue = result.years.toString(),
-    )
+    val years = pluralStringResource(Res.plurals.year_count, result.years, result.years)
+    val monthsAndDays = pluralStringResource(Res.plurals.month_count, result.months, result.months) + " " +
+        pluralStringResource(Res.plurals.day_count, result.days, result.days)
+    AnswerCard(years, monthsAndDays, copyValue = result.years.toString())
     ResultCard {
         KeyValueRow(
             Res.string.age.str(),
-            Tr(
-                "${result.years} years ${result.months} months ${result.days} days ${result.hours}:${result.minutes.pad2()}:${result.seconds.pad2()}",
-                "${result.years} лет ${result.months} мес. ${result.days} дн. ${result.hours}:${result.minutes.pad2()}:${result.seconds.pad2()}",
-            ).str(),
+            "$years $monthsAndDays ${result.hours}:${result.minutes.pad2()}:${result.seconds.pad2()}",
             mono = false,
         )
         KeyValueRow(Res.string.total_months.str(), result.totalMonths.fmtGrouped())
@@ -120,7 +116,7 @@ private fun AgeCalculatorScreen() {
             val turning = reference.date.year - birthDate.year
             KeyValueRow(
                 Res.string.today.str(),
-                Tr("Happy birthday! Turning $turning", "С днём рождения! Исполняется $turning").str(),
+                stringResource(Res.string.happy_birthday_turning, turning),
                 mono = false,
                 copyable = false,
             )
@@ -128,10 +124,8 @@ private fun AgeCalculatorScreen() {
         KeyValueRow(Res.string.date.str(), "${next.date} · ${next.date.dayOfWeek.title().str()}", mono = false)
         KeyValueRow(
             Res.string.left.str(),
-            Tr(
-                "${next.days} d ${next.hours} h ${next.minutes} min ${next.seconds} s",
-                "${next.days} дн ${next.hours} ч ${next.minutes} мин ${next.seconds} с",
-            ).str(),
+            pluralStringResource(Res.plurals.day_count, next.days.toInt(), next.days) +
+                " ${next.hours} ${Res.string.unit_h.str()} ${next.minutes} ${Res.string.unit_min.str()} ${next.seconds} ${Res.string.unit_s.str()}",
         )
         KeyValueRow(Res.string.turning.str(), next.age.toString())
     }

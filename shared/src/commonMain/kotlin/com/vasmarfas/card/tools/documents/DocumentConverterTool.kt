@@ -86,14 +86,14 @@ private fun DocumentConverterScreen() {
         scope.launch {
             runCatching {
                 val bytes = file.readBytes()
-                val format = Documents.detect(bytes, file.name) ?: throw DocumentFormatException(getString(Res.string.document_unsupported))
+                val format = Documents.detect(bytes, file.name) ?: throw DocumentFormatException("Not a supported document: ${file.name}", Res.string.document_unsupported)
                 OpenedDocument(file.name, format, withContext(Dispatchers.Default) { Documents.read(bytes, format) })
             }
                 .onSuccess {
                     opened = it
                     if (target == it.format) target = null
                 }
-                .onFailure { loadError = it.message ?: it.toString() }
+                .onFailure { loadError = getString((it as? DocumentFormatException)?.reason ?: Res.string.document_damaged) }
             loading = false
         }
     }
@@ -125,7 +125,7 @@ private fun DocumentConverterScreen() {
             ChoiceChips(options = listOf(true, false), selected = serif, onSelect = { serif = it }, label = { if (it) Res.string.font_serif.str() else Res.string.font_sans.str() })
         }
         ToolSection(Res.string.font_size.str()) {
-            ChoiceChips(options = listOf(10, 11, 12, 14), selected = size, onSelect = { size = it }, label = { "$it pt" })
+            ChoiceChips(options = listOf(10, 11, 12, 14), selected = size, onSelect = { size = it }, label = { "$it ${Res.string.unit_point.str()}" })
         }
         SwitchRow(Res.string.page_numbers.str(), numbers, { numbers = it })
     }

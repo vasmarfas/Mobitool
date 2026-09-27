@@ -234,6 +234,19 @@ internal class EditorSession(
         return runCatching { raster.render(index, pageWidth, x, y, w, h) }.getOrNull()
     }
 
+    suspend fun renderFlattened(source: SourcePage, width: Int, objects: Map<Int, ObjectEdit>): ImageBitmap? {
+        val document = source.page.document
+        val onePage = DocumentEdit(listOf(EditPage(1, source, objects = objects)), fields = if (document === main) edit.fields else emptyMap())
+        val options = SaveOptions(flattenForm = true, flattenAnnotations = true)
+        val bytes = runCatching { withContext(Dispatchers.Default) { PdfEditWriter.write(document, onePage, fonts, options) } }.getOrNull() ?: return null
+        val raster = runCatching { PdfRaster.open(bytes) }.getOrNull() ?: return null
+        return try {
+            runCatching { raster.render(0, width) }.getOrNull()
+        } finally {
+            raster.close()
+        }
+    }
+
     private suspend fun raster(source: SourcePage, objects: Map<Int, ObjectEdit>): Pair<PdfRaster, Int>? = rasterLock.withLock {
         val document = source.page.document
         if (objects.isEmpty()) {

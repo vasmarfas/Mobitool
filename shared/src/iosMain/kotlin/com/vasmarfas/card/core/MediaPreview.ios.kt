@@ -70,12 +70,14 @@ actual fun MediaPreview(project: MediaProject?, state: PreviewState, modifier: M
         onDispose {
             player.pause()
             player.replaceCurrentItemWithPlayerItem(null)
+            built?.discardStills()
         }
     }
     LaunchedEffect(structure) {
         state.playing = false
         val current = project
         val next = current?.let { runCatching { MediaEngine.build(it, video = true, audio = true, maxSide = PREVIEW_SIDE) }.getOrNull() }
+        val previous = built
         built = next
         val item = if (current != null && next != null) {
             AVPlayerItem.playerItemWithAsset(next.composition).apply {
@@ -86,6 +88,7 @@ actual fun MediaPreview(project: MediaProject?, state: PreviewState, modifier: M
             null
         }
         player.replaceCurrentItemWithPlayerItem(item)
+        previous?.discardStills()
         player.seekExactly(cmTime(state.positionMs))
     }
     LaunchedEffect(project, built) {

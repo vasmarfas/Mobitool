@@ -151,7 +151,11 @@ private fun BatteryCalculatorScreen() {
                 options = EnergyDirection.entries,
                 selected = direction,
                 onSelect = { direction = it },
-                label = { if (it == EnergyDirection.MAH_TO_WH) "mAh → Wh" else "Wh → mAh" },
+                label = {
+                    val mah = Res.string.unit_mah.str()
+                    val wh = Res.string.unit_wh.str()
+                    if (it == EnergyDirection.MAH_TO_WH) "$mah → $wh" else "$wh → $mah"
+                },
             )
             NumberField(
                 value = energyText,

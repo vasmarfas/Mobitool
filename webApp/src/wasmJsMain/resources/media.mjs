@@ -722,16 +722,19 @@ export async function peaks(file, perSecond, maxMs) {
     }
 }
 
+// 5.1 folds down the way the Android decoder does it: front + 0.707 × (centre + surround), LFE dropped
 function interleave(buffers, channels, maxFrames) {
     const frames = Math.min(maxFrames, buffers.reduce((sum, b) => sum + b.length, 0));
     const out = new Int16Array(frames * channels);
     let o = 0;
     for (const buffer of buffers) {
         const data = [];
-        for (let c = 0; c < channels; c++) data.push(buffer.getChannelData(Math.min(c, buffer.numberOfChannels - 1)));
+        for (let c = 0; c < buffer.numberOfChannels; c++) data.push(buffer.getChannelData(c));
+        const surround = data.length === 6 && channels === 2;
         for (let i = 0; i < buffer.length && o < out.length; i++) {
             for (let c = 0; c < channels; c++) {
-                const v = Math.max(-1, Math.min(1, data[c][i]));
+                const sample = surround ? (data[c][i] + 0.707 * data[2][i] + 0.707 * data[4 + c][i]) / 2.414 : data[Math.min(c, data.length - 1)][i];
+                const v = Math.max(-1, Math.min(1, sample));
                 out[o++] = v < 0 ? v * 32768 : v * 32767;
             }
         }

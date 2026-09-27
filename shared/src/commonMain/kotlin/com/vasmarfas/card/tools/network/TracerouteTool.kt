@@ -74,7 +74,7 @@ private fun TracerouteScreen() {
                 val from = reply.from
                 val reached = reply.error == null && reply.timeMs != null && (from == address || from == null)
                 val name = if (resolveNames && from != null && from != address) reverseLookup(from) else null
-                val hop = TracerouteHop(ttl, from ?: if (reached) address else null, name, reply.timeMs, reached)
+                val hop = TracerouteHop(ttl, from ?: if (reached) address else null, name, reply.timeMs)
                 hops += hop
                 if (reached) break
                 consecutiveTimeouts = if (from == null) consecutiveTimeouts + 1 else 0

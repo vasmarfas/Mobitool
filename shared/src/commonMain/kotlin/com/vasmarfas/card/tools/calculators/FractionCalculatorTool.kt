@@ -264,7 +264,7 @@ private fun FractionAnswer(value: Fraction) {
             KeyValueRow(Res.string.mixed_number.str(), value.mixed())
         }
         decimal?.let { KeyValueRow(Res.string.decimal_fraction.str(), it) }
-        percent?.let { KeyValueRow(Res.string.as_percent.str(), "$it%") }
+        percent?.let { KeyValueRow(Res.string.as_percent.str(), stringResource(Res.string.percent_value, it)) }
     }
 }
 

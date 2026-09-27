@@ -13,7 +13,6 @@ data class TracerouteHop(
     val address: String?,
     val hostname: String?,
     val timeMs: Double?,
-    val reachedTarget: Boolean = false,
 )
 
 data class PortProbe(
@@ -55,10 +54,13 @@ data class CertificateInfo(
     val daysLeft: Long,
 )
 
+enum class CertTrust { TRUSTED, EXPIRED, NOT_YET_VALID, UNTRUSTED }
+
 data class TlsInfo(
     val protocol: String,
     val cipherSuite: String,
     val chain: List<CertificateInfo>,
+    val trust: CertTrust,
 )
 
 data class DiscoveredDevice(
@@ -71,7 +73,6 @@ object NetCapabilities {
     val tcp: Boolean get() = platformNetCapabilities().tcp
     val udp: Boolean get() = platformNetCapabilities().udp
     val interfaces: Boolean get() = platformNetCapabilities().interfaces
-    val tls: Boolean get() = platformNetCapabilities().tls
 }
 
 data class PlatformNetCapabilities(
@@ -79,7 +80,6 @@ data class PlatformNetCapabilities(
     val tcp: Boolean,
     val udp: Boolean,
     val interfaces: Boolean,
-    val tls: Boolean,
 )
 
 expect fun platformNetCapabilities(): PlatformNetCapabilities
@@ -104,8 +104,10 @@ expect suspend fun whoisQuery(server: String, query: String, timeoutMs: Int): St
 
 expect suspend fun udpQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray?
 
+expect suspend fun tcpDnsQuery(host: String, payload: ByteArray, timeoutMs: Int): ByteArray?
+
 expect suspend fun ssdpDiscover(timeoutMs: Int): List<DiscoveredDevice>
 
 expect suspend fun mdnsQuery(serviceName: String, timeoutMs: Int): List<ByteArray>
 
-expect fun wifiDetails(): Map<String, String>
+expect suspend fun wifiDetails(): Map<String, String>

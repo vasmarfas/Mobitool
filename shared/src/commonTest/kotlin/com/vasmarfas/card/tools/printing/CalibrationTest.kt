@@ -16,6 +16,10 @@ class CalibrationTest {
         assertEquals(20.1, advice.exactHeight, 1e-6)
         assertEquals(1, advice.warnings.size)
         assertTrue(LayerSettings.advice(0.4, 0.35, 10.0).warnings.isNotEmpty())
+        val whole = LayerSettings.advice(0.4, 0.15, 3.0)
+        assertEquals(19, whole.layerCount)
+        assertEquals(3.0, whole.exactHeight, 1e-9)
+        assertTrue(whole.warnings.isEmpty())
     }
 
     @Test

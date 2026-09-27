@@ -9,9 +9,7 @@ private const val XLINK_NS = "http://www.w3.org/1999/xlink"
 private const val FB2_DATE = "2026-01-01"
 private val INDENT = Char(0xA0).toString().repeat(2)
 
-// FictionBook 2.1 XSD: a section holds either content or subsections, so text before the first
-// subsection gets an untitled section and an empty section gets an empty line. An image may lead
-// a section only once. cite takes no images, so a picture inside a quote splits it
+// FictionBook 2.1 XSD: a section holds content or subsections but not both, cite takes no images
 internal class Fb2Writer(private val doc: Doc) {
     private class Section(val title: Block.Heading?, val level: Int) {
         val content = ArrayList<Block>()

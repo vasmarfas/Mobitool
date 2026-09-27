@@ -2,7 +2,6 @@ package com.vasmarfas.card.core
 
 object AnalyticsConfig {
     const val FIREBASE_ENABLED = true
-    const val WEBMASTER_VERIFICATION = ""
 }
 
 // privacy-policy.md lists every event for users, a new event or parameter goes there too
@@ -137,8 +136,7 @@ object Analytics {
     internal fun safeParams(params: Map<String, String>): Map<String, String> =
         params.filter { (key, value) -> isIdentifier(key) && isIdentifier(value) }
 
-    // sent only while it can be nothing but a tool name: letters, digits, spaces and hyphens, 2 to 30
-    // characters, at most four digits. Addresses, phone numbers and IPs fail on the way
+    // sent only when it can be nothing but a tool name, addresses, phone numbers and IPs fail the check
     internal fun searchTerm(query: String): String? {
         val term = query.trim().lowercase().replace(Regex("\\s+"), " ")
         return term.takeIf { t ->

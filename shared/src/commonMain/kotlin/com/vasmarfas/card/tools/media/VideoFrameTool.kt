@@ -74,7 +74,7 @@ private fun VideoFrameScreen() {
         scope.launch {
             runCatching { MediaEngine.probe(picked) }
                 .onSuccess { info = it }
-                .onFailure { loadError = it.message ?: it.toString() }
+                .onFailure { loadError = errorText(it) }
         }
     }
     loadError?.let { ErrorText(it) }

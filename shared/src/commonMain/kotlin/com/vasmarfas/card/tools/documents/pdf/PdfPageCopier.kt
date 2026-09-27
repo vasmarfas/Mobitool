@@ -5,18 +5,19 @@ import kotlin.math.floor
 
 internal class PageCopier(
     private val writer: PdfWriter,
-    private val widgetParents: PdfDocument? = null,
     private val keepAnnotation: (PdfDocument, PdfDict) -> Boolean = { _, _ -> true },
     private val replacements: Map<PdfDocument, Map<Int, PdfObject>> = emptyMap(),
 ) {
     private class Pending(val document: PdfDocument, val source: PdfObject, val target: PdfRef)
 
-    private class Annotation(val dict: PdfDict, val target: PdfRef)
+    private class Annotation(val dict: PdfDict, val target: PdfRef, val linked: Boolean)
 
     private val copies = HashMap<PdfDocument, HashMap<Int, PdfRef>>()
     private val inherited = HashMap<PdfObject, PdfRef>()
     private val pageTargets = HashMap<PdfDocument, HashMap<Int, PdfRef>>()
     private val annotationTargets = HashMap<PdfDocument, HashMap<Int, PdfRef>>()
+    private val repeatedAnnotations = HashMap<PdfDocument, HashMap<Int, MutableList<PdfRef>>>()
+    private val claimed = HashSet<PdfRef>()
     private val namedDestinations = HashMap<PdfDocument, Map<PdfString, PdfObject>>()
     private val pending = ArrayDeque<Pending>()
     private var annotationDocument: PdfDocument? = null
@@ -39,6 +40,9 @@ internal class PageCopier(
     }
 
     fun annotationTarget(doc: PdfDocument, number: Int): PdfRef? = annotationTargets[doc]?.get(number)
+
+    fun copiesOfAnnotation(doc: PdfDocument, number: Int): List<PdfRef> =
+        listOfNotNull(annotationTarget(doc, number)) + repeatedAnnotations[doc]?.get(number).orEmpty()
 
     fun pageTarget(doc: PdfDocument, number: Int): PdfRef? = pageTargets[doc]?.get(number)
 
@@ -115,16 +119,22 @@ internal class PageCopier(
         for (item in list.items) {
             val annotation = doc.resolve(item) as? PdfDict ?: continue
             if (!keepAnnotation(doc, annotation) || !keep(doc, annotation)) continue
-            val target = (item as? PdfRef)?.let { reserved?.get(it.number) } ?: writer.reserve()
-            if (item is PdfRef) local[item.number] = target
-            kept.add(Annotation(annotation, target))
+            val number = (item as? PdfRef)?.number
+            val reservedTarget = number?.let { reserved?.get(it) }
+            val first = reservedTarget?.takeIf { claimed.add(it) }
+            val target = first ?: writer.reserve()
+            if (number != null) {
+                local[number] = target
+                if (reservedTarget != null && first == null) repeatedAnnotations.getOrPut(doc) { HashMap() }.getOrPut(number) { ArrayList() }.add(target)
+            }
+            kept.add(Annotation(annotation, target, linked = first != null))
         }
         if (kept.isEmpty()) return null
         annotationDocument = doc
         annotationCopies = local
         val result = PdfArray()
         for (annotation in kept) {
-            writer[annotation.target] = copyAnnotation(doc, annotation.dict, self)
+            writer[annotation.target] = copyAnnotation(doc, annotation.dict, self, annotation.linked)
             result.add(annotation.target)
         }
         drain()
@@ -141,13 +151,13 @@ internal class PageCopier(
         return destination(doc, action["D"] ?: return false) != null
     }
 
-    private fun copyAnnotation(doc: PdfDocument, annotation: PdfDict, self: PdfRef): PdfDict {
+    private fun copyAnnotation(doc: PdfDocument, annotation: PdfDict, self: PdfRef, linked: Boolean): PdfDict {
         val out = PdfDict()
         val widget = annotation.name("Subtype", doc) == "Widget"
         for ((key, value) in annotation.entries) {
             when (key) {
                 "P", "StructParent" -> Unit
-                "Parent" -> if (!widget || doc === widgetParents) put(out, key, copy(doc, value))
+                "Parent" -> if (!widget || linked) put(out, key, copy(doc, value))
                 "Dest" -> destination(doc, value)?.let { out[key] = it }
                 "A" -> action(doc, value)?.let { out[key] = it }
                 else -> put(out, key, copy(doc, value))

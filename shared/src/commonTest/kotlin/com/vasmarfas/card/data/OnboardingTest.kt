@@ -89,7 +89,7 @@ class OnboardingTest {
         val interests = Interest.entries.filter { interest -> roles.any { interest in it.interests } }
         val proposed = Onboarding.propose(roles, interests, everywhere)
         assertEquals(Onboarding.BUDGET, proposed.size)
-        assertTrue(listOf("merge-pdf", "image-converter", "discount-vat").all { it in proposed }, proposed.toString())
+        assertTrue(listOf("merge-pdf", "id-photo", "discount-vat").all { it in proposed }, proposed.toString())
         assertTrue("renovation" !in proposed, proposed.toString())
     }
 

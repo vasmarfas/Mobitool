@@ -263,4 +263,26 @@ class HttpHistoryTest {
         assertEquals(500, repeated.first().status)
         assertEquals(1, repeated.count { it.spec.url == "https://example.com/20" })
     }
+
+    @Test
+    fun historyKeepsNoSecrets() {
+        val spec = HttpRequests.synced(
+            HttpRequestSpec(
+                method = "POST",
+                url = "https://api.example.com/items?api_key=abc&limit=10",
+                headers = listOf(HttpField("X-API-Key", "k1"), HttpField("Cookie", "sid=1"), HttpField("Accept", "application/json")),
+                bodyMode = HttpBodyMode.RAW,
+                rawBody = "password=hunter2",
+                auth = HttpAuth(HttpAuthKind.BEARER, token = "t0ken"),
+            ),
+        )
+        val stored = HttpRequestStore.push(emptyList(), HttpHistoryEntry(spec, 200, 10)).single().spec
+        assertEquals("https://api.example.com/items?api_key=&limit=10", stored.url)
+        assertEquals(listOf(HttpField("api_key", ""), HttpField("limit", "10")), stored.query)
+        assertEquals(listOf(HttpField("X-API-Key", ""), HttpField("Cookie", ""), HttpField("Accept", "application/json")), stored.headers)
+        assertEquals("", stored.rawBody)
+        assertEquals(HttpAuth(HttpAuthKind.BEARER), stored.auth)
+        val basic = HttpRequestStore.push(emptyList(), HttpHistoryEntry(HttpRequestSpec(url = "https://admin:pw@192.168.1.1/api?x=1"), 200, 5))
+        assertEquals("https://192.168.1.1/api?x=1", basic.single().spec.url)
+    }
 }

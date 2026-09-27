@@ -36,6 +36,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 val pdfToImagesTool = Tool(
     id = "pdf-to-images",
@@ -48,6 +49,8 @@ val pdfToImagesTool = Tool(
         "pdf в jpg", "pdf в картинки", "pdf в png", "страницу pdf в картинку", "сохранить страницу pdf как фото",
     ),
 ) { PdfToImagesScreen() }
+
+private const val MAX_PIXELS = 25_000_000
 
 @Composable
 private fun PdfToImagesScreen() {
@@ -94,7 +97,9 @@ private fun PdfToImagesScreen() {
                 try {
                     val done = ArrayList<ImageOutput>()
                     chosen.forEachIndexed { n, index ->
-                        val width = (document.page(index).width * resolution / 72).roundToInt().coerceIn(16, 8000)
+                        val page = document.page(index)
+                        val scale = minOf(resolution / 72.0, sqrt(MAX_PIXELS / (page.width * page.height)))
+                        val width = (page.width * scale).roundToInt().coerceIn(16, 8000)
                         val image = raster.render(index, width)
                         val encoded = withContext(Dispatchers.Default) { encodeImage(image, format, 90) }
                         done += ImageOutput(renamed(pdf.file.name, format.extension, "-${index + 1}"), encoded, 0, image.width, image.height)

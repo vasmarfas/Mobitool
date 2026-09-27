@@ -53,5 +53,7 @@ class NumberWordsTest {
         assertNull(NumberWords.parse("1234567890123456789"))
         assertEquals(1234567L, NumberWords.parse("1 234 567,89")!!.whole)
         assertEquals("89", NumberWords.parse("1 234 567,89")!!.fraction)
+        assertEquals(1234567L, NumberWords.parse("1\u00A0234\u202F567,89")!!.whole)
+        assertEquals(1234567L, NumberWords.parse("1,234,567.89")!!.whole)
     }
 }

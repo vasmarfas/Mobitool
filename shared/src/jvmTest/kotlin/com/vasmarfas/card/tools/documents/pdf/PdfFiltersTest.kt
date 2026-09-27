@@ -6,6 +6,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class PdfFiltersTest {
     private val random = Random(1234)
@@ -29,6 +30,16 @@ class PdfFiltersTest {
         assertContentEquals(data, decode(raw, "<</Filter/Fl>>"))
         assertContentEquals(ByteArray(0), decode(ByteArray(0), "<</Filter/FlateDecode>>"))
         assertFailsWith<PdfException> { decode(byteArrayOf(0x78, 0x9C.toByte(), -1, -1, -1, -1), "<</Filter/FlateDecode>>") }
+    }
+
+    @Test
+    fun aTruncatedStreamGivesItsBeginningWhenLenient() {
+        val data = latin1((0 until 400).joinToString("") { "BT /F1 12 Tf 72 ${700 - it} Td (Line $it) Tj ET\n" })
+        val cut = deflate(data).let { it.copyOf(it.size / 2) }
+        assertFailsWith<PdfException> { PdfFilters.flate(cut) }
+        val partial = PdfFilters.flate(cut, lenient = true)
+        assertTrue(partial.isNotEmpty() && partial.size < data.size)
+        assertContentEquals(data.copyOf(partial.size), partial)
     }
 
     private fun pngEncode(rows: List<ByteArray>, bpp: Int, types: IntArray): ByteArray {

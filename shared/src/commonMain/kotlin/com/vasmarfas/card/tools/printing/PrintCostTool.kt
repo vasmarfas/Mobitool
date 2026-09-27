@@ -26,6 +26,7 @@ import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
 import com.vasmarfas.card.ui.components.ToolSection
+import org.jetbrains.compose.resources.stringResource
 
 private enum class AmountMode { WEIGHT, LENGTH }
 
@@ -101,7 +102,7 @@ private fun PrintCostScreen() {
         NumberField(
             value = priceText,
             onValueChange = { priceText = it },
-            label = Res.string.filament_price_per_kg.str(),
+            label = Res.string.spool_price.str(),
             modifier = Modifier.weight(1f),
             isError = price == null || price < 0,
         )
@@ -188,14 +189,14 @@ private fun PrintCostScreen() {
     }
 
     val totalHours = hours + minutes / 60.0
-    val cost = PrintEconomics.printCost(grams, price, totalHours, power, kwh, failure, markup)
+    val cost = PrintEconomics.printCost(grams, price, spool, totalHours, power, kwh, failure, markup)
     ResultCard(Res.string.material.str()) {
         KeyValueRow(Res.string.weight.str(), "${grams.fmt(1)} ${Res.string.unit_g.str()}")
         if (mode == AmountMode.LENGTH && length != null) {
             KeyValueRow(Res.string.filament_length.str(), "${length.fmt(2)} ${Res.string.unit_m.str()}")
             KeyValueRow(Res.string.volume.str(), "${(grams / material.density).fmt(2)} ${Res.string.unit_cm3.str()}")
         }
-        KeyValueRow(Res.string.share_of_a_spool.str(), "${(grams / spool * 100).fmt(1)} %")
+        KeyValueRow(Res.string.share_of_a_spool.str(), stringResource(Res.string.percent_value, (grams / spool * 100).fmt(1)))
         KeyValueRow(Res.string.prints_per_spool.str(), (spool / grams).fmt(1))
     }
     ResultCard(Res.string.cost.str()) {

@@ -1,10 +1,13 @@
 package com.vasmarfas.card.tools.security
 
-import com.vasmarfas.card.core.Tr
+import com.vasmarfas.card.resources.*
 import kotlin.math.ln
 import kotlin.math.max
+import org.jetbrains.compose.resources.StringResource
 
-data class StrengthIssue(val text: Tr, val penaltyBits: Double)
+enum class StrengthPattern { REPEAT, SEQUENCE, KEYBOARD_WALK, DATE, DICTIONARY_WORD, FEW_DISTINCT, WORD_AND_DIGITS }
+
+data class StrengthIssue(val pattern: StrengthPattern, val penaltyBits: Double, val count: Int = 0, val word: String = "")
 
 data class StrengthResult(
     val length: Int,
@@ -12,7 +15,7 @@ data class StrengthResult(
     val rawBits: Double,
     val bits: Double,
     val issues: List<StrengthIssue>,
-    val suggestions: List<Tr>,
+    val suggestions: List<StringResource>,
 ) {
     val score: Int
         get() = when {
@@ -117,64 +120,64 @@ object PasswordStrength {
 
     fun analyze(password: String): StrengthResult {
         if (password.isEmpty()) {
-            return StrengthResult(0, 0, 0.0, 0.0, emptyList(), listOf(Tr("Enter a password.", "Введите пароль.")))
+            return StrengthResult(0, 0, 0.0, 0.0, emptyList(), listOf(Res.string.strength_enter_a_password))
         }
         val alphabet = alphabetSize(password)
         val rawBits = password.length * ln(alphabet.toDouble()) / ln(2.0)
         val issues = mutableListOf<StrengthIssue>()
-        val suggestions = mutableListOf<Tr>()
+        val suggestions = mutableListOf<StringResource>()
         if (password.length < 12) {
-            suggestions += Tr("Use at least 12 characters, 16 or more is better.", "Используйте не менее 12 символов, лучше 16 и больше.")
+            suggestions += Res.string.strength_use_12_characters
         }
         val repeat = longestRepeat(password)
         if (repeat >= 3) {
-            issues += StrengthIssue(Tr("$repeat identical characters in a row", "$repeat одинаковых символа подряд"), repeat * 2.0)
-            suggestions += Tr("Avoid repeating the same character.", "Не повторяйте один символ несколько раз подряд.")
+            issues += StrengthIssue(StrengthPattern.REPEAT, repeat * 2.0, count = repeat)
+            suggestions += Res.string.strength_avoid_repeats
         }
         val sequence = longestSequence(password)
         if (sequence >= 4) {
-            issues += StrengthIssue(Tr("sequence of $sequence characters (abcd, 1234)", "последовательность из $sequence символов (abcd, 1234)"), sequence * 2.5)
-            suggestions += Tr("Avoid alphabet or digit sequences.", "Не используйте последовательности букв или цифр.")
+            issues += StrengthIssue(StrengthPattern.SEQUENCE, sequence * 2.5, count = sequence)
+            suggestions += Res.string.strength_avoid_sequences
         }
         val walk = keyboardWalk(password)
         if (walk >= 4) {
-            issues += StrengthIssue(Tr("keyboard walk of $walk characters (qwerty)", "проход по клавиатуре из $walk символов (qwerty)"), walk * 2.5)
-            suggestions += Tr("Do not type neighbouring keys in a row.", "Не набирайте соседние клавиши подряд.")
+            issues += StrengthIssue(StrengthPattern.KEYBOARD_WALK, walk * 2.5, count = walk)
+            suggestions += Res.string.strength_avoid_keyboard_walks
         }
         if (hasDate(password)) {
-            issues += StrengthIssue(Tr("contains a year or a date", "содержит год или дату"), 8.0)
-            suggestions += Tr("Dates and birth years are guessed first.", "Даты и годы рождения подбирают в первую очередь.")
+            issues += StrengthIssue(StrengthPattern.DATE, 8.0)
+            suggestions += Res.string.strength_avoid_dates
         }
         val hit = dictionaryHit(password)
         if (hit != null) {
-            issues += StrengthIssue(Tr("dictionary word: \"$hit\"", "словарное слово: «$hit»"), 14.0)
-            suggestions += Tr("Do not build the password around a single word.", "Не стройте пароль вокруг одного слова.")
+            issues += StrengthIssue(StrengthPattern.DICTIONARY_WORD, 14.0, word = hit)
+            suggestions += Res.string.strength_avoid_single_word
         }
         if (password.length >= 4 && password.toSet().size <= 2) {
-            issues += StrengthIssue(Tr("only ${password.toSet().size} distinct characters", "всего ${password.toSet().size} различных символа"), 10.0)
+            issues += StrengthIssue(StrengthPattern.FEW_DISTINCT, 10.0, count = password.toSet().size)
         }
         if (alphabet <= 26) {
-            suggestions += Tr("Mix letter cases, digits and symbols.", "Смешивайте регистры, цифры и спецсимволы.")
+            suggestions += Res.string.strength_mix_character_sets
         }
         if (Regex("^[A-ZА-ЯЁ][a-zа-яё]+\\d{1,4}[!?.]?$").matches(password)) {
-            issues += StrengthIssue(Tr("predictable pattern: word + digits", "предсказуемый шаблон: слово + цифры"), 10.0)
+            issues += StrengthIssue(StrengthPattern.WORD_AND_DIGITS, 10.0)
         }
         val penalty = issues.sumOf { it.penaltyBits }
         val bits = max(rawBits - penalty, if (password.isEmpty()) 0.0 else 1.0)
         if (issues.isEmpty() && password.length >= 16) {
-            suggestions += Tr("Good password. Store it in a password manager.", "Хороший пароль. Храните его в менеджере паролей.")
+            suggestions += Res.string.strength_good_password
         }
         if (suggestions.isEmpty()) {
-            suggestions += Tr("Add length: every extra character multiplies the search space.", "Добавьте длину: каждый лишний символ умножает пространство перебора.")
+            suggestions += Res.string.strength_add_length
         }
-        return StrengthResult(password.length, alphabet, rawBits, bits, issues, suggestions.distinctBy { it.en })
+        return StrengthResult(password.length, alphabet, rawBits, bits, issues, suggestions)
     }
 
-    fun scoreLabel(score: Int): Tr = when (score) {
-        0 -> Tr("very weak", "очень слабый")
-        1 -> Tr("weak", "слабый")
-        2 -> Tr("medium", "средний")
-        3 -> Tr("strong", "надёжный")
-        else -> Tr("very strong", "очень надёжный")
+    fun scoreLabel(score: Int): StringResource = when (score) {
+        0 -> Res.string.strength_very_weak
+        1 -> Res.string.strength_weak
+        2 -> Res.string.strength_medium
+        3 -> Res.string.strength_strong
+        else -> Res.string.strength_very_strong
     }
 }

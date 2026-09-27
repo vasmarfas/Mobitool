@@ -164,7 +164,7 @@ private fun HomeHeader(onOpenSettings: () -> Unit) {
             Spacer(Modifier.width(6.dp))
             Text(if (lang == Lang.RU) "EN" else "RU")
         }
-        // The button offers the opposite of what is on screen, which on SYSTEM depends on the platform.
+        // the button offers the opposite of what is on screen, which on SYSTEM depends on the platform
         val dark = when (settings.themeMode) {
             ThemeMode.DARK -> true
             ThemeMode.LIGHT -> false
@@ -326,7 +326,6 @@ private fun LinkRow(link: Link, source: String, modifier: Modifier = Modifier, i
     }
 }
 
-// a Telegram link reads as its handle, the rest of the web as the site it leads to
 private fun linkHint(url: String): String? = when {
     url.startsWith("https://t.me/") -> "@" + url.trimEnd('/').substringAfterLast('/')
     url.startsWith("http") -> url.substringAfter("://").substringBefore('/').removePrefix("www.")
@@ -380,13 +379,15 @@ private fun Avatar(avatar: ProfileAvatar, size: Dp) {
         val url = if (avatar.url.startsWith("http")) avatar.url else AppConfig.contentUrl(avatar.url)
         runCatching { Net.client.get(url).readRawBytes().decodeToImageBitmap() }.onSuccess { bitmap = it }
     }
-    bitmap?.let {
-        Image(
-            bitmap = it,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(size).clip(CircleShape),
-        )
+    Box(Modifier.size(size).clip(CircleShape)) {
+        bitmap?.let {
+            Image(
+                bitmap = it,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
     }
 }
 
@@ -404,7 +405,7 @@ private fun AboutSection(profile: Profile) {
 // the plural follows the number as shown: 135K reads as thousands whatever the exact count ends in
 private class Stat(val value: String, val label: PluralStringResource)
 
-// Narrower cells split "администрирования" mid-word.
+// narrower cells split "администрирования" mid-word
 private val StatMinWidth = 150.dp
 
 @Composable
@@ -564,7 +565,10 @@ fun ArticleRow(article: Article, modifier: Modifier = Modifier) {
                 }
                 val meta = buildString {
                     append(article.date)
-                    HabrStats.viewsOf(article, live)?.let { append(" · ").append(formatCount(it)).append(' ').append(Res.string.views.str()) }
+                    HabrStats.viewsOf(article, live)?.let {
+                        val shown = formatCount(it)
+                        append(" · ").append(pluralStringResource(Res.plurals.views_count, parseCount(shown) ?: it, shown))
+                    }
                 }
                 FindableText(meta, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

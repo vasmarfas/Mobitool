@@ -40,8 +40,8 @@ object ToolRegistry {
         listOf(
             "pdf-editor", "image-compressor", "currency-converter", "percentage", "qr-generator", "speed-test",
             "document-converter", "video-converter", "unit-converter", "images-to-pdf", "loan-calculator", "image-converter",
-            "text-counter", "merge-pdf", "number-to-words", "bmi-body", "date-calculator", "password-generator",
-            "noise-generator", "photo-editor", "video-editor", "audio-editor", "decision-wheel",
+            "text-counter", "merge-pdf", "compress-pdf", "number-to-words", "bmi-body", "date-calculator",
+            "password-generator", "noise-generator", "photo-editor", "video-editor", "audio-editor", "decision-wheel",
         ).map { id -> checkNotNull(byId(id)) { "Unknown popular tool $id" } }
     }
 

@@ -18,6 +18,7 @@ import com.vasmarfas.card.ui.components.MonoTable
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SwitchRow
 import com.vasmarfas.card.ui.components.ToolInputField
+import org.jetbrains.compose.resources.stringResource
 
 val asciiTableTool = Tool(
     id = "ascii-table",
@@ -47,7 +48,7 @@ private fun AsciiTableScreen() {
             MonoTable(
                 listOf(Res.string.ascii_header_dec.str().padEnd(5) + "Hex  Oct  Bin       " + Res.string.ascii_header_char.str().padEnd(6) + Res.string.ascii_header_name.str()) +
                     rows.map { e ->
-                        e.code.toString().padEnd(5) + e.hex.padEnd(5) + e.oct.padEnd(5) + e.bin.padEnd(10) + e.symbol.padEnd(6) + e.name
+                        e.code.toString().padEnd(5) + e.hex.padEnd(5) + e.oct.padEnd(5) + e.bin.padEnd(10) + e.symbol.padEnd(6) + stringResource(e.name, e.symbol)
                     },
             )
         }

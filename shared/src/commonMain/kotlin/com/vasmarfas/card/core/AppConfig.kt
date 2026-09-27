@@ -1,10 +1,10 @@
 package com.vasmarfas.card.core
 
 object AppConfig {
-    const val APP_NAME = "vasmarfas"
+    const val APP_NAME = "Mobitool"
+    const val SITE_NAME = "vasmarfas"
     const val SITE_COM = "https://vasmarfas.com"
     const val SITE_RU = "https://vasmarfas.ru"
-    const val GITHUB_USER = "vasmarfas"
     const val REPO_URL = "https://github.com/vasmarfas/mobitool"
     const val GITHUB_API = "https://api.github.com"
     private const val RAW_BASE = "https://raw.githubusercontent.com/vasmarfas/mobitool/master/shared/src/commonMain/composeResources/files"

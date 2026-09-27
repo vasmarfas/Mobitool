@@ -11,6 +11,8 @@ class PhoneticAlphabetTest {
         assertEquals("Alfa", PhoneticAlphabet.word('a', Lang.EN))
         assertEquals("Альфа", PhoneticAlphabet.word('A', Lang.RU))
         assertEquals("X-ray", PhoneticAlphabet.word('x', Lang.EN))
+        assertEquals("Новембер", PhoneticAlphabet.word('n', Lang.RU))
+        assertEquals("Экс-рей", PhoneticAlphabet.word('X', Lang.RU))
         assertEquals("Женя", PhoneticAlphabet.word('ж', Lang.EN))
         assertEquals("Иван краткий", PhoneticAlphabet.word('Й', Lang.RU))
         assertEquals("семь", PhoneticAlphabet.word('7', Lang.RU))

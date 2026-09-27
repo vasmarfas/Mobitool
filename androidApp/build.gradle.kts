@@ -67,7 +67,7 @@ android {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
-        // Release with R8 on, but signed with the debug key so profiling runs need no upload keystore.
+        // release with R8 on, signed with the debug key so profiling runs need no upload keystore
         create("benchmark") {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")

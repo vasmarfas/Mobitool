@@ -5,10 +5,13 @@ package com.vasmarfas.card.core
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.ImageBitmap
 import cnames.structs.__CFURL
+import com.vasmarfas.card.resources.*
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.absolutePath
+import kotlinx.cinterop.COpaquePointerVar
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.UIntVar
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.convert
@@ -23,7 +26,11 @@ import kotlinx.cinterop.useContents
 import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import platform.AVFoundation.AVAssetExportPreset1280x720
@@ -31,7 +38,6 @@ import platform.AVFoundation.AVAssetExportPreset1920x1080
 import platform.AVFoundation.AVAssetExportPreset3840x2160
 import platform.AVFoundation.AVAssetExportPreset640x480
 import platform.AVFoundation.AVAssetExportPreset960x540
-import platform.AVFoundation.AVAssetExportPresetAppleM4A
 import platform.AVFoundation.AVAssetExportPresetPassthrough
 import platform.AVFoundation.AVAssetExportSession
 import platform.AVFoundation.AVAssetExportSessionStatusCompleted
@@ -42,7 +48,6 @@ import platform.AVFoundation.AVAssetTrack
 import platform.AVFoundation.AVAssetWriter
 import platform.AVFoundation.AVAssetWriterInput
 import platform.AVFoundation.AVAssetWriterInputPixelBufferAdaptor
-import platform.AVFoundation.AVFileTypeAppleM4A
 import platform.AVFoundation.AVFileTypeMPEG4
 import platform.AVFoundation.AVFileTypeQuickTimeMovie
 import platform.AVFoundation.AVMediaTypeAudio
@@ -76,16 +81,22 @@ import platform.AVFAudio.AVLinearPCMIsFloatKey
 import platform.AVFAudio.AVLinearPCMIsNonInterleaved
 import platform.AVFAudio.AVNumberOfChannelsKey
 import platform.AVFAudio.AVSampleRateKey
+import platform.AudioToolbox.AudioConverterRefVar
+import platform.AudioToolbox.AudioConverterSetProperty
 import platform.AudioToolbox.ExtAudioFileCreateWithURL
 import platform.AudioToolbox.ExtAudioFileDispose
+import platform.AudioToolbox.ExtAudioFileGetProperty
 import platform.AudioToolbox.ExtAudioFileRefVar
 import platform.AudioToolbox.ExtAudioFileSetProperty
 import platform.AudioToolbox.ExtAudioFileWrite
+import platform.AudioToolbox.kAudioConverterEncodeBitRate
 import platform.AudioToolbox.kAudioFileFLACType
 import platform.AudioToolbox.kAudioFileFlags_EraseFile
 import platform.AudioToolbox.kAudioFileM4AType
 import platform.AudioToolbox.kAudioFileWAVEType
+import platform.AudioToolbox.kExtAudioFileProperty_AudioConverter
 import platform.AudioToolbox.kExtAudioFileProperty_ClientDataFormat
+import platform.AudioToolbox.kExtAudioFileProperty_ConverterConfig
 import platform.CoreAudioTypes.AudioBufferList
 import platform.CoreAudioTypes.AudioStreamBasicDescription
 import platform.CoreAudioTypes.kAudioFormatFLAC
@@ -141,6 +152,7 @@ import platform.CoreVideo.kCVPixelFormatType_32BGRA
 import platform.Foundation.CFBridgingRelease
 import platform.Foundation.CFBridgingRetain
 import platform.Foundation.NSData
+import platform.Foundation.NSFileManager
 import platform.Foundation.NSURL
 import platform.Foundation.dataWithBytes
 import platform.Foundation.writeToFile
@@ -274,7 +286,8 @@ actual object MediaEngine {
     actual suspend fun export(project: MediaProject, onProgress: (Float) -> Unit): MediaResult {
         val spec = project.spec
         if (spec.format !in formats) throw MediaException("${spec.format.extension} is not supported on iOS")
-        return if (spec.format == MediaFormat.WAV || spec.format == MediaFormat.FLAC || spec.format == MediaFormat.MP3) transcodeAudio(project, onProgress) else compose(project, onProgress)
+        // the M4A export preset takes no bitrate, sample rate or channel count, the audio writer takes all three
+        return if (spec.format.video) compose(project, onProgress) else transcodeAudio(project, onProgress)
     }
 
     private suspend fun compose(project: MediaProject, onProgress: (Float) -> Unit): MediaResult {
@@ -284,7 +297,6 @@ actual object MediaEngine {
         val side = maxOf(built.width, built.height)
         val preset = when {
             passthrough -> AVAssetExportPresetPassthrough
-            !spec.format.video -> AVAssetExportPresetAppleM4A
             side > 1920 -> AVAssetExportPreset3840x2160
             side > 1280 -> AVAssetExportPreset1920x1080
             side > 960 -> AVAssetExportPreset1280x720
@@ -294,11 +306,7 @@ actual object MediaEngine {
         val session = AVAssetExportSession.exportSessionWithAsset(built.composition, preset) ?: throw MediaException("export is not available")
         val output = tempPath(spec.format.extension)
         session.outputURL = NSURL.fileURLWithPath(output)
-        session.outputFileType = when (spec.format) {
-            MediaFormat.MOV -> AVFileTypeQuickTimeMovie
-            MediaFormat.M4A -> AVFileTypeAppleM4A
-            else -> AVFileTypeMPEG4
-        }
+        session.outputFileType = if (spec.format == MediaFormat.MOV) AVFileTypeQuickTimeMovie else AVFileTypeMPEG4
         session.shouldOptimizeForNetworkUse = true
         if (spec.targetBytes > 0) session.setFileLengthLimit(spec.targetBytes)
         if (passthrough) {
@@ -307,7 +315,22 @@ actual object MediaEngine {
             built.videoComposition(project)?.let { session.setVideoComposition(it) }
             built.audioMix?.let { session.setAudioMix(it) }
         }
-        run(session, onProgress)
+        try {
+            run(session, onProgress)
+        } catch (e: Throwable) {
+            NSFileManager.defaultManager.removeItemAtPath(output, null)
+            throw e
+        } finally {
+            built.discardStills()
+        }
+        // the export session picks no bitrate for a size, it stops writing at the limit and calls that a success
+        if (spec.targetBytes > 0) {
+            val writtenMs = (CMTimeGetSeconds(AVURLAsset.URLAssetWithURL(NSURL.fileURLWithPath(output), null).duration) * 1000).toLong()
+            if (writtenMs + 500 < project.durationMs) {
+                NSFileManager.defaultManager.removeItemAtPath(output, null)
+                throw MediaException("the size limit cut the video at $writtenMs ms", Res.string.video_size_limit_cut)
+            }
+        }
         return MediaResult(PlatformFile(output))
     }
 
@@ -321,7 +344,10 @@ actual object MediaEngine {
         val fps: Int,
         val layers: List<Layer>,
         val structure: MediaProject,
+        private val stills: List<NSURL>,
     ) {
+        fun discardStills() = stills.forEach { NSFileManager.defaultManager.removeItemAtURL(it, null) }
+
         fun videoComposition(project: MediaProject): AVMutableVideoComposition? {
             if (layers.isEmpty()) return null
             val instructions = layers.map { layer ->
@@ -356,13 +382,14 @@ actual object MediaEngine {
         val total = project.durationMs
         val composition = AVMutableComposition()
         val layers = mutableListOf<Layer>()
+        val stills = mutableListOf<NSURL>()
         if (video) {
             project.pictures.forEachIndexed { index, track ->
                 if (track.clips.isEmpty()) return@forEachIndexed
                 val target = composition.addMutableTrackWithMediaType(AVMediaTypeVideo, kCMPersistentTrackID_Invalid) ?: throw MediaException("no room for a video track")
                 var cursor = 0L
                 val sources = track.clips.sortedBy { it.atMs }.map { clip ->
-                    val url = if (clip.kind == ClipKind.IMAGE) stillVideo(clip.file, clip.durationMs, maxOf(width, height)) else clip.file.url
+                    val url = if (clip.kind == ClipKind.IMAGE) stillVideo(clip.file, clip.durationMs, maxOf(width, height)).also { stills += it } else clip.file.url
                     val source = AVURLAsset.URLAssetWithURL(url, null).tracksWithMediaType(AVMediaTypeVideo).firstOrNull() as AVAssetTrack?
                     if (source != null) {
                         if (clip.atMs > cursor) target.insertEmptyTimeRange(CMTimeRangeMake(cmTime(cursor), cmTime(clip.atMs - cursor)))
@@ -401,25 +428,29 @@ actual object MediaEngine {
             }
         }
         val audioMix = if (mix.isEmpty()) null else AVMutableAudioMix.audioMix().apply { setInputParameters(mix) }
-        return Built(composition, audioMix, width, height, spec.frameRate(first), layers, project.structure())
+        return Built(composition, audioMix, width, height, spec.frameRate(first), layers, project.structure(), stills)
     }
 
-    private suspend fun run(session: AVAssetExportSession, onProgress: (Float) -> Unit) {
-        var finished = false
-        suspendCancellableCoroutine { continuation ->
-            session.exportAsynchronouslyWithCompletionHandler {
-                finished = true
-                if (session.status == AVAssetExportSessionStatusCompleted) {
-                    continuation.resume(Unit)
-                } else {
-                    continuation.resumeWithException(MediaException(session.error?.localizedDescription ?: "export failed"))
-                }
+    private suspend fun run(session: AVAssetExportSession, onProgress: (Float) -> Unit) = coroutineScope {
+        val poll = launch {
+            while (true) {
+                onProgress(session.progress)
+                delay(200)
             }
-            continuation.invokeOnCancellation { session.cancelExport() }
         }
-        while (!finished) {
-            onProgress(session.progress)
-            delay(200)
+        try {
+            suspendCancellableCoroutine { continuation ->
+                session.exportAsynchronouslyWithCompletionHandler {
+                    if (session.status == AVAssetExportSessionStatusCompleted) {
+                        continuation.resume(Unit)
+                    } else {
+                        continuation.resumeWithException(MediaException(session.error?.localizedDescription ?: "export failed"))
+                    }
+                }
+                continuation.invokeOnCancellation { session.cancelExport() }
+            }
+        } finally {
+            poll.cancel()
         }
     }
 
@@ -477,19 +508,22 @@ actual object MediaEngine {
         var writer: AudioSink? = null
         val total = project.durationMs.coerceAtLeast(1)
         var done = 0L
+        var completed = false
         try {
             project.sounds.sortedBy { it.atMs }.forEach { clip ->
-                readPcm(clip.file.url, clip.startMs, clip.endMs) { rate, channels, samples ->
+                readPcm(clip.file.url, clip.startMs, clip.endMs, project.spec.sampleRate, project.spec.channels) { rate, channels, samples ->
                     val target = writer ?: openAudioSink(output, project.spec.format, rate, channels, project.spec.audioBitrateKbps).also { writer = it }
                     target.write(samples)
                     done += samples.size / channels * 1000L / rate
                     onProgress((done.toFloat() / total).coerceIn(0f, 1f))
                 }
             }
+            completed = true
         } finally {
             writer?.close()
+            if (!completed) NSFileManager.defaultManager.removeItemAtPath(output, null)
         }
-        if (writer == null) throw MediaException("no audio stream")
+        if (writer == null) throw MediaException("no audio stream", Res.string.no_audio_track)
         MediaResult(PlatformFile(output))
     }
 
@@ -505,7 +539,7 @@ actual object MediaEngine {
             chunk.copyInto(samples, size)
             size += chunk.size
         }
-        if (rate == 0) throw MediaException("no audio stream")
+        if (rate == 0) throw MediaException("no audio stream", Res.string.no_audio_track)
         PcmAudio(rate, channels, samples.copyOf(size))
     }
 
@@ -534,27 +568,39 @@ actual object MediaEngine {
             val writer = openAudioSink(output, format, source.sampleRate, source.channels, bitrateKbps)
             val chunk = ShortArray(8192 * source.channels)
             var frames = 0L
+            var completed = false
             try {
                 while (true) {
+                    ensureActive()
                     val n = source.read(chunk)
                     if (n <= 0) break
                     writer.write(chunk.copyOf(n))
                     frames += n / source.channels
                     onProgress((frames.toFloat() / source.frames.coerceAtLeast(1)).coerceIn(0f, 1f))
                 }
+                completed = true
             } finally {
                 writer.close()
+                if (!completed) NSFileManager.defaultManager.removeItemAtPath(output, null)
             }
             MediaResult(PlatformFile(output))
         }
 
-    private fun readPcm(url: NSURL, startMs: Long, endMs: Long, onChunk: (sampleRate: Int, channels: Int, samples: ShortArray) -> Unit) {
+    // the reader converts to the rate and channel count asked for, 0 keeps the track's own
+    private suspend fun readPcm(
+        url: NSURL,
+        startMs: Long,
+        endMs: Long,
+        toRate: Int = 0,
+        toChannels: Int = 0,
+        onChunk: (sampleRate: Int, channels: Int, samples: ShortArray) -> Unit,
+    ) {
         val asset = AVURLAsset.URLAssetWithURL(url, null)
-        val track = asset.tracksWithMediaType(AVMediaTypeAudio).firstOrNull() as AVAssetTrack? ?: throw MediaException("no audio stream")
+        val track = asset.tracksWithMediaType(AVMediaTypeAudio).firstOrNull() as AVAssetTrack? ?: throw MediaException("no audio stream", Res.string.no_audio_track)
         val description = track.format
             ?.let { CMAudioFormatDescriptionGetStreamBasicDescription(it) }?.pointed
-        val rate = description?.mSampleRate?.roundToInt() ?: 44_100
-        val channels = (description?.mChannelsPerFrame?.toInt() ?: 2).coerceIn(1, 2)
+        val rate = toRate.takeIf { it > 0 } ?: description?.mSampleRate?.roundToInt() ?: 44_100
+        val channels = toChannels.takeIf { it > 0 } ?: (description?.mChannelsPerFrame?.toInt() ?: 2).coerceIn(1, 2)
         val settings = mapOf<Any?, Any?>(
             AVFormatIDKey to kAudioFormatLinearPCM,
             AVLinearPCMBitDepthKey to 16,
@@ -570,18 +616,22 @@ actual object MediaEngine {
         val duration = (CMTimeGetSeconds(asset.duration) * 1000).roundToInt().toLong()
         reader.timeRange = CMTimeRangeMake(cmTime(startMs), cmTime(minOf(endMs, duration) - startMs))
         reader.startReading()
-        while (true) {
-            val sample = output.copyNextSampleBuffer() ?: break
-            val block = CMSampleBufferGetDataBuffer(sample)
-            if (block != null) {
-                val length = CMBlockBufferGetDataLength(block).toInt()
-                val shorts = ShortArray(length / 2)
-                if (shorts.isNotEmpty()) shorts.usePinned { CMBlockBufferCopyDataBytes(block, 0u, length.convert(), it.addressOf(0)) }
-                onChunk(rate, channels, shorts)
+        try {
+            while (true) {
+                currentCoroutineContext().ensureActive()
+                val sample = output.copyNextSampleBuffer() ?: break
+                val block = CMSampleBufferGetDataBuffer(sample)
+                if (block != null) {
+                    val length = CMBlockBufferGetDataLength(block).toInt()
+                    val shorts = ShortArray(length / 2)
+                    if (shorts.isNotEmpty()) shorts.usePinned { CMBlockBufferCopyDataBytes(block, 0u, length.convert(), it.addressOf(0)) }
+                    onChunk(rate, channels, shorts)
+                }
+                CFRelease(sample)
             }
-            CFRelease(sample)
+        } finally {
+            reader.cancelReading()
         }
-        reader.cancelReading()
     }
 }
 
@@ -626,7 +676,7 @@ private interface AudioSink {
 }
 
 private fun openAudioSink(path: String, format: MediaFormat, sampleRate: Int, channels: Int, bitrateKbps: Int): AudioSink =
-    if (format == MediaFormat.MP3) Mp3FileWriter(path, sampleRate, channels, bitrateKbps) else AudioFileWriter(path, format, sampleRate, channels)
+    if (format == MediaFormat.MP3) Mp3FileWriter(path, sampleRate, channels, bitrateKbps) else AudioFileWriter(path, format, sampleRate, channels, bitrateKbps)
 
 // Core Audio writes no MP3
 private class Mp3FileWriter(private val path: String, sampleRate: Int, channels: Int, bitrateKbps: Int) : AudioSink {
@@ -655,7 +705,7 @@ private class Mp3FileWriter(private val path: String, sampleRate: Int, channels:
 }
 
 // ExtAudioFile rather than AVAudioFile, it closes deterministically and the file is saved right after
-private class AudioFileWriter(path: String, format: MediaFormat, private val sampleRate: Int, private val channels: Int) : AudioSink {
+private class AudioFileWriter(path: String, format: MediaFormat, private val sampleRate: Int, private val channels: Int, bitrateKbps: Int) : AudioSink {
     private val ref = memScoped {
         val fileFormat = alloc<AudioStreamBasicDescription>().apply {
             mSampleRate = sampleRate.toDouble()
@@ -697,6 +747,16 @@ private class AudioFileWriter(path: String, format: MediaFormat, private val sam
             mBytesPerPacket = (2 * channels).convert()
         }
         ExtAudioFileSetProperty(holder.value, kExtAudioFileProperty_ClientDataFormat, sizeOf<AudioStreamBasicDescription>().convert(), client.ptr)
+        if (format == MediaFormat.M4A && bitrateKbps > 0) {
+            val converter = alloc<AudioConverterRefVar>()
+            val size = alloc<UIntVar> { value = sizeOf<AudioConverterRefVar>().convert() }
+            ExtAudioFileGetProperty(holder.value, kExtAudioFileProperty_AudioConverter, size.ptr, converter.ptr)
+            val bitrate = alloc<UIntVar> { value = (bitrateKbps * 1000).convert() }
+            AudioConverterSetProperty(converter.value, kAudioConverterEncodeBitRate, sizeOf<UIntVar>().convert(), bitrate.ptr)
+            // the file's converter takes the new bitrate only once its configuration is reset
+            val config = alloc<COpaquePointerVar> { value = null }
+            ExtAudioFileSetProperty(holder.value, kExtAudioFileProperty_ConverterConfig, sizeOf<COpaquePointerVar>().convert(), config.ptr)
+        }
         holder.value
     }
 

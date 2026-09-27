@@ -346,7 +346,7 @@ private fun RulerScreen() {
         ) {
             val mm = measured?.div(pxPerMm)
             Text(
-                text = mm?.let { "${(it / 10).toDouble().fmt(2)} ${Res.string.unit_cm.str()} · ${(it / 25.4).fmt(2)} in" }
+                text = mm?.let { "${(it / 10).toDouble().fmt(2)} ${Res.string.unit_cm.str()} · ${(it / 25.4).fmt(2)} ${Res.string.unit_in.str()}" }
                     ?: Res.string.drag_across_the_ruler.str(),
                 style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.End,

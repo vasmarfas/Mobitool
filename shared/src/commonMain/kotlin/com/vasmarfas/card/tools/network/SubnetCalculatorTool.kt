@@ -96,7 +96,10 @@ private fun Ipv4Result(s: Ipv4Subnet) {
             if (s.isLinkLocal) add("link-local (APIPA)")
             if (s.isCgnat) add("CGNAT (RFC 6598)")
             if (s.isMulticast) add("multicast")
-            if (!s.isPrivate && !s.isLoopback && !s.isLinkLocal && !s.isCgnat && !s.isMulticast) add(Res.string.public.str())
+            if (s.isThisNetwork) add(Res.string.ip_this_network.str())
+            if (s.isReserved) add(Res.string.ip_reserved.str())
+            if (s.isBroadcast) add(Res.string.ip_limited_broadcast.str())
+            if (s.isPublic) add(Res.string.public.str())
         }.joinToString(", ")
         KeyValueRow(Res.string.type.str(), type, mono = false, copyable = false)
     }

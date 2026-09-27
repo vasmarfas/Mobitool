@@ -7,11 +7,16 @@ import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.developer.Base64Tools
 import com.vasmarfas.card.tools.developer.UrlCodec
 import io.ktor.client.plugins.timeout
-import io.ktor.client.request.request
+import io.ktor.client.request.prepareRequest
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
+import io.ktor.http.charset
+import io.ktor.utils.io.charsets.Charsets
+import io.ktor.utils.io.charsets.decode
+import io.ktor.utils.io.discard
+import io.ktor.utils.io.readBuffer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import org.jetbrains.compose.resources.StringResource
@@ -82,6 +87,7 @@ data class HttpExchange(
     val headers: List<Pair<String, String>>,
     val cookies: List<HttpCookie>,
     val body: String,
+    val truncated: Boolean,
 )
 
 object HttpQuery {
@@ -104,6 +110,8 @@ object HttpQuery {
 
 object HttpRequests {
     const val DEFAULT_TIMEOUT_MS = 30_000L
+
+    const val MAX_BODY_BYTES = 2L * 1024 * 1024
 
     private val bodyless = setOf("GET", "HEAD")
     private val directClient by lazy { Net.client.config { followRedirects = false } }
@@ -159,25 +167,31 @@ object HttpRequests {
     suspend fun execute(spec: HttpRequestSpec): HttpExchange {
         val client = if (spec.followRedirects) Net.client else directClient
         val started = currentEpochMillis()
-        val response = client.request(targetUrl(spec)) {
+        return client.prepareRequest(targetUrl(spec)) {
             this.method = HttpMethod.parse(spec.method)
             timeout { requestTimeoutMillis = spec.timeoutMs }
             requestHeaders(spec).forEach { (name, value) -> headers.append(name, value) }
             bodyText(spec)?.let { setBody(it) }
+        }.execute { response ->
+            val channel = response.bodyAsChannel()
+            val kept = channel.readBuffer(MAX_BODY_BYTES)
+            val keptBytes = kept.size
+            val size = keptBytes + channel.discard()
+            val text = (response.charset() ?: Charsets.UTF_8).newDecoder().decode(kept)
+            val elapsed = currentEpochMillis() - started
+            val received = response.headers.entries().flatMap { (name, values) -> values.map { name to it } }.sortedBy { it.first.lowercase() }
+            HttpExchange(
+                status = response.status.value,
+                statusText = response.status.description,
+                timeMs = elapsed,
+                sizeBytes = if (size == 0L) (response.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: 0L) else size,
+                contentType = response.headers[HttpHeaders.ContentType],
+                headers = received,
+                cookies = cookies(received),
+                body = text,
+                truncated = size > keptBytes,
+            )
         }
-        val text = response.bodyAsText()
-        val elapsed = currentEpochMillis() - started
-        val received = response.headers.entries().flatMap { (name, values) -> values.map { name to it } }.sortedBy { it.first.lowercase() }
-        return HttpExchange(
-            status = response.status.value,
-            statusText = response.status.description,
-            timeMs = elapsed,
-            sizeBytes = if (text.isEmpty()) (response.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: 0L) else text.encodeToByteArray().size.toLong(),
-            contentType = response.headers[HttpHeaders.ContentType],
-            headers = received,
-            cookies = cookies(received),
-            body = text,
-        )
     }
 }
 
@@ -190,7 +204,7 @@ object HttpRequestStore {
     private val savedSerializer = ListSerializer(SavedHttpRequest.serializer())
 
     fun history(): List<HttpHistoryEntry> =
-        runCatching { Prefs.store.get(HISTORY_KEY)?.let { Net.json.decodeFromString(historySerializer, it) } }.getOrNull() ?: emptyList()
+        runCatching { Prefs.store.get(HISTORY_KEY)?.let { Net.json.decodeFromString(historySerializer, it) } }.getOrNull()?.map(::withoutSecrets) ?: emptyList()
 
     fun saveHistory(list: List<HttpHistoryEntry>) = Prefs.store.put(HISTORY_KEY, Net.json.encodeToString(historySerializer, list))
 
@@ -200,9 +214,32 @@ object HttpRequestStore {
     fun saveAll(list: List<SavedHttpRequest>) = Prefs.store.put(SAVED_KEY, Net.json.encodeToString(savedSerializer, list))
 
     fun push(list: List<HttpHistoryEntry>, entry: HttpHistoryEntry): List<HttpHistoryEntry> {
-        val stripped = entry.copy(spec = entry.spec.copy(auth = entry.spec.auth.copy(token = "", user = "", password = "")))
+        val stripped = withoutSecrets(entry)
         return (listOf(stripped) + list.filterNot { it.spec.method == stripped.spec.method && it.spec.url == stripped.spec.url })
             .take(HISTORY_LIMIT)
+    }
+
+    private val secretNames = listOf("auth", "cookie", "key", "token", "secret", "pass", "session", "signature")
+
+    private val userInfo = Regex("^([A-Za-z][A-Za-z0-9+.-]*://)[^/?#@]*@")
+
+    private fun HttpField.blankIfSecret(): HttpField =
+        if (secretNames.any { key.contains(it, ignoreCase = true) }) copy(value = "") else this
+
+    private fun withoutSecrets(entry: HttpHistoryEntry): HttpHistoryEntry {
+        val spec = entry.spec
+        val query = spec.query.map { it.blankIfSecret() }
+        val url = if (query == spec.query) spec.url else HttpQuery.apply(spec.url, query)
+        return entry.copy(
+            spec = spec.copy(
+                url = userInfo.replace(url, "\$1"),
+                headers = spec.headers.map { it.blankIfSecret() },
+                query = query,
+                rawBody = "",
+                form = spec.form.map { it.copy(value = "") },
+                auth = spec.auth.copy(token = "", user = "", password = ""),
+            ),
+        )
     }
 }
 

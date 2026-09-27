@@ -2,6 +2,9 @@ package com.vasmarfas.card.tools.developer
 
 import com.vasmarfas.card.core.dotMatchesAll
 import com.vasmarfas.card.resources.*
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import org.jetbrains.compose.resources.StringResource
 
 data class RegexMatchInfo(
@@ -13,13 +16,33 @@ data class RegexMatchInfo(
 )
 
 data class RegexRunResult(
+    val text: String,
     val matches: List<RegexMatchInfo>,
     val error: String?,
     val replaced: String?,
+    val timedOut: Boolean = false,
 )
+
+private class RegexTimeout : RuntimeException()
+
+private class DeadlineText(private val text: CharSequence, private val deadline: TimeMark) : CharSequence {
+    private var reads = 0
+
+    override val length: Int get() = text.length
+
+    override fun get(index: Int): Char {
+        if ((++reads and 0xFFF) == 0 && deadline.hasPassedNow()) throw RegexTimeout()
+        return text[index]
+    }
+
+    override fun subSequence(startIndex: Int, endIndex: Int): CharSequence = text.subSequence(startIndex, endIndex)
+
+    override fun toString(): String = text.toString()
+}
 
 object RegexTester {
     const val MAX_MATCHES = 500
+    const val TIME_LIMIT_MS = 2_000L
 
     fun run(
         pattern: String,
@@ -29,7 +52,7 @@ object RegexTester {
         dotAll: Boolean,
         replacement: String?,
     ): RegexRunResult {
-        if (pattern.isEmpty()) return RegexRunResult(emptyList(), null, null)
+        if (pattern.isEmpty()) return RegexRunResult(text, emptyList(), null, null)
         val options = buildSet {
             if (ignoreCase) add(RegexOption.IGNORE_CASE)
             if (multiline) add(RegexOption.MULTILINE)
@@ -38,18 +61,23 @@ object RegexTester {
         val regex = try {
             Regex(pattern, options)
         } catch (e: Exception) {
-            return RegexRunResult(emptyList(), e.message ?: "Invalid pattern", null)
+            return RegexRunResult(text, emptyList(), reason(e), null)
         }
+        val input = DeadlineText(text, TimeSource.Monotonic.markNow() + TIME_LIMIT_MS.milliseconds)
         return try {
-            val matches = regex.findAll(text).take(MAX_MATCHES).mapIndexed { i, m ->
+            val matches = regex.findAll(input).take(MAX_MATCHES).mapIndexed { i, m ->
                 RegexMatchInfo(i, m.value, m.range.first, m.range.last + 1, m.groups.drop(1).map { it?.value })
             }.toList()
-            val replaced = replacement?.let { regex.replace(text, it) }
-            RegexRunResult(matches, null, replaced)
+            val replaced = replacement?.let { regex.replace(input, it) }
+            RegexRunResult(text, matches, null, replaced)
+        } catch (e: RegexTimeout) {
+            RegexRunResult(text, emptyList(), null, null, timedOut = true)
         } catch (e: Exception) {
-            RegexRunResult(emptyList(), e.message ?: "Invalid pattern", null)
+            RegexRunResult(text, emptyList(), reason(e), null)
         }
     }
+
+    private fun reason(e: Exception): String = e.message?.substringBefore('\n') ?: e.toString()
 
     val cheatSheet: List<Pair<String, StringResource>> = listOf(
         "." to Res.string.any_character_except_newline,

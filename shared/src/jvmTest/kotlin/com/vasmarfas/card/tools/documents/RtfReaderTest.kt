@@ -194,6 +194,7 @@ class RtfReaderTest {
             "${bs}f0 caf${bs}'e9 {${bs}f1 ${bs}'cf${bs}'f0${bs}'e8${bs}'e2${bs}'e5${bs}'f2} ${bs}uc2${bs}u1071${bs}'3f${bs}'3f${bs}u1071${bs}'3f${bs}'3f " +
             "${bs}uc1${bs}u-10179${bs}'3f${bs}u-8704${bs}'3f {${bs}f2${bs}'80} ${bs}{${bs}}${bs}${bs}${bs}par}"
         assertEquals("P \"café Привет ЯЯ 😀 € {}\\\\\"\n", blocks(rtf))
+        assertEquals("P \"ąć Łódź\"\n", blocks("{${bs}rtf1${bs}ansi${bs}ansicpg1250 ${bs}'b9${bs}'e6 ${bs}'a3${bs}'f3d${bs}'9f${bs}par}"))
     }
 
     @Test

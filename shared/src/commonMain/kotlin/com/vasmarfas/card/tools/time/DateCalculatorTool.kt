@@ -30,6 +30,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.pluralStringResource
 
 private enum class DateMode { DIFFERENCE, SHIFT, INFO }
 
@@ -135,10 +136,14 @@ private fun ShiftSection() {
     val amount = amountText.trim().toIntOrNull()
     if (date != null && amount != null) {
         val result = remember(date, amount, unit, subtract) { DateMath.shift(date, amount, unit, subtract) }
-        ResultCard {
-            KeyValueRow(Res.string.result.str(), result.iso())
-            KeyValueRow(Res.string.weekday.str(), result.dayOfWeek.title().str(), mono = false)
-            KeyValueRow(Res.string.days_from_today.str(), today().daysUntil(result).toString())
+        if (result == null) {
+            ErrorText(Res.string.date_out_of_range.str())
+        } else {
+            ResultCard {
+                KeyValueRow(Res.string.result.str(), result.iso())
+                KeyValueRow(Res.string.weekday.str(), result.dayOfWeek.title().str(), mono = false)
+                KeyValueRow(Res.string.days_from_today.str(), (result.toEpochDays() - today().toEpochDays()).toString())
+            }
         }
     }
 }
@@ -168,8 +173,8 @@ private fun InfoSection() {
             Res.string.relative_to_today.str(),
             when {
                 fromToday == 0 -> Res.string.today_relative.str()
-                fromToday > 0 -> "$fromToday ${Res.string.days_ahead.str()}"
-                else -> "${-fromToday} ${Res.string.days_ago.str()}"
+                fromToday > 0 -> pluralStringResource(Res.plurals.days_ahead, fromToday, fromToday)
+                else -> pluralStringResource(Res.plurals.days_ago, -fromToday, -fromToday)
             },
             mono = false,
             copyable = false,

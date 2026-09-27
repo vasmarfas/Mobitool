@@ -24,6 +24,15 @@ class WireGaugeTest {
     }
 
     @Test
+    fun ampacityComesFromAGaugeNoThickerThanTheWire() {
+        val sections = listOf(0.75, 1.5, 2.5, 4.0, 6.0, 10.0).map { WireGauge.notThicker(WireGauge.awgFromArea(it)).awg }
+        assertEquals(listOf(19, 16, 14, 12, 10, 8), sections)
+        assertEquals(22.0, WireGauge.notThicker(WireGauge.awgFromArea(1.5)).chassisAmps, 1e-9)
+        assertEquals(10, WireGauge.notThicker(WireGauge.awgFromDiameter(2.588)).awg)
+        assertEquals(-3, WireGauge.notThicker(WireGauge.awgFromArea(120.0)).awg)
+    }
+
+    @Test
     fun metricSections() {
         assertEquals(1.784, WireGauge.diameterFromArea(2.5), 0.001)
         assertEquals("13", WireGauge.nearest(WireGauge.awgFromArea(2.5)).label)

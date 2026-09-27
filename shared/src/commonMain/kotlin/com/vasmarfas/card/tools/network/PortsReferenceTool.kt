@@ -32,7 +32,7 @@ private fun PortsReferenceScreen() {
     ResultCard(title = "${rows.size}") {
         SimpleTable(
             header = listOf(Res.string.port.str(), Res.string.protocol.str(), Res.string.service.str(), Res.string.description.str()),
-            rows = rows.map { listOf(it.port.toString(), it.protocol, it.service, it.description) },
+            rows = rows.map { listOf(it.port.toString(), it.protocol, it.service, it.description.str()) },
             weights = listOf(0.7f, 0.7f, 1.3f, 3f),
             mono = false,
         )

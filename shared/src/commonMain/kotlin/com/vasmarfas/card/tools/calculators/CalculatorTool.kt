@@ -54,6 +54,7 @@ import com.vasmarfas.card.ui.components.ActionButton
 import com.vasmarfas.card.ui.components.CopyIconButton
 import com.vasmarfas.card.ui.components.ErrorText
 import com.vasmarfas.card.ui.components.ResultCard
+import org.jetbrains.compose.resources.stringResource
 
 private class HistoryEntry(val expression: String, val result: String)
 
@@ -101,7 +102,9 @@ private fun CalculatorScreen() {
 
     fun type(token: String) {
         val continues = token.first() in "+−×÷^!)"
-        replace(if (fresh && !continues) token else input + token)
+        val before = if (fresh && !continues) "" else input
+        val glue = if (token == "e" && before.lastOrNull()?.let { it.isLetterOrDigit() || it == '.' } == true) "×" else ""
+        replace(before + glue + token)
         fresh = false
     }
 
@@ -184,7 +187,7 @@ private fun CalculatorScreen() {
                     }
                 }
             }
-            failure?.let { ErrorText((it as? ExpressionException)?.error?.str() ?: it.message ?: Res.string.error.str()) }
+            failure?.let { ErrorText((it as? ExpressionException)?.let { e -> stringResource(e.error, *e.args) } ?: it.message ?: Res.string.error.str()) }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 functions.chunked(5).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -100,9 +100,10 @@ private fun GradientGeneratorScreen() {
     }
     val colors = parsed.filterNotNull()
     val angleInt = angle.roundToInt()
+    val (startX, startY) = Gradients.startOffset(angleInt, 600)
     val (endX, endY) = Gradients.endOffset(angleInt, 600)
     val brush = if (kind == GradientKind.LINEAR) {
-        Brush.linearGradient(colors.map { it.toColor() }, start = Offset(0f, 0f), end = Offset(endX.toFloat(), endY.toFloat()))
+        Brush.linearGradient(colors.map { it.toColor() }, start = Offset(startX.toFloat(), startY.toFloat()), end = Offset(endX.toFloat(), endY.toFloat()))
     } else {
         Brush.radialGradient(colors.map { it.toColor() })
     }

@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
@@ -36,6 +35,7 @@ import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
 import com.vasmarfas.card.ui.components.ToolInputField
 import com.vasmarfas.card.ui.components.monoFamily
+import org.jetbrains.compose.resources.pluralStringResource
 
 val programmerCalculatorTool = Tool(
     id = "programmer-calculator",
@@ -73,7 +73,7 @@ private fun ProgrammerCalculatorScreen() {
             b?.let { bText = ProgrammerMath.format(it, base, newBits) }
             bits = newBits
         },
-        label = { "$it bit" },
+        label = { "$it ${Res.string.unit_bit.str()}" },
     )
     ToolInputField(
         value = aText,
@@ -105,8 +105,8 @@ private fun ProgrammerCalculatorScreen() {
     val operandsValid = a != null && (op.unary || b != null)
     val result = if (a != null && operandsValid) ProgrammerMath.apply(op, a, b ?: 0L, bits) else null
     when {
-        a == null && aText.isNotBlank() -> ErrorText(Tr("A does not fit $bits bits in ${base.label}", "A не помещается в $bits бит в ${base.label}").str())
-        !op.unary && b == null && bText.isNotBlank() -> ErrorText(Tr("B does not fit $bits bits in ${base.label}", "B не помещается в $bits бит в ${base.label}").str())
+        a == null && aText.isNotBlank() -> ErrorText(pluralStringResource(Res.plurals.operand_does_not_fit, bits, "A", bits, base.label))
+        !op.unary && b == null && bText.isNotBlank() -> ErrorText(pluralStringResource(Res.plurals.operand_does_not_fit, bits, "B", bits, base.label))
         operandsValid && result == null -> ErrorText(Res.string.division_by_zero.str())
     }
     if (result != null) {

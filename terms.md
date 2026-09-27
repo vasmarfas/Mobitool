@@ -1,11 +1,11 @@
 # Terms of Use
 
-**Effective Date:** 2026-09-16
+**Effective Date:** 2026-09-27
 
-These Terms of Use ("Terms") govern your use of **vasmarfas** (the "App"), developed by vasmarfas
-("we," "our," or "us"): the website at vasmarfas.com and vasmarfas.ru and the applications for
-Android, iOS, Windows, macOS and Linux built from the same code. By using the site or installing the
-App, you agree to these Terms. If you don't agree, don't use it.
+These Terms of Use ("Terms") govern your use of **Mobitool** and the personal website **vasmarfas**
+(together, the "App"), developed by vasmarfas ("we," "our," or "us"): the website at vasmarfas.com and
+vasmarfas.ru and the applications for Android, iOS, Windows, macOS and Linux built from the same code.
+By using the site or installing the App, you agree to these Terms. If you don't agree, don't use it.
 
 ## 1. What the App does
 
@@ -33,13 +33,13 @@ Forking the project's repository to prepare and submit a pull request is the nor
 contribute, and these Terms don't restrict it. Beyond that, you agree not to:
 
 - rebrand a copy or a modified version of the App — give it a different name, icon or application
-  ID meant to present it as an independent app, or keep the vasmarfas name on one — and distribute
-  either to other users;
+  ID meant to present it as an independent app, or keep the Mobitool or vasmarfas name on one — and
+  distribute either to other users;
 - publish or ship a modified version of the App to other users as a standalone alternative (an app
   store listing, a separate release, a built package handed out to people who aren't contributing to
   it) rather than as a contribution in progress;
-- represent a modified or unofficial version of the App as being the vasmarfas project, or as being
-  endorsed by, affiliated with or supported by us;
+- represent a modified or unofficial version of the App as being Mobitool or the vasmarfas project,
+  or as being endorsed by, affiliated with or supported by us;
 - use the App for any commercial purpose without our prior written permission;
 - use the network tools against networks, hosts or services that you do not own or are not
   authorised to test. Port scanning, host discovery, Wake-on-LAN and similar actions directed at

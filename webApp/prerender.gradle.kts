@@ -83,7 +83,11 @@ fun page(lang: String): String {
     }
     val support = links.firstOrNull { it["type"] == "support" }?.let { """<p class="pre-muted">${s.getValue("support_projects")} ${anchor(it)}</p>""" }.orEmpty()
     val articles = (profile["articles"] as List<Map<String, Any?>>).sortedByDescending { it["date"].toString() }.take(3).joinToString("") { article ->
-        val views = article["views"]?.let { " · ${esc(it.toString())} ${s.getValue("views")}" }.orEmpty()
+        val views = article["views"]?.toString()?.let { count ->
+            val forms = plurals.getValue(lang).getValue("views_count")
+            val form = forms[quantity(countOf(count), lang)] ?: forms.getValue("other")
+            " · ${form.replace("%1\$s", esc(count))}"
+        }.orEmpty()
         """<li><a href="${esc(article["url"].toString())}">${esc(tr(article["title"], lang))}</a><br><span class="pre-muted">${esc(article["date"].toString())}$views</span></li>"""
     }
     val services = (profile["services"] as List<Map<String, Any?>>? ?: emptyList()).filter { it["active"] != false }.joinToString("") { service ->

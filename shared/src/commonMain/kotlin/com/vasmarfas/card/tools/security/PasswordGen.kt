@@ -1,9 +1,10 @@
 package com.vasmarfas.card.tools.security
 
-import com.vasmarfas.card.core.Tr
 import com.vasmarfas.card.core.secureRandomBytes
+import com.vasmarfas.card.resources.*
 import kotlin.math.ln
 import kotlin.math.pow
+import org.jetbrains.compose.resources.StringResource
 
 data class CharSets(
     val lower: Boolean = true,
@@ -40,6 +41,17 @@ object PasswordGen {
             var v = 0
             for (b in bytes) v = (v shl 8) or (b.toInt() and 0xFF)
             v = v and Int.MAX_VALUE
+            if (v < limit) return v % bound
+        }
+    }
+
+    fun randomLong(bound: Long): Long {
+        if (bound <= 1) return 0
+        val limit = Long.MAX_VALUE - (Long.MAX_VALUE % bound)
+        while (true) {
+            var v = 0L
+            for (b in secureRandomBytes(8)) v = (v shl 8) or (b.toLong() and 0xFF)
+            v = v and Long.MAX_VALUE
             if (v < limit) return v % bound
         }
     }
@@ -85,25 +97,12 @@ object PasswordGen {
 
     fun crackTimeSeconds(bits: Double, guessesPerSecond: Double): Double = 2.0.pow(bits - 1) / guessesPerSecond
 
-    fun crackTimeLabel(seconds: Double): Tr = when {
-        seconds < 1 -> Tr("instantly", "мгновенно")
-        seconds < 60 -> Tr("${seconds.toLong()} seconds", "${seconds.toLong()} с")
-        seconds < 3600 -> Tr("${(seconds / 60).toLong()} minutes", "${(seconds / 60).toLong()} мин")
-        seconds < 86_400 -> Tr("${(seconds / 3600).toLong()} hours", "${(seconds / 3600).toLong()} ч")
-        seconds < 2_592_000 -> Tr("${(seconds / 86_400).toLong()} days", "${(seconds / 86_400).toLong()} дн")
-        seconds < 31_536_000 -> Tr("${(seconds / 2_592_000).toLong()} months", "${(seconds / 2_592_000).toLong()} мес")
-        seconds < 31_536_000_000.0 -> Tr("${(seconds / 31_536_000).toLong()} years", "${(seconds / 31_536_000).toLong()} лет")
-        seconds < 31_536_000_000_000.0 -> Tr("${(seconds / 31_536_000_000.0).toLong()} thousand years", "${(seconds / 31_536_000_000.0).toLong()} тыс. лет")
-        seconds < 3.1536e16 -> Tr("${(seconds / 31_536_000_000_000.0).toLong()} million years", "${(seconds / 31_536_000_000_000.0).toLong()} млн лет")
-        else -> Tr("longer than the age of the universe", "дольше возраста Вселенной")
-    }
-
-    fun strengthLabel(bits: Double): Tr = when {
-        bits < 28 -> Tr("very weak", "очень слабый")
-        bits < 36 -> Tr("weak", "слабый")
-        bits < 60 -> Tr("reasonable", "приемлемый")
-        bits < 80 -> Tr("strong", "надёжный")
-        bits < 128 -> Tr("very strong", "очень надёжный")
-        else -> Tr("excessive", "избыточный")
+    fun strengthLabel(bits: Double): StringResource = when {
+        bits < 28 -> Res.string.strength_very_weak
+        bits < 36 -> Res.string.strength_weak
+        bits < 60 -> Res.string.strength_reasonable
+        bits < 80 -> Res.string.strength_strong
+        bits < 128 -> Res.string.strength_very_strong
+        else -> Res.string.strength_excessive
     }
 }

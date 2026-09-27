@@ -5,6 +5,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlin.math.roundToInt
 
 private fun jsSensorsInit(): Unit = js(
     """{
@@ -12,7 +13,9 @@ private fun jsSensorsInit(): Unit = js(
         var s = { hasOrientation: false, hasMotion: false, alpha: NaN, beta: NaN, gamma: NaN, absolute: false, heading: NaN,
                   ax: NaN, ay: NaN, az: NaN, gx: NaN, gy: NaN, gz: NaN, rx: NaN, ry: NaN, rz: NaN, t: 0 };
         window.__sensors = s;
+        // Chromium fires both events, and alpha of the relative one points somewhere other than north
         var onOrientation = function (e) {
+            if (s.absolute && !e.absolute) return;
             s.hasOrientation = true;
             s.alpha = e.alpha; s.beta = e.beta; s.gamma = e.gamma; s.absolute = !!e.absolute;
             if (typeof e.webkitCompassHeading === 'number') s.heading = e.webkitCompassHeading;
@@ -130,9 +133,11 @@ private fun jsScreenInfo(): String = js("(screen.width + 'x' + screen.height + '
 private fun jsMicStart(): Unit = js(
     """{
         if (window.__mic && window.__mic.active) return;
+        var token = window.__micToken = (window.__micToken || 0) + 1;
         window.__mic = { level: NaN, active: false, error: '' };
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { window.__mic.error = 'unsupported'; return; }
-        navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+        navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }).then(function (stream) {
+            if (window.__micToken !== token) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
             var ctx = new (window.AudioContext || window.webkitAudioContext)();
             var source = ctx.createMediaStreamSource(stream);
             var analyser = ctx.createAnalyser();
@@ -146,12 +151,13 @@ private fun jsMicStart(): Unit = js(
                 var rms = Math.sqrt(sum / data.length);
                 m.level = 20 * Math.log10(Math.max(rms, 1e-9)) + 90;
             }, 50);
-        }).catch(function (e) { window.__mic.error = (e && e.message) || 'denied'; });
+        }).catch(function (e) { if (window.__micToken === token) window.__mic.error = String(e && e.name ? e.name : e); });
     }"""
 )
 
 private fun jsMicStop(): Unit = js(
     """{
+        window.__micToken = (window.__micToken || 0) + 1;
         var m = window.__mic; if (!m) return;
         if (m.timer) clearInterval(m.timer);
         if (m.stream) m.stream.getTracks().forEach(function (t) { t.stop(); });
@@ -172,12 +178,15 @@ private fun jsTorch(on: Boolean): Unit = js(
     """{
         window.__torch = window.__torch || {};
         var t = window.__torch;
+        var token = t.token = (t.token || 0) + 1;
         if (!on) {
             if (t.track) { try { t.track.applyConstraints({ advanced: [{ torch: false }] }); } catch (e) {} t.track.stop(); t.track = null; }
             return;
         }
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { t.error = 'unsupported'; return; }
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function (stream) {
+            if (t.token !== token) { stream.getTracks().forEach(function (s) { s.stop(); }); return; }
+            if (t.track) t.track.stop();
             var track = stream.getVideoTracks()[0];
             t.track = track;
             track.applyConstraints({ advanced: [{ torch: true }] }).catch(function (e) { t.error = 'no torch'; });
@@ -307,7 +316,7 @@ actual suspend fun batteryInfo(): BatteryInfo? {
             val chargingTime = jsBatteryValue("chargingTime")
             val dischargingTime = jsBatteryValue("dischargingTime")
             return BatteryInfo(
-                (level * 100).toInt(),
+                (level * 100).roundToInt(),
                 charging,
                 buildList {
                     add("Status" to if (charging) "charging" else "discharging")
