@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
@@ -205,14 +207,16 @@ fun ToolScreen(toolId: String, onBack: () -> Unit) {
                 }
             }
             if (chrome.immersive) {
-                FilledTonalIconButton(
-                    onClick = { chrome.immersive = false },
-                    modifier = Modifier.align(Alignment.TopStart).padding(12.dp).pointerHoverIcon(PointerIcon.Hand),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
-                    ),
-                ) {
-                    Icon(Icons.Filled.CloseFullscreen, contentDescription = Res.string.exit_fullscreen.str())
+                Box(Modifier.align(Alignment.TopCenter).widthIn(max = PageMaxWidth).fillMaxWidth()) {
+                    FilledTonalIconButton(
+                        onClick = { chrome.immersive = false },
+                        modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).pointerHoverIcon(PointerIcon.Hand),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
+                        ),
+                    ) {
+                        Icon(Icons.Filled.CloseFullscreen, contentDescription = Res.string.exit_fullscreen.str())
+                    }
                 }
             }
         }

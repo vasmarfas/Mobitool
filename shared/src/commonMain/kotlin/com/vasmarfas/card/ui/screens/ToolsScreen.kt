@@ -1,5 +1,7 @@
 package com.vasmarfas.card.ui.screens
 
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,8 +60,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -130,11 +135,10 @@ private fun Shelf.tools(favorites: List<String>): List<Tool> = when (this) {
 }
 
 @Composable
-fun ToolsScreen(onOpenTool: (id: String, source: String) -> Unit) {
+fun ToolsScreen(category: String?, onCategoryChange: (String?) -> Unit, onOpenTool: (id: String, source: String) -> Unit) {
     val settings = LocalSettings.current
     var query by rememberSaveable { mutableStateOf("") }
-    var shelfKey by rememberSaveable { mutableStateOf<String?>(null) }
-    val shelf = shelves.firstOrNull { it.key == shelfKey }
+    val shelf = shelves.firstOrNull { it.key == category }
     val browsing = query.isBlank() && shelf == null
     val filtered = remember(query, shelf, settings.myTools) {
         val q = query.trim()
@@ -147,8 +151,9 @@ fun ToolsScreen(onOpenTool: (id: String, source: String) -> Unit) {
     val compact = LocalLayoutSize.current == LayoutSize.COMPACT
     // a new shelf or query starts from the top, the restored values on the way back from a tool are not a new choice
     val grid = rememberLazyGridState()
+    val shownCategory by rememberUpdatedState(category)
     LaunchedEffect(grid) {
-        snapshotFlow { shelfKey to query }.drop(1).collect { grid.scrollToItem(0) }
+        snapshotFlow { shownCategory to query }.drop(1).collect { grid.scrollToItem(0) }
     }
     val results by rememberUpdatedState(filtered.size)
     LaunchedEffect(Unit) {
@@ -167,7 +172,7 @@ fun ToolsScreen(onOpenTool: (id: String, source: String) -> Unit) {
     }
     val open = { id: String -> onOpenTool(id, source) }
     val select = { key: String? ->
-        shelfKey = key
+        onCategoryChange(key)
         key?.let { Analytics.log(AnalyticsEvent.CATALOG_FILTER, mapOf(AnalyticsParam.CATEGORY to it)) }
     }
     NavigationBackHandler(
@@ -175,7 +180,7 @@ fun ToolsScreen(onOpenTool: (id: String, source: String) -> Unit) {
         isBackEnabled = shelf != null || query.isNotEmpty(),
         onBackCompleted = {
             query = ""
-            shelfKey = null
+            select(null)
         },
     )
 
@@ -234,7 +239,7 @@ fun ToolsScreen(onOpenTool: (id: String, source: String) -> Unit) {
                                     text = Res.string.reset_search.str(),
                                     onClick = {
                                         query = ""
-                                        shelfKey = null
+                                        select(null)
                                     },
                                 )
                             }
@@ -264,11 +269,15 @@ private fun CatalogHeader(
     onToggleExpanded: () -> Unit,
 ) {
     val categories = remember { listOf<Shelf?>(null) + shelves }
-    val chips = rememberLazyListState()
-    LaunchedEffect(selected) {
+    val peek = with(LocalDensity.current) { 48.dp.roundToPx() }
+    val chips = rememberLazyListState(categories.indexOf(selected))
+    val label = selected?.title()
+    LaunchedEffect(selected, label) {
         val index = categories.indexOf(selected)
-        if (index >= 0) chips.animateScrollToItem(index)
+        // the web gets the labels a frame late, a position counted from the narrower chips would drift once they arrive
+        if (index >= 0 && label != "") chips.animateScrollToItem(index, -peek)
     }
+    var mouse by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Column(
             modifier = Modifier.widthIn(max = ContentMaxWidth).fillMaxWidth(),
@@ -291,7 +300,14 @@ private fun CatalogHeader(
                 } else {
                     LazyRow(
                         state = chips,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .pointerInput(Unit) {
+                                awaitPointerEventScope {
+                                    while (true) mouse = awaitPointerEvent(PointerEventPass.Initial).changes.first().type == PointerType.Mouse
+                                }
+                            }
+                            .scrollable(chips, Orientation.Vertical, enabled = mouse, reverseDirection = true),
                         contentPadding = PaddingValues(start = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {

@@ -3113,11 +3113,11 @@
     <string name="mat_peek">PEEK</string>
     <string name="mat_pcl">PCL (low temperature)</string>
     <string name="mat_pla_cf_15">PLA-CF carbon fiber</string>
-    <string name="mat_pla_ceramic">PLA 40% ceramic</string>
+    <string name="mat_pla_marble">PLA marble</string>
     <string name="mat_pla_glow">PLA glow in the dark</string>
     <string name="mat_pla_copper">PLA 80% copper</string>
     <string name="mat_pla_bronze">PLA 80% bronze</string>
-    <string name="mat_pla_steel">PLA 60% steel</string>
+    <string name="mat_pla_steel">PLA + steel</string>
     <string name="mat_petg_cf_20">PETG-CF 20% carbon</string>
     <string name="mat_petg_gf_20">PETG-GF glass fiber</string>
     <string name="mat_abs_cf_20">ABS-CF carbon fiber</string>
@@ -3126,8 +3126,8 @@
     <string name="mat_pa6_gf_30">PA6-GF 30% glass</string>
     <string name="mat_pa12_cf_15">PA12-CF 15% carbon</string>
     <string name="mat_pc_cf_20">PC-CF 20% carbon</string>
-    <string name="mat_pps_cf_20">PPS-CF 20% carbon</string>
-    <string name="mat_pei_cf_20">PEI-CF 20% carbon</string>
+    <string name="mat_pps_cf_20">PPS-CF carbon fiber</string>
+    <string name="mat_pei_cf_20">PEI-CF carbon fiber</string>
     <string name="mat_peek_cf_30">PEEK-CF 30% carbon</string>
     <string name="mat_pva">PVA (water soluble)</string>
     <string name="mat_bvoh">BVOH (water soluble)</string>
@@ -4831,5 +4831,5 @@
     <string name="filament_col_drying">Drying</string>
     <string name="filament_col_flow">Flow, mm³/s</string>
     <string name="filament_drying_value">%1$d °C, %2$s h</string>
-    <string name="filament_detailed_legend">HDT is the temperature at which a loaded bar starts to bend: 0.45 MPa is a light load, 1.8 MPa a heavy one. Flexible plastics have a low HDT by nature, so their holds-shape figure comes from softening. Tg, the glass transition, is where the plastic turns from hard to soft. Tensile and flexural are the stress a bar takes before it breaks when pulled or bent. Modulus is stiffness: the higher it is, the less a part bends. Elongation is how far a bar stretches before it breaks. Impact is notched Charpy toughness: the higher it is, the better a part takes knocks. Water is how much moisture the plastic takes up from the air, and flow is how many cubic millimetres a 0.4 mm hotend melts per second, which caps the print speed. The figures are medians over the makers' data sheets for bars printed flat, a given brand will differ.</string>
+    <string name="filament_detailed_legend">HDT is the temperature at which a loaded bar starts to bend: 0.45 MPa is a light load, 1.8 MPa a heavy one. For PLA HT, fiber-filled nylon, PPS-CF and PEEK-CF the data sheets give HDT after annealing, without it a part holds its shape up to the figure in the simple table. Flexible plastics have a low HDT by nature, so their holds-shape figure comes from softening. Tg, the glass transition, is where the plastic turns from hard to soft. Tensile and flexural are the stress a bar takes before it breaks when pulled or bent. Modulus is stiffness: the higher it is, the less a part bends. Elongation is how far a bar stretches before it breaks. Impact is notched Charpy toughness: the higher it is, the better a part takes knocks. Water is how much moisture the plastic takes up from the air until saturation at 25 °C and 55% humidity. For high-temperature plastics and some filled ones the makers measure it in water, and those figures do not compare directly with the rest. Flow is how many cubic millimetres a 0.4 mm hotend melts per second, which caps the print speed. The figures are medians over the makers' data sheets for bars printed flat, a given brand will differ. A dash means one of two things. Either the property does not apply: elastomers do not break in bending, HDT at 1.8 MPa is not measured for them, and soluble supports get no mechanical tests. Or no maker publishes the figure, as with HDT for metal-filled PLA.</string>
 </resources>

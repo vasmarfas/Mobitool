@@ -1,6 +1,8 @@
 package com.vasmarfas.card
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -353,7 +355,16 @@ private fun AppNavHost(
                 }
                 composable<ProjectsRoute> { ProjectsScreen(projectsTab) { projectsTab = it } }
                 composable<ResumeRoute> { ResumeScreen() }
-                composable<ToolsRoute> { ToolsScreen(onOpenTool = openTool) }
+                composable<ToolsRoute>(
+                    enterTransition = { if (initialState.destination.hasRoute(ToolsRoute::class)) EnterTransition.None else fadeThroughIn() },
+                    exitTransition = { if (targetState.destination.hasRoute(ToolsRoute::class)) ExitTransition.None else fadeOut(tween(NavFadeOut)) },
+                ) { entry ->
+                    ToolsScreen(
+                        category = entry.toRoute<ToolsRoute>().category,
+                        onCategoryChange = { navController.navigate(ToolsRoute(it)) { launchSingleTop = true } },
+                        onOpenTool = openTool,
+                    )
+                }
                 composable<ToolRoute>(
                     enterTransition = {
                         fadeIn(tween(NavFadeIn, delayMillis = NavFadeOut)) +
@@ -373,10 +384,10 @@ private fun AppNavHost(
         LaunchedEffect(navController) { onNavHostReady(navController) }
         LaunchedEffect(navController, linkRoute) {
             if (linkRoute == null) return@LaunchedEffect
-            if (linkRoute is ToolRoute) {
-                openTool(linkRoute.id, "link")
-            } else {
-                TopDestination.entries.firstOrNull { it.route == linkRoute }?.let(onNavigateTop)
+            when {
+                linkRoute is ToolRoute -> openTool(linkRoute.id, "link")
+                linkRoute is ToolsRoute && linkRoute.category != null -> navController.navigate(linkRoute) { launchSingleTop = true }
+                else -> TopDestination.entries.firstOrNull { it.route == linkRoute }?.let(onNavigateTop)
             }
             onLinkHandled()
         }

@@ -39,7 +39,7 @@ data object ResumeRoute
 
 @Serializable
 @SerialName("tools")
-data object ToolsRoute
+data class ToolsRoute(val category: String? = null)
 
 @Serializable
 @SerialName("tool")
@@ -60,7 +60,7 @@ enum class TopDestination(
     HOME(HomeRoute, Res.string.home, Icons.Outlined.Home, Icons.Filled.Home, "home"),
     PROJECTS(ProjectsRoute, Res.string.projects, Icons.Outlined.Widgets, Icons.Filled.Widgets, "projects"),
     RESUME(ResumeRoute, Res.string.resume_page, Icons.Outlined.Description, Icons.Filled.Description, "resume"),
-    TOOLS(ToolsRoute, Res.string.tools_short, Icons.Outlined.Build, Icons.Filled.Build, "tools"),
+    TOOLS(ToolsRoute(), Res.string.tools_short, Icons.Outlined.Build, Icons.Filled.Build, "tools"),
     SETTINGS(SettingsRoute, Res.string.settings, Icons.Outlined.Settings, Icons.Filled.Settings, "settings"),
     ;
 
@@ -85,18 +85,28 @@ enum class TopDestination(
 
 object UrlRoutes {
     const val TOOL_PREFIX = "tools/"
+    private const val CATEGORY_PARAM = "category="
 
     fun fragmentFor(destination: TopDestination): String = "#${destination.urlFragment}"
 
     fun fragmentForTool(id: String): String = "#$TOOL_PREFIX$id"
 
+    fun fragmentForCatalog(category: String?): String =
+        fragmentFor(TopDestination.TOOLS) + category?.let { "?$CATEGORY_PARAM$it" }.orEmpty()
+
     fun parse(fragment: String): Any? {
-        val f = fragment.trim().trimStart('#').trim('/')
-        if (f.isEmpty()) return null
-        if (f.startsWith(TOOL_PREFIX)) {
-            val id = f.removePrefix(TOOL_PREFIX).substringBefore('/').substringBefore('?')
-            return if (id.isNotBlank()) ToolRoute(id) else ToolsRoute
+        val f = fragment.trim().trimStart('#')
+        val path = f.substringBefore('?').trim('/')
+        if (path.startsWith(TOOL_PREFIX)) {
+            val id = path.removePrefix(TOOL_PREFIX).substringBefore('/')
+            if (id.isNotBlank()) return ToolRoute(id)
         }
-        return TopDestination.entries.firstOrNull { it.urlFragment == f.substringBefore('/') }?.route
+        return when (val route = TopDestination.entries.firstOrNull { it.urlFragment == path.substringBefore('/') }?.route) {
+            is ToolsRoute -> {
+                val category = f.substringAfter('?', "").split('&').firstOrNull { it.startsWith(CATEGORY_PARAM) }
+                ToolsRoute(category?.removePrefix(CATEGORY_PARAM)?.ifEmpty { null })
+            }
+            else -> route
+        }
     }
 }

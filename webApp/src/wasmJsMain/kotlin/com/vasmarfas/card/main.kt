@@ -9,6 +9,7 @@ import androidx.navigation.bindToBrowserNavigation
 import androidx.navigation.toRoute
 import com.vasmarfas.card.core.hideWebSplash
 import com.vasmarfas.card.ui.navigation.ToolRoute
+import com.vasmarfas.card.ui.navigation.ToolsRoute
 import com.vasmarfas.card.ui.navigation.TopDestination
 import com.vasmarfas.card.ui.navigation.UrlRoutes
 import kotlinx.browser.window
@@ -26,6 +27,7 @@ fun main() {
                 val destination = entry.destination
                 when {
                     destination.hasRoute(ToolRoute::class) -> UrlRoutes.fragmentForTool(entry.toRoute<ToolRoute>().id)
+                    destination.hasRoute(ToolsRoute::class) -> UrlRoutes.fragmentForCatalog(entry.toRoute<ToolsRoute>().category)
                     else -> TopDestination.entries.firstOrNull { destination.hasRoute(it.route::class) }
                         ?.let { UrlRoutes.fragmentFor(it) } ?: ""
                 }
@@ -37,10 +39,7 @@ fun main() {
 private fun navigateToFragment(navController: NavController, fragment: String) {
     val route = UrlRoutes.parse(fragment) ?: return
     val current = navController.currentBackStackEntry
-    val alreadyThere = when (route) {
-        is ToolRoute -> current?.destination?.hasRoute(ToolRoute::class) == true && current.toRoute<ToolRoute>().id == route.id
-        else -> current?.destination?.hasRoute(route::class) == true
-    }
+    val alreadyThere = current?.destination?.hasRoute(route::class) == true && current.toRoute<Any>(route::class) == route
     if (alreadyThere) return
     when (route) {
         is ToolRoute -> {

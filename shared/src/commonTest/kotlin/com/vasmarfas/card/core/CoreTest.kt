@@ -126,8 +126,8 @@ class UrlRoutesTest {
     @Test
     fun parsesFragments() {
         assertEquals(HomeRoute, UrlRoutes.parse("#home"))
-        assertEquals(ToolsRoute, UrlRoutes.parse("#tools"))
-        assertEquals(ToolsRoute, UrlRoutes.parse("#tools/"))
+        assertEquals(ToolsRoute(), UrlRoutes.parse("#tools"))
+        assertEquals(ToolsRoute(), UrlRoutes.parse("#tools/"))
         assertEquals(ToolRoute("ping"), UrlRoutes.parse("#tools/ping"))
         assertEquals(ToolRoute("dns-lookup"), UrlRoutes.parse("tools/dns-lookup?x=1"))
         assertNull(UrlRoutes.parse(""))
@@ -135,7 +135,17 @@ class UrlRoutesTest {
     }
 
     @Test
+    fun parsesCatalogCategory() {
+        assertEquals(ToolsRoute("documents"), UrlRoutes.parse("#tools?category=documents"))
+        assertEquals(ToolsRoute("popular"), UrlRoutes.parse("#tools/?x=1&category=popular"))
+        assertEquals(ToolsRoute(), UrlRoutes.parse("#tools?category="))
+        assertEquals(ToolsRoute(), UrlRoutes.parse("#tools//"))
+    }
+
+    @Test
     fun buildsFragments() {
         assertEquals("#tools/ping", UrlRoutes.fragmentForTool("ping"))
+        assertEquals("#tools", UrlRoutes.fragmentForCatalog(null))
+        assertEquals("#tools?category=network", UrlRoutes.fragmentForCatalog("network"))
     }
 }
