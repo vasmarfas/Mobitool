@@ -4819,6 +4819,8 @@
     <string name="filament_no_data">no data</string>
     <string name="filament_not_tested">not tested</string>
     <string name="filament_search">Search by name</string>
+    <string name="filament_grid">Grid view</string>
+    <string name="filament_grid_hint">The name stays on the left, the other columns scroll sideways</string>
     <string name="filament_col_density">Density, g/cm³</string>
     <string name="filament_col_hdt_low">HDT 0.45 MPa, °C</string>
     <string name="filament_col_hdt_high">HDT 1.8 MPa, °C</string>

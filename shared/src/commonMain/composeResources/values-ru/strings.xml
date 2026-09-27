@@ -4947,6 +4947,8 @@
     <string name="filament_no_data">нет данных</string>
     <string name="filament_not_tested">не измеряют</string>
     <string name="filament_search">Поиск по названию</string>
+    <string name="filament_grid">Табличный вид</string>
+    <string name="filament_grid_hint">Название остаётся слева, остальные колонки листаются вбок</string>
     <string name="filament_col_density">Плотность, г/см³</string>
     <string name="filament_col_hdt_low">HDT 0,45 МПа, °C</string>
     <string name="filament_col_hdt_high">HDT 1,8 МПа, °C</string>

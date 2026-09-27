@@ -13,6 +13,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.str
+import com.vasmarfas.card.data.LocalSettings
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
@@ -212,8 +213,11 @@ private fun Int?.gigapascals(none: String): String = this?.let { (it / 1000.0).f
 
 @Composable
 private fun FilamentTable(view: GuideView) {
+    val wideTables = LocalSettings.current.wideTables
+    var grid by rememberSaveable { mutableStateOf(wideTables) }
     var group by rememberSaveable { mutableStateOf(FilamentGroup.BASIC) }
     var query by rememberSaveable { mutableStateOf("") }
+    SwitchRow(Res.string.filament_grid.str(), grid, { grid = it }, description = Res.string.filament_grid_hint.str())
     ToolInputField(value = query, onValueChange = { query = it }, label = Res.string.filament_search.str())
     ChoiceChips(options = FilamentGroup.entries, selected = group, onSelect = { group = it; query = "" }, label = { it.title.str() })
     val q = query.trim().replace('-', ' ').replace('_', ' ')
@@ -257,6 +261,7 @@ private fun FilamentTable(view: GuideView) {
                 )
             },
             mono = false,
+            wide = grid,
         )
         Hint(Res.string.filament_table_hint.str())
         return
@@ -303,6 +308,7 @@ private fun FilamentTable(view: GuideView) {
             )
         },
         mono = false,
+        wide = grid,
     )
     Hint(Res.string.filament_detailed_legend.str())
 }
