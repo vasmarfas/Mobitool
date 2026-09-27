@@ -110,7 +110,7 @@ object Filaments {
         FilamentMaterial.PP to FilamentTraits(ENGINEERING, 59, 1, 5, 3, 2, 2, 2, 4, 3, NONE),
         FilamentMaterial.PMMA to FilamentTraits(ENGINEERING, 99, 4, 1, 1, 2, 3, 5, 2, 3, CLOSED, setOf(OUTDOOR)),
         FilamentMaterial.POM to FilamentTraits(ENGINEERING, 110, 4, 3, 2, 1, 2, 2, 4, 3, HEATED, setOf(FUMES)),
-        FilamentMaterial.PHA to FilamentTraits(BASIC, 55, 2, 2, 2, 3, 2, 2, 2, 4, NONE),
+        FilamentMaterial.PHA to FilamentTraits(BASIC, 117, 2, 2, 2, 3, 2, 2, 2, 4, NONE),
         FilamentMaterial.TPU to FilamentTraits(FLEXIBLE, 80, 2, 5, 4, 3, 2, 2, 3, 2, NONE, setOf(DRY)),
         FilamentMaterial.TPU_85A to FilamentTraits(FLEXIBLE, 70, 2, 5, 5, 2, 1, 2, 3, 3, NONE, setOf(DRY)),
         FilamentMaterial.TPE to FilamentTraits(FLEXIBLE, 55, 1, 5, 5, 2, 2, 4, 3, 3, NONE),

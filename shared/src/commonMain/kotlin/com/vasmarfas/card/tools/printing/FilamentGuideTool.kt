@@ -119,6 +119,7 @@ private fun FilamentPicker(view: GuideView) {
             )
         } else {
             val noBreak = Res.string.filament_no_break.str()
+            val none = Res.string.filament_no_data.str()
             SimpleTable(
                 header = listOf(
                     Res.string.material.str(),
@@ -135,9 +136,9 @@ private fun FilamentPicker(view: GuideView) {
                         "${index + 1}. ${match.material.title.str()}",
                         reasons(match.traits, needs).joinToString(", "),
                         match.traits.softeningC.toString(),
-                        spec?.tensileMpa.shown(0),
-                        spec?.modulusMpa.gigapascals(),
-                        spec?.impactKj.impact(noBreak),
+                        spec?.tensileMpa.shown(0, none),
+                        spec?.modulusMpa.gigapascals(none),
+                        spec?.impactKj.shown(1, none, noBreak),
                         temps(match.material),
                     )
                 },
@@ -199,17 +200,15 @@ private fun tableNotes(t: FilamentTraits): List<String> = buildList {
 
 private fun dots(score: Int): String = "●".repeat(score) + "○".repeat(5 - score)
 
-private fun Double?.shown(fraction: Int): String = this?.fmt(fraction) ?: "—"
-
-private fun Int?.shown(): String = this?.toString() ?: "—"
-
-private fun Int?.gigapascals(): String = this?.let { (it / 1000.0).fmt(if (it < 100) 3 else 2) } ?: "—"
-
-private fun Double?.impact(noBreak: String): String = when (this) {
-    null -> "—"
+private fun Double?.shown(fraction: Int, none: String, noBreak: String = none): String = when (this) {
+    null -> none
     NO_BREAK -> noBreak
-    else -> fmt(1)
+    else -> fmt(fraction)
 }
+
+private fun Int?.shown(none: String): String = this?.toString() ?: none
+
+private fun Int?.gigapascals(none: String): String = this?.let { (it / 1000.0).fmt(if (it < 100) 3 else 2) } ?: none
 
 @Composable
 private fun FilamentTable(view: GuideView) {
@@ -263,6 +262,8 @@ private fun FilamentTable(view: GuideView) {
         return
     }
     val noBreak = Res.string.filament_no_break.str()
+    val none = Res.string.filament_no_data.str()
+    val untested = Res.string.filament_not_tested.str()
     SimpleTable(
         header = listOf(
             Res.string.material.str(),
@@ -282,22 +283,23 @@ private fun FilamentTable(view: GuideView) {
         ),
         rows = materials.map { material ->
             val spec = filamentSpecs[material]
-            val drying = if (spec?.dryC != null && spec.dryHours != null) stringResource(Res.string.filament_drying_value, spec.dryC, spec.dryHours.fmt(1)) else "—"
+            val drying = if (spec?.dryC != null && spec.dryHours != null) stringResource(Res.string.filament_drying_value, spec.dryC, spec.dryHours.fmt(1)) else none
+            val flexible = Filaments.traits.getValue(material).group == FilamentGroup.FLEXIBLE
             listOf(
                 material.title.str(),
                 material.density.fmt(2),
-                spec?.hdtLowC.shown(),
-                spec?.hdtHighC.shown(),
-                spec?.glassC.shown(),
-                spec?.tensileMpa.shown(0),
-                spec?.modulusMpa.gigapascals(),
-                spec?.elongationPct.shown(1),
-                spec?.flexuralMpa.shown(0),
-                spec?.impactKj.impact(noBreak),
-                spec?.hardness ?: "—",
-                spec?.waterPct.shown(2),
+                spec?.hdtLowC.shown(none),
+                spec?.hdtHighC.shown(if (flexible) untested else none),
+                spec?.glassC.shown(none),
+                spec?.tensileMpa.shown(0, none),
+                spec?.modulusMpa.gigapascals(none),
+                spec?.elongationPct.shown(1, none),
+                spec?.flexuralMpa.shown(0, none, noBreak),
+                spec?.impactKj.shown(1, none, noBreak),
+                spec?.hardness ?: none,
+                spec?.waterPct.shown(2, none),
                 drying,
-                spec?.flowMm3s.shown(1),
+                spec?.flowMm3s.shown(1, none),
             )
         },
         mono = false,
