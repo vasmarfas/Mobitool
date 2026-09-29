@@ -58,6 +58,11 @@
                 <data android:host="vasmarfas.ru" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name="com.vasmarfas.card.tools.developer.RegexService"
+            android:exported="false"
+            android:process=":regex" />
     </application>
 
 </manifest>

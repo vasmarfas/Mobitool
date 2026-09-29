@@ -5,8 +5,10 @@ import com.vasmarfas.card.resources.*
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
+import kotlinx.serialization.Serializable
 import org.jetbrains.compose.resources.StringResource
 
+@Serializable
 data class RegexMatchInfo(
     val index: Int,
     val value: String,
@@ -15,6 +17,7 @@ data class RegexMatchInfo(
     val groups: List<String?>,
 )
 
+@Serializable
 data class RegexRunResult(
     val text: String,
     val matches: List<RegexMatchInfo>,
@@ -22,6 +25,15 @@ data class RegexRunResult(
     val replaced: String?,
     val timedOut: Boolean = false,
 )
+
+expect suspend fun runRegex(
+    pattern: String,
+    text: String,
+    ignoreCase: Boolean,
+    multiline: Boolean,
+    dotAll: Boolean,
+    replacement: String?,
+): RegexRunResult
 
 private class RegexTimeout : RuntimeException()
 

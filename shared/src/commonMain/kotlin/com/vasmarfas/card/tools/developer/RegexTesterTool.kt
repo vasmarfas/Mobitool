@@ -28,8 +28,6 @@ import com.vasmarfas.card.ui.components.SwitchRow
 import com.vasmarfas.card.ui.components.ToolInputField
 import com.vasmarfas.card.ui.components.monoFamily
 import com.vasmarfas.card.ui.theme.LocalStatusColors
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
 
 private enum class RegexTab { TEST, BUILD }
@@ -166,7 +164,7 @@ private fun RegexTest(
 @Composable
 fun rememberRegexRun(pattern: String, text: String, ignoreCase: Boolean, multiline: Boolean, dotAll: Boolean, replacement: String?): RegexRunResult? {
     val result by produceState<RegexRunResult?>(null, pattern, text, ignoreCase, multiline, dotAll, replacement) {
-        value = withContext(Dispatchers.Default) { RegexTester.run(pattern, text, ignoreCase, multiline, dotAll, replacement) }
+        value = runRegex(pattern, text, ignoreCase, multiline, dotAll, replacement)
     }
     return result
 }
