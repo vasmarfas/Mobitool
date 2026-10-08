@@ -215,10 +215,11 @@ if (macAppStore || developerIdIdentity != null) {
     }
 }
 
+// compose writes freeArgs into the jpackage @file unquoted, and jpackage splits that file on spaces
 tasks.withType<AbstractJPackageTask>().configureEach {
     when (targetFormat) {
-        TargetFormat.Deb -> freeArgs.addAll("--linux-package-deps", ffmpegDeb.joinToString(", "))
-        TargetFormat.Rpm -> freeArgs.addAll("--linux-package-deps", ffmpegRpm.joinToString(", "))
+        TargetFormat.Deb -> freeArgs.addAll("--linux-package-deps", "\"${ffmpegDeb.joinToString(", ")}\"")
+        TargetFormat.Rpm -> freeArgs.addAll("--linux-package-deps", "\"${ffmpegRpm.joinToString(", ")}\"")
         else -> {}
     }
 }

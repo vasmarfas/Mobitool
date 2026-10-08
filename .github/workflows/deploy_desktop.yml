@@ -243,6 +243,11 @@ jobs:
           METRICA_DESKTOP_TOKEN: ${{ secrets.METRICA_DESKTOP_TOKEN }}
         run: ./gradlew :desktopApp:packageDeb :desktopApp:packageRpm
 
+      # Gradle reports only the exit code of jpackage, its own message stays in these files
+      - name: jpackage logs
+        if: failure()
+        run: cat desktopApp/build/compose/logs/*/*.txt || true
+
       - name: Package dependencies
         run: |
           dpkg-deb -f desktopApp/build/compose/binaries/main/deb/*.deb Depends

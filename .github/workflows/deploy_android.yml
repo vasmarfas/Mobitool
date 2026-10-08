@@ -348,17 +348,25 @@ jobs:
         run: |
           set -euo pipefail
           api="https://public-api.rustore.ru"
+          raw="$RUNNER_TEMP/rustore.raw"
+          der="$RUNNER_TEMP/rustore.der"
           key="$RUNNER_TEMP/rustore.pem"
           umask 077
-          if printf '%s' "$RUSTORE_PRIVATE_KEY" | grep -q 'BEGIN'; then
-            printf '%s\n' "$RUSTORE_PRIVATE_KEY" > "$key"
-          else
-            {
-              echo '-----BEGIN PRIVATE KEY-----'
-              printf '%s' "$RUSTORE_PRIVATE_KEY" | tr -d '\r\n ' | fold -w 64
-              echo '-----END PRIVATE KEY-----'
-            } > "$key"
+          # the secret may be base64 DER or a PEM file, either PKCS#8 or PKCS#1, and a PEM may arrive in one line
+          # or itself base64-encoded, so everything is brought to DER and openssl detects the structure
+          printf '%s' "$RUSTORE_PRIVATE_KEY" > "$raw"
+          if ! grep -q 'BEGIN' "$raw"; then
+            tr -d '\r\n ' < "$raw" | base64 -d > "$der"
+            if grep -qa 'BEGIN' "$der"; then cp "$der" "$raw"; fi
           fi
+          if grep -q 'BEGIN' "$raw"; then
+            sed 's/-----[A-Z ]*-----//g' "$raw" | tr -d '\r\n ' | base64 -d > "$der"
+          fi
+          if ! openssl pkey -inform DER -in "$der" -out "$key"; then
+            echo "::error::RUSTORE_PRIVATE_KEY is not an RSA private key, put the key from the RuStore console there again"
+            exit 1
+          fi
+          rm -f "$raw" "$der"
 
           timestamp=$(date +%Y-%m-%dT%H:%M:%S.%3N%:z)
           signature=$(printf '%s' "$RUSTORE_KEY_ID$timestamp" | openssl dgst -sha512 -sign "$key" | openssl base64 -A)
