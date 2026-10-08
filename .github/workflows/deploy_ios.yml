@@ -30,6 +30,10 @@ on:
         type: boolean
         required: false
         default: false
+    outputs:
+      uploaded:
+        description: 'The IPA reached App Store Connect'
+        value: ${{ jobs.build.outputs.uploaded }}
 
 permissions:
   contents: read
@@ -45,6 +49,8 @@ jobs:
   build:
     name: Build and upload IPA
     runs-on: macos-latest
+    outputs:
+      uploaded: ${{ steps.upload.outputs.uploaded }}
     steps:
       - uses: actions/checkout@v7
 
@@ -217,6 +223,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload to App Store Connect
+        id: upload
         if: ${{ steps.guard.outputs.ready == 'true' && inputs.upload_app_store }}
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -241,6 +248,7 @@ jobs:
             xcrun altool --upload-app -f "$ipa" -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
           done
           rm -f "$key"
+          echo "uploaded=true" >> "$GITHUB_OUTPUT"
 
       - name: Remove the temporary keychain
         if: always() && steps.certificate.outputs.installed == 'true'

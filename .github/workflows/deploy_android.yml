@@ -12,6 +12,14 @@ on:
         description: 'versionCode (empty = from the version, 1.4.12 is 1041299, 1.4.12-rc2 is 1041202)'
         required: false
         default: ''
+      notes_en:
+        description: 'What''s new in English for Google Play, up to 500 characters, \n is a line break'
+        required: false
+        default: ''
+      notes_ru:
+        description: 'Что нового по-русски для Google Play (до 500 знаков) и RuStore, \n — перенос строки'
+        required: false
+        default: ''
       publish_google_play:
         description: 'Publish the AAB to Google Play'
         type: boolean
@@ -26,6 +34,10 @@ on:
         type: choice
         options: [draft, inProgress, completed]
         default: completed
+      play_send_for_review:
+        description: 'Send the Google Play changes to review (unchecked = they wait in Publishing overview)'
+        type: boolean
+        default: false
       publish_rustore:
         description: 'Upload the build to a RuStore draft version'
         type: boolean
@@ -39,6 +51,10 @@ on:
         description: 'Send the RuStore draft to moderation'
         type: boolean
         default: false
+      rustore_auto_publish:
+        description: 'Publish on RuStore as soon as moderation passes'
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       version_name:
@@ -46,6 +62,14 @@ on:
         required: false
         default: ''
       version_code:
+        type: string
+        required: false
+        default: ''
+      notes_en:
+        type: string
+        required: false
+        default: ''
+      notes_ru:
         type: string
         required: false
         default: ''
@@ -61,6 +85,10 @@ on:
         type: string
         required: false
         default: completed
+      play_send_for_review:
+        type: boolean
+        required: false
+        default: false
       publish_rustore:
         type: boolean
         required: false
@@ -70,6 +98,10 @@ on:
         required: false
         default: apk
       rustore_submit:
+        type: boolean
+        required: false
+        default: false
+      rustore_auto_publish:
         type: boolean
         required: false
         default: false
@@ -203,8 +235,6 @@ jobs:
     if: ${{ inputs.publish_google_play }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-
       - name: Check credentials
         id: guard
         env:
@@ -242,15 +272,17 @@ jobs:
       - name: Prepare release notes
         id: notes
         if: steps.guard.outputs.ready == 'true'
+        env:
+          NOTES_EN: ${{ inputs.notes_en }}
+          NOTES_RU: ${{ inputs.notes_ru }}
         run: |
           set -eu
           mkdir -p whatsnew
-          for dir in store/google-play/*/; do
-            [ -f "$dir/whats-new.txt" ] || continue
-            cut -c1-500 "$dir/whats-new.txt" > "whatsnew/whatsnew-$(basename "$dir")"
-          done
-          if [ -z "$(ls -A whatsnew 2>/dev/null)" ]; then
-            echo "::notice::no store/google-play listing texts in the repository, publishing without release notes"
+          # dispatch inputs are single-line, \n in them stands for a line break
+          [ -z "$NOTES_EN" ] || printf '%b' "$NOTES_EN" > whatsnew/whatsnew-en-US
+          [ -z "$NOTES_RU" ] || printf '%b' "$NOTES_RU" > whatsnew/whatsnew-ru-RU
+          if [ -z "$(ls -A whatsnew)" ]; then
+            echo "::notice::no release notes given, publishing without them"
           fi
           if [ -f mapping/mapping.txt ]; then
             echo "mapping=mapping/mapping.txt" >> "$GITHUB_OUTPUT"
@@ -269,6 +301,7 @@ jobs:
           whatsNewDirectory: whatsnew
           track: ${{ inputs.play_track }}
           status: ${{ inputs.play_status }}
+          changesNotSentForReview: ${{ !inputs.play_send_for_review }}
 
   rustore:
     name: RuStore
@@ -276,8 +309,6 @@ jobs:
     if: ${{ inputs.publish_rustore }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-
       - name: Check credentials
         id: guard
         env:
@@ -312,6 +343,8 @@ jobs:
           RUSTORE_PRIVATE_KEY: ${{ secrets.RUSTORE_PRIVATE_KEY }}
           ARTIFACT: ${{ inputs.rustore_artifact }}
           SUBMIT: ${{ inputs.rustore_submit }}
+          PUBLISH_TYPE: ${{ inputs.rustore_auto_publish && 'INSTANTLY' || 'MANUAL' }}
+          NOTES: ${{ inputs.notes_ru || inputs.notes_en }}
         run: |
           set -euo pipefail
           api="https://public-api.rustore.ru"
@@ -341,10 +374,11 @@ jobs:
           echo "::add-mask::$token"
 
           base="$api/public/v1/application/$PACKAGE_NAME"
-          notes=store/rustore/ru-RU/whats-new.txt
-          [ -f "$notes" ] || notes=/dev/null
+          # dispatch inputs are single-line, \n in them stands for a line break
+          whats_new=$(printf '%b' "$NOTES")
           draft=$(curl -sS -X POST "$base/version" -H "Public-Token: $token" -H 'Content-Type: application/json' \
-            -d "$(jq -n --rawfile notes "$notes" '{publishType: "MANUAL"} + (if $notes == "" then {} else {whatsNew: $notes} end)')")
+            -d "$(jq -n --arg type "$PUBLISH_TYPE" --arg notes "$whats_new" \
+              '{publishType: $type} + (if $notes == "" then {} else {whatsNew: $notes} end)')")
           if [ "$(jq -r '.code' <<< "$draft")" = 'OK' ]; then
             version_id=$(jq -r '.body' <<< "$draft")
           else
@@ -353,7 +387,13 @@ jobs:
               echo "::error::RuStore draft was not created: $(jq -c '{code, message}' <<< "$draft")"
               exit 1
             fi
-            echo "::notice::reusing the existing RuStore draft $version_id"
+            echo "::notice::reusing the existing RuStore draft $version_id, its release notes stay as they were"
+            # publishType is set when a draft is created, an older draft keeps its own unless the key may change it
+            settings=$(curl -sS -X POST "$base/version/$version_id/publish-settings" -H "Public-Token: $token" \
+              -H 'Content-Type: application/json' -d "$(jq -n --arg type "$PUBLISH_TYPE" '{publishType: $type}')")
+            if [ "$(jq -r '.code' <<< "$settings")" != 'OK' ]; then
+              echo "::warning::RuStore kept the draft's publish type: $(jq -c '{code, message}' <<< "$settings")"
+            fi
           fi
 
           set -- out/*."$ARTIFACT"
@@ -365,17 +405,26 @@ jobs:
           fi
           upload=$(curl -sS -X POST "$upload_url" -H "Public-Token: $token" -F "file=@$file")
           if [ "$(jq -r '.code' <<< "$upload")" != 'OK' ]; then
-            echo "::error::RuStore upload failed: $(jq -c '{code, message}' <<< "$upload")"
-            exit 1
+            # a rerun finds the file from the first attempt already in the draft
+            if jq -r '.message // ""' <<< "$upload" | grep -qi 'already uploaded'; then
+              echo "::notice::the build is already in RuStore draft $version_id"
+            else
+              echo "::error::RuStore upload failed: $(jq -c '{code, message}' <<< "$upload")"
+              exit 1
+            fi
           fi
 
           if [ "$SUBMIT" = 'true' ]; then
-            commit=$(curl -sS -X POST "$base/version/$version_id/commit?priorityUpdate=5" -H "Public-Token: $token")
+            commit=$(curl -sS -X POST "$base/version/$version_id/commit?priorityUpdate=0" -H "Public-Token: $token")
             if [ "$(jq -r '.code' <<< "$commit")" != 'OK' ]; then
               echo "::error::RuStore moderation request failed: $(jq -c '{code, message}' <<< "$commit")"
               exit 1
             fi
-            echo "RuStore: version $version_id sent to moderation." >> "$GITHUB_STEP_SUMMARY"
+            if [ "$PUBLISH_TYPE" = 'INSTANTLY' ]; then
+              echo "RuStore: version $version_id sent to moderation, it goes live once approved." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "RuStore: version $version_id sent to moderation, publish it in the console once approved." >> "$GITHUB_STEP_SUMMARY"
+            fi
           else
             echo "RuStore: version $version_id left as a draft." >> "$GITHUB_STEP_SUMMARY"
           fi

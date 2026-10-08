@@ -54,6 +54,10 @@ on:
         type: boolean
         required: false
         default: false
+    outputs:
+      mac_app_store_uploaded:
+        description: 'The Mac App Store PKG reached App Store Connect'
+        value: ${{ jobs.macos.outputs.mac_app_store_uploaded }}
 
 permissions:
   contents: read
@@ -148,13 +152,6 @@ jobs:
           }
           Remove-Item $pfx -Force
 
-      - name: Upload
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-windows
-          path: out/*
-          if-no-files-found: error
-
       - name: Package MSIX
         shell: pwsh
         env:
@@ -178,19 +175,18 @@ jobs:
           $pri.Save($config)
           & "$kit\makepri.exe" new /pr $root /cf $config /mn $manifest /of (Join-Path $root 'resources.pri') /o
           Copy-Item desktopApp/build/compose/binaries/main/app/Mobitool/* $root -Recurse
-          New-Item -ItemType Directory -Force msix | Out-Null
-          $package = "msix/vasmarfas-$env:VERSION-windows.msix"
+          $package = "out/vasmarfas-$env:VERSION-windows.msix"
           & "$kit\makeappx.exe" pack /d $root /p $package /o
           $cert = New-SelfSignedCertificate -Type Custom -Subject $xml.Package.Identity.Publisher -KeyUsage DigitalSignature `
             -CertStoreLocation Cert:\CurrentUser\My -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
           & "$kit\signtool.exe" sign /fd SHA256 /sha1 $cert.Thumbprint $package
-          Export-Certificate -Cert $cert -FilePath "msix/vasmarfas-$env:VERSION-windows.cer" | Out-Null
+          Export-Certificate -Cert $cert -FilePath "out/vasmarfas-$env:VERSION-windows.cer" | Out-Null
 
-      - name: Upload MSIX
+      - name: Upload
         uses: actions/upload-artifact@v7
         with:
-          name: msix-windows
-          path: msix/*
+          name: release-windows
+          path: out/*
           if-no-files-found: error
 
   linux:
@@ -272,6 +268,8 @@ jobs:
     name: macOS
     if: ${{ inputs.build_macos }}
     runs-on: macos-latest
+    outputs:
+      mac_app_store_uploaded: ${{ steps.mas.outputs.uploaded }}
     steps:
       - uses: actions/checkout@v7
 
@@ -398,6 +396,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload to the Mac App Store
+        id: mas
         if: ${{ !cancelled() && inputs.publish_mac_app_store }}
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -448,6 +447,7 @@ jobs:
             xcrun altool --upload-app -f "$pkg" -t macos --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
           done
           rm -f "$key" ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
+          echo "uploaded=true" >> "$GITHUB_OUTPUT"
 
       - name: Remove the temporary keychains
         if: always()

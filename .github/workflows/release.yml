@@ -1,46 +1,62 @@
 name: Release
-run-name: Release ${{ inputs.version_name || github.ref_name }}
+run-name: Release ${{ inputs.version_name }}
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       version_name:
-        description: 'App versionName (e.g. 1.0.0)'
+        description: 'Version (e.g. 1.1.0, 1.2.0-rc1)'
         required: true
-        default: '1.0.0'
+      notes_en:
+        description: 'What''s new in English: Google Play, App Store, Mac App Store, GitHub. \n is a line break, Google Play takes up to 500 characters'
+        required: true
+      notes_ru:
+        description: 'Что нового по-русски: Google Play, RuStore, App Store, Mac App Store, GitHub. \n — перенос строки, Google Play берёт до 500 знаков'
+        required: true
+      submit_for_review:
+        description: 'Send to review in every store (unchecked = upload and leave the versions ready in the consoles)'
+        type: boolean
+        default: true
+      release_after_review:
+        description: 'Publish as soon as review passes: App Store, Mac App Store, RuStore (Google Play follows its managed publishing setting)'
+        type: boolean
+        default: true
+      play_track:
+        description: 'Google Play track'
+        type: choice
+        options: [production, beta, alpha, internal]
+        default: production
+      publish_google_play:
+        description: 'Google Play'
+        type: boolean
+        default: true
+      publish_rustore:
+        description: 'RuStore'
+        type: boolean
+        default: true
+      publish_app_store:
+        description: 'App Store (iOS)'
+        type: boolean
+        default: true
+      publish_mac_app_store:
+        description: 'Mac App Store'
+        type: boolean
+        default: true
+      deploy_web:
+        description: 'Deploy the site to vasmarfas.com and vasmarfas.ru'
+        type: boolean
+        default: true
+      draft:
+        description: 'Leave the GitHub release as a draft'
+        type: boolean
+        default: false
       version_code:
         description: 'Android versionCode and Apple build number (empty = from the version, 1.4.12 is 1041299, 1.4.12-rc2 is 1041202)'
         required: false
         default: ''
-      publish_google_play:
-        description: 'Publish the AAB to Google Play'
-        type: boolean
-        default: false
-      play_track:
-        description: 'Google Play track'
-        type: choice
-        options: [internal, alpha, beta, production]
-        default: internal
-      publish_rustore:
-        description: 'Upload the APK to RuStore and send the version to moderation'
-        type: boolean
-        default: false
-      publish_ios_app_store:
-        description: 'Upload to App Store Connect: the iOS IPA and the macOS PKG (TestFlight)'
-        type: boolean
-        default: false
-      deploy_web:
-        description: 'Deploy the site to vasmarfas.com and vasmarfas.ru'
-        type: boolean
-        default: false
-      draft:
-        description: 'Create the GitHub release as a draft'
-        type: boolean
-        default: true
 
 permissions:
+  actions: read
   contents: write
   pages: write
   id-token: write
@@ -56,52 +72,30 @@ jobs:
     outputs:
       version_name: ${{ steps.resolve.outputs.version_name }}
       version_code: ${{ steps.resolve.outputs.version_code }}
-      publish_google_play: ${{ steps.resolve.outputs.publish_google_play }}
-      publish_rustore: ${{ steps.resolve.outputs.publish_rustore }}
-      publish_ios_app_store: ${{ steps.resolve.outputs.publish_ios_app_store }}
-      deploy_web: ${{ steps.resolve.outputs.deploy_web }}
-      draft: ${{ steps.resolve.outputs.draft }}
     steps:
-      - uses: actions/checkout@v7
+      # the stores get the build without a second test run, so the commit must already be green in CI
+      - name: Check CI on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA" \
+            --jq '.workflow_runs[0] // {} | "\(.status // "") \(.conclusion // "")"')
+          case "$run" in
+            'completed success') ;;
+            ' ') echo "::warning::CI has not run on $GITHUB_SHA, releasing without it" ;;
+            completed*) echo "::error::CI ended with '${run#completed }' on $GITHUB_SHA"; exit 1 ;;
+            *) echo "::error::CI is still running on $GITHUB_SHA, start the release after it finishes"; exit 1 ;;
+          esac
 
       - name: Resolve
         id: resolve
         env:
           INPUT_VERSION: ${{ inputs.version_name }}
           INPUT_CODE: ${{ inputs.version_code }}
-          INPUT_PLAY: ${{ inputs.publish_google_play }}
-          INPUT_RUSTORE: ${{ inputs.publish_rustore }}
-          INPUT_IOS: ${{ inputs.publish_ios_app_store }}
-          INPUT_WEB: ${{ inputs.deploy_web }}
-          INPUT_DRAFT: ${{ inputs.draft }}
         run: |
           set -eu
-          name="$INPUT_VERSION"
-          if [ -z "$name" ]; then
-            case "$GITHUB_REF" in
-              refs/tags/v*)
-                name="${GITHUB_REF#refs/tags/v}"
-                ;;
-              *)
-                echo '::error::version_name is required when the workflow is not started from a v* tag'
-                exit 1
-                ;;
-            esac
-          fi
-          # a v* tag is the full release, a manual run publishes only what was ticked
-          play=true
-          rustore=true
-          ios=true
-          web=true
-          draft=false
-          if [ "$GITHUB_EVENT_NAME" = 'workflow_dispatch' ]; then
-            play="$INPUT_PLAY"
-            rustore="$INPUT_RUSTORE"
-            ios="$INPUT_IOS"
-            web="$INPUT_WEB"
-            draft="$INPUT_DRAFT"
-          fi
-          derived=$(printf '%s' "$name" | awk '{
+          derived=$(printf '%s' "$INPUT_VERSION" | awk '{
             split($0, part, "-")
             split(part[1], v, ".")
             stage = 99
@@ -109,29 +103,39 @@ jobs:
             print ((v[1] * 100 + v[2]) * 100 + v[3]) * 100 + stage
           }')
           {
-            echo "version_name=$name"
+            echo "version_name=$INPUT_VERSION"
             echo "version_code=${INPUT_CODE:-$derived}"
-            echo "publish_google_play=$play"
-            echo "publish_rustore=$rustore"
-            echo "publish_ios_app_store=$ios"
-            echo "deploy_web=$web"
-            echo "draft=$draft"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Extract release notes
+      # a long text would fail Google Play after the other stores already took the build
+      - name: Check release notes
+        if: inputs.publish_google_play
         env:
-          VERSION: ${{ steps.resolve.outputs.version_name }}
+          NOTES_EN: ${{ inputs.notes_en }}
+          NOTES_RU: ${{ inputs.notes_ru }}
         run: |
           set -eu
-          if [ -f CHANGELOG.md ]; then
-            awk -v version="$VERSION" '
-              $0 ~ "^## " version "([^0-9.]|$)" { found = 1; next }
-              found && /^## / { exit }
-              found { print }
-            ' CHANGELOG.md | sed '/./,$!d' > notes.md
-          else
-            printf 'vasmarfas Mobitool %s\n' "$VERSION" > notes.md
-          fi
+          for name in NOTES_EN NOTES_RU; do
+            length=$(printf '%b' "${!name}" | LC_ALL=C.UTF-8 wc -m)
+            if [ "$length" -gt 500 ]; then
+              echo "::error::$name is $length characters, Google Play takes up to 500"
+              exit 1
+            fi
+          done
+
+      - name: Compose GitHub release notes
+        env:
+          NOTES_EN: ${{ inputs.notes_en }}
+          NOTES_RU: ${{ inputs.notes_ru }}
+        run: |
+          set -eu
+          {
+            printf '%b\n\n' "$NOTES_EN"
+            printf '%b\n\n' "$NOTES_RU"
+            echo 'MSIX is signed with its own certificate: add the .cer from this release to Trusted People of the local machine before installing.'
+            echo
+            echo 'MSIX подписан собственным сертификатом: перед установкой добавьте .cer из этого релиза в «Доверенные лица» локального компьютера.'
+          } > notes.md
           cat notes.md
 
       - name: Upload release notes
@@ -139,7 +143,6 @@ jobs:
         with:
           name: release-notes
           path: notes.md
-          if-no-files-found: ignore
 
   web:
     name: Web
@@ -147,8 +150,8 @@ jobs:
     uses: ./.github/workflows/deploy_web.yml
     with:
       version_name: ${{ needs.meta.outputs.version_name }}
-      deploy_pages: ${{ needs.meta.outputs.deploy_web == 'true' }}
-      deploy_s3: ${{ needs.meta.outputs.deploy_web == 'true' }}
+      deploy_pages: ${{ inputs.deploy_web }}
+      deploy_s3: ${{ inputs.deploy_web }}
     secrets: inherit
 
   android:
@@ -158,12 +161,16 @@ jobs:
     with:
       version_name: ${{ needs.meta.outputs.version_name }}
       version_code: ${{ needs.meta.outputs.version_code }}
-      publish_google_play: ${{ needs.meta.outputs.publish_google_play == 'true' }}
-      play_track: ${{ inputs.play_track || 'internal' }}
+      notes_en: ${{ inputs.notes_en }}
+      notes_ru: ${{ inputs.notes_ru }}
+      publish_google_play: ${{ inputs.publish_google_play }}
+      play_track: ${{ inputs.play_track }}
       play_status: completed
-      publish_rustore: ${{ needs.meta.outputs.publish_rustore == 'true' }}
+      play_send_for_review: ${{ inputs.submit_for_review }}
+      publish_rustore: ${{ inputs.publish_rustore }}
       rustore_artifact: apk
-      rustore_submit: ${{ needs.meta.outputs.publish_rustore == 'true' }}
+      rustore_submit: ${{ inputs.submit_for_review }}
+      rustore_auto_publish: ${{ inputs.release_after_review }}
     secrets: inherit
 
   desktop:
@@ -173,7 +180,7 @@ jobs:
     with:
       version_name: ${{ needs.meta.outputs.version_name }}
       version_code: ${{ needs.meta.outputs.version_code }}
-      publish_mac_app_store: ${{ needs.meta.outputs.publish_ios_app_store == 'true' }}
+      publish_mac_app_store: ${{ inputs.publish_mac_app_store }}
     secrets: inherit
 
   ios:
@@ -183,8 +190,42 @@ jobs:
     with:
       version_name: ${{ needs.meta.outputs.version_name }}
       version_code: ${{ needs.meta.outputs.version_code }}
-      upload_app_store: ${{ needs.meta.outputs.publish_ios_app_store == 'true' }}
+      upload_app_store: ${{ inputs.publish_app_store }}
     secrets: inherit
+
+  # the uploads only add builds to App Store Connect, the version, its notes and the review request are made here
+  app_store:
+    name: App Store Connect
+    needs: [meta, desktop, ios]
+    if: ${{ !cancelled() && (needs.ios.outputs.uploaded == 'true' || needs.desktop.outputs.mac_app_store_uploaded == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Install PyJWT
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet 'pyjwt[crypto]'
+
+      - name: Prepare the versions
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          BUNDLE_ID: com.vasmarfas.mobitool
+          PLATFORMS: ${{ needs.ios.outputs.uploaded == 'true' && 'IOS' || '' }} ${{ needs.desktop.outputs.mac_app_store_uploaded == 'true' && 'MAC_OS' || '' }}
+          VERSION_NAME: ${{ needs.meta.outputs.version_name }}
+          BUILD_NUMBER: ${{ needs.meta.outputs.version_code }}
+          RELEASE_TYPE: ${{ inputs.release_after_review && 'AFTER_APPROVAL' || 'MANUAL' }}
+          SUBMIT: ${{ inputs.submit_for_review }}
+          RAW_NOTES_EN: ${{ inputs.notes_en }}
+          RAW_NOTES_RU: ${{ inputs.notes_ru }}
+        run: |
+          NOTES_EN=$(printf '%b' "$RAW_NOTES_EN") NOTES_RU=$(printf '%b' "$RAW_NOTES_RU") \
+            "$RUNNER_TEMP/venv/bin/python" .github/scripts/app_store_review.py
 
   github_release:
     name: GitHub release
@@ -211,12 +252,15 @@ jobs:
           body_path: artifacts/notes.md
           generate_release_notes: true
           # a failed platform leaves its files out, so such a release is only drafted
-          draft: ${{ needs.meta.outputs.draft == 'true' || contains(needs.*.result, 'failure') }}
+          draft: ${{ inputs.draft || contains(needs.*.result, 'failure') }}
+          prerelease: ${{ contains(needs.meta.outputs.version_name, '-') }}
           fail_on_unmatched_files: false
           files: |
             artifacts/*.apk
             artifacts/*.aab
             artifacts/*.msi
+            artifacts/*.msix
+            artifacts/*.cer
             artifacts/*.exe
             artifacts/*.deb
             artifacts/*.rpm
