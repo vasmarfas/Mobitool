@@ -128,7 +128,7 @@ compose.desktop {
             }
             linux {
                 iconFile.set(project.file("icons/logo.png"))
-                packageName = "vasmarfas"
+                packageName = "mobitool"
                 debMaintainer = "vasmarfas@mail.ru"
                 menuGroup = "Utility"
             }

@@ -131,10 +131,7 @@ jobs:
           set -eu
           {
             printf '%b\n\n' "$NOTES_EN"
-            printf '%b\n\n' "$NOTES_RU"
-            echo 'MSIX is signed with its own certificate: add the .cer from this release to Trusted People of the local machine before installing.'
-            echo
-            echo 'MSIX подписан собственным сертификатом: перед установкой добавьте .cer из этого релиза в «Доверенные лица» локального компьютера.'
+            printf '%b\n' "$NOTES_RU"
           } > notes.md
           cat notes.md
 
@@ -255,14 +252,11 @@ jobs:
           draft: ${{ inputs.draft || contains(needs.*.result, 'failure') }}
           prerelease: ${{ contains(needs.meta.outputs.version_name, '-') }}
           fail_on_unmatched_files: false
+          # the AAB, MSIX with its .cer and the site zip stay in the run artifacts, they are for the stores and the site
           files: |
             artifacts/*.apk
-            artifacts/*.aab
             artifacts/*.msi
-            artifacts/*.msix
-            artifacts/*.cer
             artifacts/*.exe
             artifacts/*.deb
             artifacts/*.rpm
             artifacts/*.dmg
-            artifacts/*.zip

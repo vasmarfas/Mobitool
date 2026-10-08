@@ -209,8 +209,8 @@ jobs:
         run: |
           set -eu
           mkdir -p out mapping
-          cp androidApp/build/outputs/bundle/release/*.aab "out/vasmarfas-$VERSION.aab"
-          cp androidApp/build/outputs/apk/release/*.apk "out/vasmarfas-$VERSION.apk"
+          cp androidApp/build/outputs/bundle/release/*.aab "out/Mobitool-$VERSION.aab"
+          cp androidApp/build/outputs/apk/release/*.apk "out/Mobitool-$VERSION.apk"
           if [ -f androidApp/build/outputs/mapping/release/mapping.txt ]; then
             cp androidApp/build/outputs/mapping/release/mapping.txt mapping/mapping.txt
           fi

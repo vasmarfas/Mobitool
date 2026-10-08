@@ -125,7 +125,7 @@ jobs:
         run: |
           set -eu
           mkdir -p out
-          (cd "$DIST" && zip -qr "$GITHUB_WORKSPACE/out/vasmarfas-$VERSION-web.zip" .)
+          (cd "$DIST" && zip -qr "$GITHUB_WORKSPACE/out/Mobitool-$VERSION-web.zip" .)
 
       - name: Add GitHub Pages files
         run: |

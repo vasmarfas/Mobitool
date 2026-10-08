@@ -127,8 +127,8 @@ jobs:
         run: |
           set -eu
           mkdir -p out
-          cp desktopApp/build/compose/binaries/main/msi/*.msi "out/vasmarfas-$VERSION-windows.msi"
-          cp desktopApp/build/compose/binaries/main/exe/*.exe "out/vasmarfas-$VERSION-windows-setup.exe"
+          cp desktopApp/build/compose/binaries/main/msi/*.msi "out/Mobitool-$VERSION-windows.msi"
+          cp desktopApp/build/compose/binaries/main/exe/*.exe "out/Mobitool-$VERSION-windows-setup.exe"
 
       - name: Sign installers
         shell: pwsh
@@ -175,12 +175,12 @@ jobs:
           $pri.Save($config)
           & "$kit\makepri.exe" new /pr $root /cf $config /mn $manifest /of (Join-Path $root 'resources.pri') /o
           Copy-Item desktopApp/build/compose/binaries/main/app/Mobitool/* $root -Recurse
-          $package = "out/vasmarfas-$env:VERSION-windows.msix"
+          $package = "out/Mobitool-$env:VERSION-windows.msix"
           & "$kit\makeappx.exe" pack /d $root /p $package /o
           $cert = New-SelfSignedCertificate -Type Custom -Subject $xml.Package.Identity.Publisher -KeyUsage DigitalSignature `
             -CertStoreLocation Cert:\CurrentUser\My -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
           & "$kit\signtool.exe" sign /fd SHA256 /sha1 $cert.Thumbprint $package
-          Export-Certificate -Cert $cert -FilePath "out/vasmarfas-$env:VERSION-windows.cer" | Out-Null
+          Export-Certificate -Cert $cert -FilePath "out/Mobitool-$env:VERSION-windows.cer" | Out-Null
 
       - name: Upload
         uses: actions/upload-artifact@v7
@@ -259,8 +259,8 @@ jobs:
         run: |
           set -eu
           mkdir -p out
-          cp desktopApp/build/compose/binaries/main/deb/*.deb "out/vasmarfas-$VERSION-linux-amd64.deb"
-          cp desktopApp/build/compose/binaries/main/rpm/*.rpm "out/vasmarfas-$VERSION-linux-x86_64.rpm"
+          cp desktopApp/build/compose/binaries/main/deb/*.deb "out/Mobitool-$VERSION-linux-amd64.deb"
+          cp desktopApp/build/compose/binaries/main/rpm/*.rpm "out/Mobitool-$VERSION-linux-x86_64.rpm"
 
       - name: Upload
         uses: actions/upload-artifact@v7
@@ -359,7 +359,7 @@ jobs:
         run: |
           set -eu
           mkdir -p out
-          cp desktopApp/build/compose/binaries/main/dmg/*.dmg "out/vasmarfas-$VERSION-macos-arm64.dmg"
+          cp desktopApp/build/compose/binaries/main/dmg/*.dmg "out/Mobitool-$VERSION-macos-arm64.dmg"
 
       - name: Notarize
         env:
