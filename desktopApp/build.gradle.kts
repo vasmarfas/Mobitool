@@ -91,6 +91,8 @@ compose.desktop {
                     extraKeysRawXml = """
                         <key>NSMicrophoneUsageDescription</key>
                         <string>The sound level meter, tuner and spectrum analyzer listen to the microphone.</string>
+                        <key>ITSAppUsesNonExemptEncryption</key>
+                        <false/>
                     """.trimIndent()
                 }
                 if (macAppStore) {
