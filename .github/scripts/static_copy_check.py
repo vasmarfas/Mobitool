@@ -244,15 +244,21 @@ def compare(app, copy):
     return failures, wraps
 
 
-def settle(page):
-    last = None
-    for _ in range(40):
+# the screen is ready when nothing is loading, two readings of its tree agree and it shows every text the copy shows, or
+# when nothing has changed for five seconds: Compose Resources read strings after the first frame, and on a slow runner
+# a screen stands still for a second or two with its labels empty
+def settle(page, pending, texts):
+    last = nodes = None
+    quiet = 0
+    for _ in range(60):
         page.wait_for_timeout(500)
         nodes = page.evaluate(APP_NODES)
-        if nodes and nodes == last:
+        shown = " | ".join(norm(n["text"]) + " " + norm(n["label"]) for n in nodes)
+        quiet = quiet + 1 if nodes and nodes == last and not pending else 0
+        if quiet and all(text in shown for text in texts) or quiet >= 10:
             return nodes
         last = nodes
-    return last
+    return nodes
 
 
 def check(browser, base, width, ratio, lang):
@@ -263,9 +269,11 @@ def check(browser, base, width, ratio, lang):
         color_scheme="light",
         reduced_motion="reduce",
     )
-    # nothing leaves the machine: the app keeps the bundled profile and counters, the same ones the copy was built from
-    context.route("**/*", lambda route: route.continue_() if route.request.url.startswith(base) else route.abort())
     page = context.new_page()
+    pending = set()
+    page.on("request", lambda request: pending.add(request))
+    page.on("requestfinished", lambda request: pending.discard(request))
+    page.on("requestfailed", lambda request: pending.discard(request))
     page.goto(base + "#home", wait_until="domcontentloaded")
     page.wait_for_function("document.getElementById('splash').classList.contains('hidden')", timeout=180_000)
     results = {}
@@ -276,7 +284,10 @@ def check(browser, base, width, ratio, lang):
                 button.click();
                 return button.textContent.trim();
             }""")
-            tab = next(n for n in settle(page) if norm(n["text"]) == segment and n["role"])
+            tab = next((n for n in settle(page, pending, [segment]) if norm(n["text"]) == segment and n["role"]), None)
+            if tab is None:
+                results[view] = (0, ([f'missing in the app: tab "{segment}" on the projects page'], []))
+                continue
             tx, ty, tw, th = tab["box"]
             page.mouse.click(tx + tw / 2, ty + th / 2)
         else:
@@ -285,10 +296,10 @@ def check(browser, base, width, ratio, lang):
         height = page.evaluate(SHOW_COPY)
         page.evaluate(HIDE_COPY)
         page.set_viewport_size({"width": width, "height": max(900, height + 100)})
-        app = settle(page)
         page.evaluate(SHOW_COPY)
         copy = page.evaluate(COPY_NODES)
         page.evaluate(HIDE_COPY)
+        app = settle(page, pending, [norm(c["text"]) for c in copy if c["own"]])
         results[view] = (len(app), compare(app, copy))
     context.close()
     return results
@@ -303,12 +314,13 @@ def main():
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(QuietHandler, directory=args.dist))
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    base = f"http://127.0.0.1:{server.server_port}/"
+    base = f"http://localhost:{server.server_port}/"
 
     report = []
     failed = 0
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(channel=args.channel)
+        # nothing leaves the machine: the app keeps the bundled profile and counters, the ones the copy was built from
+        browser = playwright.chromium.launch(channel=args.channel, args=["--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost"])
         for width, ratio in SCREENS:
             if args.width and width not in args.width:
                 continue
