@@ -620,7 +620,8 @@ fun LinkChip(link: Link, modifier: Modifier = Modifier, source: String? = null) 
         leadingIcon = {
             Icon(linkIcon(link.type), contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize))
         },
-        modifier = modifier.pointerHoverIcon(PointerIcon.Hand),
+        // the same FlowRow height estimate as in OutlineLabel
+        modifier = modifier.width(IntrinsicSize.Max).pointerHoverIcon(PointerIcon.Hand),
     )
 }
 
@@ -650,7 +651,7 @@ private fun EmailChip(address: String, modifier: Modifier = Modifier, source: St
                 modifier = Modifier.size(AssistChipDefaults.IconSize),
             )
         },
-        modifier = modifier.pointerHoverIcon(PointerIcon.Hand),
+        modifier = modifier.width(IntrinsicSize.Max).pointerHoverIcon(PointerIcon.Hand),
     )
 }
 
@@ -676,7 +677,9 @@ fun OutlineLabel(text: String, modifier: Modifier = Modifier) {
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 1,
+        // FlowRow estimates its height from the items' min intrinsic width, for text that is the longest word
         modifier = modifier
+            .width(IntrinsicSize.Max)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
             .padding(horizontal = 10.dp, vertical = 4.dp),
     )

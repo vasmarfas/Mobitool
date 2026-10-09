@@ -75,6 +75,7 @@ jobs:
         id: version
         env:
           INPUT_VERSION: ${{ inputs.version_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
           name="$INPUT_VERSION"
@@ -88,6 +89,9 @@ jobs:
             esac
           fi
           echo "name=${name:-0.0.0-dev}" >> "$GITHUB_OUTPUT"
+          # the download page links to the files of the latest published release, a draft has none yet
+          release=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)
+          echo "release=${release#v}" >> "$GITHUB_OUTPUT"
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
@@ -108,7 +112,18 @@ jobs:
         env:
           APP_VERSION_NAME: ${{ steps.version.outputs.name }}
           APP_VERSION_CODE: ${{ github.run_number }}
+          RELEASE_VERSION: ${{ steps.version.outputs.release }}
         run: ./gradlew :webApp:wasmJsBrowserDistribution
+
+      # index.html carries an HTML copy of the personal pages written after the Compose screens; the check opens the
+      # built site in Chromium and compares the copy with what the app draws, element by element
+      - name: Compare the HTML copy with the app
+        run: |
+          set -eu
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet playwright==1.63.0
+          "$RUNNER_TEMP/venv/bin/python" -m playwright install --with-deps chromium
+          "$RUNNER_TEMP/venv/bin/python" .github/scripts/static_copy_check.py "$DIST"
 
       - name: Publish the editable content next to the site
         run: |
@@ -287,10 +302,13 @@ jobs:
             aws s3 cp dist/manifest.webmanifest "s3://$BUCKET/manifest.webmanifest" --endpoint-url "$ENDPOINT" \
               --content-type application/manifest+json --cache-control no-cache
           fi
+          # Object Storage serves a key as it is and does not try .html the way GitHub Pages does
+          aws s3 cp dist/download.html "s3://$BUCKET/download" --endpoint-url "$ENDPOINT" \
+            --content-type 'text/html; charset=utf-8' --cache-control no-cache
 
-      # site verification pages and .well-known are put in the bucket by hand
+      # site verification pages and .well-known are put in the bucket by hand, the extensionless download copy above
       - name: Delete stale objects
         if: steps.guard.outputs.ready == 'true'
         run: >-
           aws s3 sync dist "s3://$BUCKET" --endpoint-url "$ENDPOINT" --delete --size-only
-          --exclude '.well-known/*' --exclude 'yandex_*.html' --exclude 'google*.html'
+          --exclude '.well-known/*' --exclude 'yandex_*.html' --exclude 'google*.html' --exclude 'download'

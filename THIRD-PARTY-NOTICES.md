@@ -32,6 +32,7 @@ Full text: [licenses/Apache-2.0.txt](licenses/Apache-2.0.txt)
 | JavaCPP (desktop builds) | Samuel Audet |
 | JNA, Java Native Access (desktop builds), licensed under Apache-2.0 or LGPL-2.1-or-later at the recipient's choice | Timothy Wall and JNA contributors |
 | PDF.js (`pdfjs-dist`, website) | Mozilla Foundation |
+| Roboto 2.137 Regular (website, `fonts/roboto.woff2`, cut down to the characters of the site's HTML copy) | Google LLC |
 
 ## MIT License
 

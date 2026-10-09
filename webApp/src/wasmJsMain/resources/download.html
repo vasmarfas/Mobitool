@@ -490,9 +490,10 @@
                 <p class="card-note" data-en="Installer files without a store: Android, Linux, Windows, macOS">Файлы установки без магазина: Android, Linux, Windows, macOS</p>
                 <div class="chips">
                     <a class="chip" data-link="githubApk" data-fallback="githubReleases">APK</a>
+                    <a class="chip" data-link="githubExe" data-fallback="githubReleases">EXE</a>
+                    <a class="chip" data-link="githubMsi" data-fallback="githubReleases">MSI</a>
                     <a class="chip" data-link="githubDeb" data-fallback="githubReleases">DEB</a>
                     <a class="chip" data-link="githubRpm" data-fallback="githubReleases">RPM</a>
-                    <a class="chip" data-link="githubMsi" data-fallback="githubReleases">MSI</a>
                     <a class="chip" data-link="githubDmg" data-fallback="githubReleases">DMG (Apple Silicon)</a>
                 </div>
                 <a class="btn" data-link="githubReleases" data-cta="open">Скоро</a>
@@ -661,18 +662,22 @@
             if (mailLinks[m].dataset.showAddress !== undefined) mailLinks[m].textContent = "admin@" + mailDomain;
         }
 
+        // the build writes in the latest published release, without it the file buttons lead to the releases page
+        var release = "@RELEASE_VERSION@";
+        var files = /^\d/.test(release) ? "https://github.com/vasmarfas/Mobitool/releases/download/v" + release + "/Mobitool-" + release : "";
         var links = {
-            googlePlay: "",
-            ruStore: "",
-            appStore: "",
-            macAppStore: "",
-            microsoftStore: "",
-            githubReleases: "",
-            githubApk: "",
-            githubDeb: "",
-            githubRpm: "",
-            githubMsi: "",
-            githubDmg: "",
+            googlePlay: "https://play.google.com/store/apps/details?id=com.vasmarfas.mobitool",
+            ruStore: "https://www.rustore.ru/catalog/app/com.vasmarfas.mobitool",
+            appStore: "https://apps.apple.com/app/id6816425850",
+            macAppStore: "https://apps.apple.com/app/id6816425850?platform=mac",
+            microsoftStore: "https://apps.microsoft.com/detail/9MWHC2SBXFV1",
+            githubReleases: "https://github.com/vasmarfas/Mobitool/releases/latest",
+            githubApk: files && files + ".apk",
+            githubExe: files && files + "-windows-setup.exe",
+            githubMsi: files && files + "-windows.msi",
+            githubDeb: files && files + "-linux-amd64.deb",
+            githubRpm: files && files + "-linux-x86_64.rpm",
+            githubDmg: files && files + "-macos-arm64.dmg",
             web: "./"
         };
 

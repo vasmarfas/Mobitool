@@ -301,6 +301,9 @@ tasks.named<Test>("jvmTest") {
     providers.gradleProperty("storeShots").orNull?.let { systemProperty("store.shots", it) }
     providers.gradleProperty("storeOnly").orNull?.let { systemProperty("store.only", it) }
     providers.gradleProperty("storePick").orNull?.let { systemProperty("store.pick", it) }
+    // StaticPageColorsTest reads the site's stylesheet
+    inputs.file(rootProject.layout.projectDirectory.file("webApp/src/wasmJsMain/resources/styles.css"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 apply(from = "mac-vendors.gradle.kts")

@@ -34,21 +34,40 @@
     <meta name="twitter:description" content="Проекты, статьи на Хабре и резюме разработчика Android и Kotlin Multiplatform. И бесплатный мультитул: @TOOLS_RU@ @CATEGORIES_RU@, от фото и PDF до сети и 3D-печати." data-en="Projects, Habr articles and the résumé of an Android and Kotlin Multiplatform developer. Plus a free multitool: @TOOLS_EN@ in @CATEGORIES_EN@, from photos and PDF to networking and 3D printing.">
     <meta name="twitter:image" content="https://vasmarfas.com/og-image.png?v=2" data-en="https://vasmarfas.com/og-image-en.png?v=2">
     <link rel="preload" href="app.js" as="script">
+    <link rel="preload" href="fonts/roboto.woff2" as="font" type="font/woff2" crossorigin>
     <!-- wasm hints -->
     <script>
         (function () {
-            // the same rule as AppSettings: the saved choice, then the browser language
-            var saved = null;
-            try { saved = localStorage.getItem("settings.lang"); } catch (e) {}
-            var lang = saved === "ru" || saved === "en" ? saved : /^ru/i.test(navigator.language || "") ? "ru" : "en";
+            // the same rules as AppSettings: the saved choice, then the browser language and the system theme
             var root = document.documentElement;
-            if (root.lang !== lang) {
-                root.lang = lang;
-                var title = document.querySelector("title[data-" + lang + "]");
-                var description = document.querySelector('meta[name="description"][data-' + lang + "]");
-                if (title) document.title = title.getAttribute("data-" + lang);
-                if (description) description.setAttribute("content", description.getAttribute("data-" + lang));
+            var saved = null;
+            var theme = null;
+            try {
+                saved = localStorage.getItem("settings.lang");
+                theme = localStorage.getItem("settings.theme");
+            } catch (e) {}
+            var lang = saved === "ru" || saved === "en" ? saved : /^ru/i.test(navigator.language || "") ? "ru" : "en";
+            // the head is written in one language and carries the other in data-ru or data-en
+            var base = root.lang === "en" ? "en" : "ru";
+            var other = base === "ru" ? "en" : "ru";
+            var title = document.querySelector("title");
+            var description = document.querySelector('meta[name="description"]');
+            var head = window.vasmarfasHead = { title: {}, description: {} };
+            head.title[base] = title.textContent;
+            head.title[other] = title.getAttribute("data-" + other) || title.textContent;
+            head.description[base] = description.getAttribute("content");
+            head.description[other] = description.getAttribute("data-" + other) || head.description[base];
+            root.lang = lang;
+            document.title = head.title[lang];
+            description.setAttribute("content", head.description[lang]);
+            var dark = theme === "DARK" || (theme !== "LIGHT" && !!window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+            root.setAttribute("data-theme", dark ? "dark" : "light");
+            if (theme === "DARK" || theme === "LIGHT") {
+                var bars = document.querySelectorAll('meta[name="theme-color"]');
+                for (var b = 0; b < bars.length; b++) bars[b].setAttribute("content", dark ? "#15130e" : "#fff9ef");
             }
+            var path = location.hash.replace(/^#\/?/, "").split("?")[0].replace(/\/+$/, "");
+            root.setAttribute("data-route", path === "projects" || path === "resume" ? path : "home");
             var link = document.createElement("link");
             link.rel = "preload";
             link.as = "fetch";
@@ -306,52 +325,177 @@
 <body>
 <noscript><div><img src="https://mc.yandex.ru/watch/112719808" style="position:absolute; left:-9999px;" alt=""></div></noscript>
 <div id="splash">
-    <div class="splash-top">
-        <div class="splash-row">
-            <svg class="splash-mark" viewBox="0 0 100 100" aria-hidden="true"><mask id="splash-cut"><path d="M38 25 V20 Q38 14 44 14 H56 Q62 14 62 20 V25" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="12" y="25" width="76" height="61" rx="11" fill="#fff"/><rect x="12" y="39" width="76" height="3.5"/><circle cx="22" cy="32" r="2.6"/><circle cx="30" cy="32" r="2.6"/><circle cx="38" cy="32" r="2.6"/><path d="M28 53 L40 62.5 L28 72" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M62 76 L62 58" stroke="#000" stroke-width="8" stroke-linecap="round"/><g transform="translate(62 55) rotate(-90)"><circle r="8.5"/><rect y="-3.25" width="9.5" height="6.5" fill="#fff"/></g></mask><rect width="100" height="100" fill="currentColor" mask="url(#splash-cut)"/></svg>
-            <span class="splash-name">vasmarfas</span>
-            <p class="splash-note" role="status" aria-live="polite"><span id="splash-note">Загружаю приложение…</span> <span class="splash-percent" id="splash-percent" aria-hidden="true"></span></p>
-        </div>
-        <div class="splash-progress" aria-hidden="true"><div class="splash-bar"></div></div>
-    </div>
-    <noscript><style>.splash-note, .splash-progress { display: none; }</style><p class="splash-noscript">Полная версия сайта работает на WebAssembly и требует JavaScript. Приложения для телефона и компьютера: <a href="download.html">страница загрузки</a>.</p></noscript>
+    <div class="pre-progress" aria-hidden="true"><div class="pre-progress-bar"></div></div>
+    <p class="pre-sr" id="pre-status" role="status" aria-live="polite"></p>
     <!-- profile -->
 </div>
 <div id="app"></div>
 <script>
     (function () {
-        var ru = document.documentElement.lang === "ru";
-        if (!ru) {
-            var note = document.getElementById("splash-note");
-            if (note) note.textContent = "Loading the app…";
-        }
+        var root = document.documentElement;
+        var splash = document.getElementById("splash");
+        var head = window.vasmarfasHead;
+
         var mailDomain = /\.ru$/i.test(location.hostname) ? "vasmarfas.ru" : "vasmarfas.com";
-        var mailLinks = document.querySelectorAll('a[href^="mailto:"]');
+        var mailLinks = splash.querySelectorAll('a[href^="mailto:"]');
         for (var m = 0; m < mailLinks.length; m++) {
             mailLinks[m].href = "mailto:admin@" + mailDomain;
-            if (mailLinks[m].dataset.showAddress !== undefined) mailLinks[m].textContent = "admin@" + mailDomain;
+            var shown = mailLinks[m].querySelectorAll(".pre-address");
+            for (var a = 0; a < shown.length; a++) shown[a].textContent = "admin@" + mailDomain;
         }
+
+        function each(selector, action) {
+            var nodes = splash.querySelectorAll(selector);
+            for (var i = 0; i < nodes.length; i++) action(nodes[i]);
+        }
+
+        // the static copy of the site: the app reads the same fragment when it takes over
+        function routeOf(hash) {
+            var path = hash.replace(/^#\/?/, "").split("?")[0].replace(/\/+$/, "");
+            return path === "projects" || path === "resume" ? path : "home";
+        }
+
+        function retitle() {
+            var route = root.getAttribute("data-route");
+            var label = splash.querySelector('.pre[lang="' + root.lang + '"] .pre-nav-item[data-route="' + route + '"] .pre-nav-label');
+            document.title = route === "home" || !label ? head.title[root.lang] : label.textContent + " · vasmarfas";
+        }
+
+        function show(route, animate) {
+            var previous = root.getAttribute("data-route");
+            root.setAttribute("data-route", route);
+            each(".pre-nav-item", function (item) {
+                if (item.getAttribute("data-route") === route) item.setAttribute("aria-current", "page");
+                else item.removeAttribute("aria-current");
+            });
+            retitle();
+            if (!animate || previous === route) return;
+            splash.scrollTop = 0;
+            each('.pre-page[data-page="' + route + '"]', function (page) {
+                page.classList.remove("pre-enter");
+                void page.offsetWidth;
+                page.classList.add("pre-enter");
+            });
+        }
+
+        show(routeOf(location.hash), false);
+        window.addEventListener("hashchange", function () { show(routeOf(location.hash), true); });
+
+        function setTab(tab) {
+            each(".pre-projects", function (page) { page.setAttribute("data-tab", tab); });
+            each(".pre-segment", function (button) { button.setAttribute("aria-pressed", String(button.getAttribute("data-tab") === tab)); });
+        }
+
+        function setLang(lang) {
+            try { localStorage.setItem("settings.lang", lang); } catch (e) {}
+            root.lang = lang;
+            var description = document.querySelector('meta[name="description"]');
+            if (description) description.setAttribute("content", head.description[lang]);
+            retitle();
+            say(root.getAttribute("data-load"));
+        }
+
+        function setTheme(dark) {
+            try { localStorage.setItem("settings.theme", dark ? "DARK" : "LIGHT"); } catch (e) {}
+            root.setAttribute("data-theme", dark ? "dark" : "light");
+            var bars = document.querySelectorAll('meta[name="theme-color"]');
+            for (var b = 0; b < bars.length; b++) bars[b].setAttribute("content", dark ? "#15130e" : "#fff9ef");
+        }
+
+        if (window.matchMedia) {
+            var system = matchMedia("(prefers-color-scheme: dark)");
+            var follow = function (event) {
+                var saved = null;
+                try { saved = localStorage.getItem("settings.theme"); } catch (e) {}
+                if (saved !== "DARK" && saved !== "LIGHT") root.setAttribute("data-theme", event.matches ? "dark" : "light");
+            };
+            if (system.addEventListener) system.addEventListener("change", follow);
+        }
+
+        // the address is copied, as in the app; without the clipboard API the link opens the mail client
+        function copy(link) {
+            if (!navigator.clipboard || !window.isSecureContext) return false;
+            var address = link.getAttribute("href").replace(/^mailto:/, "");
+            navigator.clipboard.writeText(address).then(function () {
+                link.setAttribute("data-copied", "");
+                clearTimeout(link.copiedTimer);
+                link.copiedTimer = setTimeout(function () { link.removeAttribute("data-copied"); }, 1500);
+            }, function () { location.href = link.getAttribute("href"); });
+            return true;
+        }
+
+        splash.addEventListener("click", function (event) {
+            var target = event.target.closest ? event.target.closest("[data-action], [data-tab], [data-copy]") : null;
+            if (!target) return;
+            if (target.hasAttribute("data-copy")) {
+                if (copy(target)) event.preventDefault();
+                return;
+            }
+            var action = target.getAttribute("data-action");
+            if (action === "lang") setLang(root.lang === "ru" ? "en" : "ru");
+            if (action === "theme") setTheme(root.getAttribute("data-theme") !== "dark");
+            if (target.hasAttribute("data-tab")) setTab(target.getAttribute("data-tab"));
+        });
+
+        var calm = !!window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+        splash.addEventListener("pointerdown", function (event) {
+            var host = event.button === 0 && event.target.closest ? event.target.closest(".pre-ripple") : null;
+            if (!host || calm) return;
+            var box = host.getBoundingClientRect();
+            var x = event.clientX - box.left;
+            var y = event.clientY - box.top;
+            var size = 2 * Math.sqrt(Math.pow(Math.max(x, box.width - x), 2) + Math.pow(Math.max(y, box.height - y), 2));
+            var wave = document.createElement("span");
+            wave.className = "pre-wave";
+            wave.style.width = wave.style.height = size + "px";
+            wave.style.left = x - size / 2 + "px";
+            wave.style.top = y - size / 2 + "px";
+            host.appendChild(wave);
+            var born = Date.now();
+            var release = function () {
+                window.removeEventListener("pointerup", release);
+                window.removeEventListener("pointercancel", release);
+                setTimeout(function () {
+                    wave.classList.add("pre-wave-out");
+                    setTimeout(function () { if (wave.parentNode) wave.parentNode.removeChild(wave); }, 300);
+                }, Math.max(0, 225 - (Date.now() - born)));
+            };
+            window.addEventListener("pointerup", release);
+            window.addEventListener("pointercancel", release);
+        });
+
+        var status = document.getElementById("pre-status");
+        var says = {
+            loading: { ru: "Загружаю приложение…", en: "Loading the app…" },
+            starting: { ru: "Запускаю…", en: "Starting…" },
+            unsupported: { ru: "Этот браузер не поддерживает WebAssembly GC.", en: "This browser does not support WebAssembly GC." },
+            failed: { ru: "Не удалось загрузить приложение.", en: "Could not load the app." }
+        };
+
+        function say(state) {
+            if (status && says[state]) status.textContent = says[state][root.lang] || "";
+        }
+
+        function setLoad(state) {
+            root.setAttribute("data-load", state);
+            say(state);
+        }
+
+        setLoad("loading");
         var supportsWasmGc = false;
         try {
             supportsWasmGc = typeof WebAssembly === "object" && WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,95,1,120,0]));
         } catch (e) { supportsWasmGc = false; }
         if (!supportsWasmGc) {
-            var note = document.getElementById("splash-note");
-            if (note) {
-                note.innerHTML = (ru ? "Этот браузер не поддерживает WebAssembly GC. Обновите браузер (Chrome 119+, Firefox 120+, Safari 18.2+) или скачайте приложение: " : "This browser does not support WebAssembly GC. Update it (Chrome 119+, Firefox 120+, Safari 18.2+) or get the app: ") +
-                    "<a href=\"download.html\">" + (ru ? "страница загрузки" : "download page") + "</a>.";
-            }
-            var bar = document.querySelector(".splash-progress");
-            if (bar) bar.remove();
+            setLoad("unsupported");
             return;
         }
         var sizes = window.vasmarfasWasmSizes || {};
         var expected = 0;
         for (var file in sizes) expected += sizes[file];
-        var progress = document.querySelector(".splash-progress");
-        var fill = document.querySelector(".splash-bar");
-        var percent = document.getElementById("splash-percent");
-        if (expected > 0 && window.ReadableStream && progress && fill && percent) {
+        var progress = splash.querySelector(".pre-progress");
+        var fill = splash.querySelector(".pre-progress-bar");
+        if (expected > 0 && window.ReadableStream && progress && fill) {
             progress.classList.add("determinate");
             var received = 0;
             var nativeFetch = window.fetch;
@@ -368,12 +512,7 @@
                         received += step.value.byteLength;
                         var share = Math.min(1, received / expected);
                         fill.style.transform = "scaleX(" + share.toFixed(3) + ")";
-                        percent.textContent = Math.floor(share * 100) + (ru ? " %" : "%");
-                        if (share >= 1) {
-                            var note = document.getElementById("splash-note");
-                            if (note) note.textContent = ru ? "Запускаю…" : "Starting…";
-                            percent.textContent = "";
-                        }
+                        if (share >= 1) setLoad("starting");
                         return reader.read().then(count);
                     }).catch(function () {});
                     return response;
@@ -383,10 +522,7 @@
         var s = document.createElement("script");
         s.src = "app.js";
         s.type = "application/javascript";
-        s.onerror = function () {
-            var note = document.getElementById("splash-note");
-            if (note) note.textContent = ru ? "Не удалось загрузить приложение. Проверьте соединение и обновите страницу." : "Could not load the app. Check the connection and reload the page.";
-        };
+        s.onerror = function () { setLoad("failed"); };
         document.body.appendChild(s);
     })();
 </script>

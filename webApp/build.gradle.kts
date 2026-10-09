@@ -81,6 +81,7 @@ val catalogTokens = mapOf(
     "@TOOLS_EN@" to "$toolCount tools",
     "@CATEGORIES_RU@" to "в $categoryCount " + if (categoryCount % 10 == 1 && categoryCount % 100 != 11) "категории" else "категориях",
     "@CATEGORIES_EN@" to "$categoryCount categories",
+    "@RELEASE_VERSION@" to providers.environmentVariable("RELEASE_VERSION").getOrElse(""),
     "    <!-- profile -->" to extra["prerenderedProfile"] as String,
 )
 

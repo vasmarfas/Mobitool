@@ -71,7 +71,7 @@ private fun TextStyle.emphasised(tracking: Float) = copy(
     fontFeatureSettings = "tnum",
 )
 
-private val appTypography: Typography = Typography().let { base ->
+internal val appTypography: Typography = Typography().let { base ->
     base.copy(
         displayLarge = base.displayLarge.emphasised(-0.02f),
         displayMedium = base.displayMedium.emphasised(-0.02f),

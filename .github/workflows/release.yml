@@ -141,9 +141,11 @@ jobs:
           name: release-notes
           path: notes.md
 
+  # after the GitHub release, so /download already links to its files; a drafted release leaves the previous ones
   web:
     name: Web
-    needs: meta
+    needs: [meta, github_release]
+    if: ${{ !cancelled() && needs.meta.result == 'success' }}
     uses: ./.github/workflows/deploy_web.yml
     with:
       version_name: ${{ needs.meta.outputs.version_name }}
@@ -226,7 +228,7 @@ jobs:
 
   github_release:
     name: GitHub release
-    needs: [meta, web, android, desktop, ios]
+    needs: [meta, android, desktop, ios]
     if: ${{ !cancelled() && needs.meta.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
