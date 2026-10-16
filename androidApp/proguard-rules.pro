@@ -17,3 +17,8 @@
 -dontwarn io.ktor.**
 
 -keep class com.google.firebase.analytics.FirebaseAnalytics { *; }
+
+# JavaCPP / Tesseract: the native side looks classes and fields up by name
+-keep class org.bytedeco.** { *; }
+-dontwarn org.bytedeco.**
+-dontwarn java.awt.**

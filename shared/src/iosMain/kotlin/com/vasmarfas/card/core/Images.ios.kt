@@ -8,19 +8,36 @@ import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import platform.CoreGraphics.CGBitmapContextCreate
+import platform.CoreGraphics.CGBitmapContextCreateImage
 import platform.CoreGraphics.CGColorSpaceCreateDeviceRGB
 import platform.CoreGraphics.CGColorSpaceRelease
 import platform.CoreGraphics.CGContextRelease
 import platform.CoreGraphics.CGContextScaleCTM
 import platform.CoreGraphics.CGContextTranslateCTM
 import platform.CoreGraphics.CGImageAlphaInfo
+import platform.CoreGraphics.CGImageRef
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.kCGBitmapByteOrder32Big
+import platform.CoreGraphics.kCGBitmapByteOrder32Little
 import platform.Foundation.NSData
 import platform.Foundation.dataWithBytes
 import platform.UIKit.UIGraphicsPopContext
 import platform.UIKit.UIGraphicsPushContext
 import platform.UIKit.UIImage
+
+@OptIn(ExperimentalForeignApi::class)
+internal fun cgImageOf(pixels: IntArray, width: Int, height: Int): CGImageRef? {
+    val space = CGColorSpaceCreateDeviceRGB()
+    val image = pixels.usePinned { pinned ->
+        val context = CGBitmapContextCreate(
+            pinned.addressOf(0), width.convert(), height.convert(), 8u, (width * 4).convert(), space,
+            CGImageAlphaInfo.kCGImageAlphaPremultipliedFirst.value or kCGBitmapByteOrder32Little,
+        )
+        CGBitmapContextCreateImage(context).also { CGContextRelease(context) }
+    }
+    CGColorSpaceRelease(space)
+    return image
+}
 
 @OptIn(ExperimentalForeignApi::class)
 actual suspend fun decodeRawImage(bytes: ByteArray, maxSide: Int): RawImage? = withContext(Dispatchers.Default) {

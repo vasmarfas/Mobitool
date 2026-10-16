@@ -47,6 +47,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.vasmarfas.card.core.MediaException
+import com.vasmarfas.card.core.OcrException
 import com.vasmarfas.card.core.PickKind
 import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.formatBytes
@@ -130,6 +131,7 @@ fun formatClock(ms: Long): String {
 
 internal suspend fun errorText(e: Throwable): String = when (e) {
     is MediaException -> getString(e.reason)
+    is OcrException -> getString(e.reason)
     is Error -> getString(Res.string.out_of_memory)
     else -> e.message ?: e.toString()
 }

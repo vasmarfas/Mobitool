@@ -33,6 +33,10 @@ Full text: [licenses/Apache-2.0.txt](licenses/Apache-2.0.txt)
 | JNA, Java Native Access (desktop builds), licensed under Apache-2.0 or LGPL-2.1-or-later at the recipient's choice | Timothy Wall and JNA contributors |
 | PDF.js (`pdfjs-dist`, website) | Mozilla Foundation |
 | Roboto 2.137 Regular (website, `fonts/roboto.woff2`, cut down to the characters of the site's HTML copy) | Google LLC |
+| Tesseract OCR 5.5.3, built by the JavaCPP Presets (`org.bytedeco:tesseract`, Android and desktop builds) | Google LLC and Tesseract contributors |
+| tessdata_fast language models `eng` and `rus` (`files/tessdata`) | Google LLC and Tesseract contributors |
+| tesseract.js 7.0.0 and tesseract.js-core 7.0.0 (website, loaded from its own `vendor/` folder when a text recognition tool runs) | Kevin Kwok, Jerome Wu and contributors |
+| JavaCPP Presets for Tesseract and Leptonica (Android and desktop builds), licensed under Apache-2.0 or GPLv2 with the Classpath Exception at the recipient's choice | Samuel Audet |
 
 ## MIT License
 
@@ -58,6 +62,28 @@ Full text: [licenses/Apache-2.0.txt](licenses/Apache-2.0.txt)
 > NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 > DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 > OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Leptonica License
+
+**Leptonica** 1.87.0, the image library Tesseract is built on, ships with Android and desktop builds inside the
+JavaCPP Presets (`org.bytedeco:leptonica`).
+
+> Copyright (C) 2001-2020 Leptonica.  All rights reserved.
+>
+> Redistribution and use in source and binary forms, with or without modification, are permitted provided that
+> the following conditions are met:
+> 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
+>    following disclaimer.
+> 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+>    following disclaimer in the documentation and/or other materials provided with the distribution.
+>
+> THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
+> WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+> PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL ANY CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+> SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+> SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+> WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+> USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## Mozilla Public License 2.0
 
@@ -118,6 +144,18 @@ license.
 runtime image, licensed under GPLv2 with the Classpath Exception,
 <https://openjdk.org/legal/gplv2+ce.html>. The exception is what permits bundling it with an
 application under different terms.
+
+## License texts
+
+The license picker ships the texts of the licenses it describes, unmodified, under
+`shared/src/commonMain/composeResources/files/licenses`. They come from the SPDX License List data,
+<https://github.com/spdx/license-list-data>, and from the PolyForm Project,
+<https://github.com/polyformproject/polyform-licenses>. Each text remains the work of its author: the Free
+Software Foundation, the Apache Software Foundation, Mozilla, the Eclipse Foundation, the European Commission,
+Creative Commons, CERN, SIL International, Open Data Commons, the Linux Foundation, MariaDB, Functional Software,
+Elastic, MongoDB and the PolyForm Project. They are included as verbatim copies, which their terms permit, and none
+of them applies to this project's own code. The notices in `headers/` are the forms the license authors recommend,
+with placeholders for the year and the copyright holder.
 
 ## Ported benchmark code
 

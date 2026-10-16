@@ -6,6 +6,8 @@ import com.vasmarfas.card.tools.documents.editor.pdfEditorTool
 val documentTools: List<Tool> = listOf(
     pdfEditorTool,
     documentConverterTool,
+    docScannerTool,
+    photoToTextTool,
     imagesToPdfTool,
     mergePdfTool,
     compressPdfTool,

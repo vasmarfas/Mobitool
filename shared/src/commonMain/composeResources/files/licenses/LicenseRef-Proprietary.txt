@@ -1,0 +1,4 @@
+Copyright (c) {year} {holder}. All rights reserved.
+
+No part of this work may be copied, modified, distributed or used without
+the prior written permission of the copyright holder.

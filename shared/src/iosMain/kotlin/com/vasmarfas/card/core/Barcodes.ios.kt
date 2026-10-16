@@ -11,9 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.convert
-import kotlinx.cinterop.usePinned
 import platform.AVFoundation.AVCaptureConnection
 import platform.AVFoundation.AVCaptureDevice
 import platform.AVFoundation.AVCaptureDeviceInput
@@ -42,15 +39,8 @@ import platform.AVFoundation.AVMetadataObjectTypeMicroQRCode
 import platform.AVFoundation.AVMetadataObjectTypePDF417Code
 import platform.AVFoundation.AVMetadataObjectTypeQRCode
 import platform.AVFoundation.AVMetadataObjectTypeUPCECode
-import platform.CoreGraphics.CGBitmapContextCreate
-import platform.CoreGraphics.CGBitmapContextCreateImage
-import platform.CoreGraphics.CGColorSpaceCreateDeviceRGB
-import platform.CoreGraphics.CGColorSpaceRelease
-import platform.CoreGraphics.CGContextRelease
-import platform.CoreGraphics.CGImageAlphaInfo
 import platform.CoreGraphics.CGImageRelease
 import platform.CoreGraphics.CGRectMake
-import platform.CoreGraphics.kCGBitmapByteOrder32Little
 import platform.QuartzCore.CATransaction
 import platform.UIKit.UIColor
 import platform.UIKit.UIView
@@ -143,18 +133,8 @@ private class CameraView(session: AVCaptureSession) : UIView(frame = CGRectMake(
     }
 }
 
-// the ARGB ints lie in memory as B, G, R, A, which is 32-bit little endian with alpha first
 internal actual fun scanPixels(pixels: IntArray, width: Int, height: Int): List<ScannedCode> {
-    val space = CGColorSpaceCreateDeviceRGB()
-    val image = pixels.usePinned { pinned ->
-        val context = CGBitmapContextCreate(
-            pinned.addressOf(0), width.convert(), height.convert(), 8u, (width * 4).convert(), space,
-            CGImageAlphaInfo.kCGImageAlphaPremultipliedFirst.value or kCGBitmapByteOrder32Little,
-        )
-        CGBitmapContextCreateImage(context).also { CGContextRelease(context) }
-    }
-    CGColorSpaceRelease(space)
-    if (image == null) return emptyList()
+    val image = cgImageOf(pixels, width, height) ?: return emptyList()
     val request = VNDetectBarcodesRequest()
     VNImageRequestHandler(cGImage = image, options = emptyMap<Any?, Any?>()).performRequests(listOf(request), null)
     CGImageRelease(image)

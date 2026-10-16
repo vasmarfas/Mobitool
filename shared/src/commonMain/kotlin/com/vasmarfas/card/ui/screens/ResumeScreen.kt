@@ -37,6 +37,7 @@ import com.vasmarfas.card.data.Education
 import com.vasmarfas.card.data.Experience
 import com.vasmarfas.card.data.ResumeRepository
 import com.vasmarfas.card.resources.*
+import com.vasmarfas.card.tools.time.monthShortNames
 import com.vasmarfas.card.ui.components.ContentColumn
 import com.vasmarfas.card.ui.components.EmptyState
 import com.vasmarfas.card.ui.components.FindableText
@@ -117,12 +118,6 @@ fun ResumeScreen() {
         }
     }
 }
-
-private val monthShortNames = listOf(
-    Res.string.month_short_1, Res.string.month_short_2, Res.string.month_short_3, Res.string.month_short_4,
-    Res.string.month_short_5, Res.string.month_short_6, Res.string.month_short_7, Res.string.month_short_8,
-    Res.string.month_short_9, Res.string.month_short_10, Res.string.month_short_11, Res.string.month_short_12,
-)
 
 @Composable
 private fun formatMonth(value: String): String {

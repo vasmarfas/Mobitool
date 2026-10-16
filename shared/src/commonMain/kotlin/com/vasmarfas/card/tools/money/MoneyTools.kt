@@ -4,6 +4,7 @@ import com.vasmarfas.card.tools.Tool
 
 val moneyTools: List<Tool> = listOf(
     currencyConverterTool,
+    salaryCalculatorTool,
     cryptoConverterTool,
     loanCalculatorTool,
     discountVatTool,

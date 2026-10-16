@@ -79,6 +79,12 @@ val monthNames: List<StringResource> = listOf(
     Res.string.december,
 )
 
+val monthShortNames: List<StringResource> = listOf(
+    Res.string.month_short_1, Res.string.month_short_2, Res.string.month_short_3, Res.string.month_short_4,
+    Res.string.month_short_5, Res.string.month_short_6, Res.string.month_short_7, Res.string.month_short_8,
+    Res.string.month_short_9, Res.string.month_short_10, Res.string.month_short_11, Res.string.month_short_12,
+)
+
 val monthNamesInDate: List<StringResource> = listOf(
     Res.string.january_of,
     Res.string.february_of,

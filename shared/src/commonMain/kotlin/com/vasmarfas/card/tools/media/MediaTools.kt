@@ -14,4 +14,5 @@ val mediaTools: List<Tool> = listOf(
     gifMakerTool,
     exifViewerTool,
     videoFrameTool,
+    videoToTextTool,
 )

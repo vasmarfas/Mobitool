@@ -300,7 +300,7 @@ private fun CropPanel(photo: PhotoSession, frame: ImageBitmap) {
 }
 
 @Composable
-private fun PhotoBox(image: ImageBitmap, content: @Composable BoxScope.() -> Unit) {
+internal fun PhotoBox(image: ImageBitmap, content: @Composable BoxScope.() -> Unit) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Box(
             Modifier.heightIn(max = expandedHeight(420.dp, 460.dp)).aspectRatio(image.width.toFloat() / image.height),

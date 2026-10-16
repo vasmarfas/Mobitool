@@ -103,6 +103,7 @@ fun <T> DropdownChoice(
 private fun SearchDialog(title: String, labels: List<String>, selected: Int, onSelect: (Int) -> Unit, onDismiss: () -> Unit) {
     var query by remember { mutableStateOf("") }
     val shown = labels.indices.filter { query.isBlank() || labels[it].contains(query.trim(), ignoreCase = true) }
+        .sortedBy { if (labels[it].startsWith(query.trim(), ignoreCase = true)) 0 else 1 }
     val list = rememberLazyListState(initialFirstVisibleItemIndex = selected.coerceAtLeast(0))
     val focus = remember { FocusRequester() }
     AlertDialog(

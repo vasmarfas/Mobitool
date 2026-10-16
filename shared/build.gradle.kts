@@ -86,6 +86,9 @@ kotlin {
             dependencies {
                 implementation(libs.ktor.client.okhttp)
                 implementation(libs.zxing.core)
+                implementation(libs.bytedeco.javacpp)
+                implementation(libs.bytedeco.tesseract)
+                implementation(libs.bytedeco.leptonica)
             }
         }
         jvmMain.get().dependsOn(jvmCommonMain)
@@ -115,6 +118,11 @@ kotlin {
             implementation(libs.camerax.camera2)
             implementation(libs.camerax.lifecycle)
             implementation(libs.camerax.compose)
+            listOf("android-arm64", "android-x86_64").forEach { abi ->
+                implementation("org.bytedeco:javacpp:${libs.versions.javacpp.get()}:$abi")
+                implementation("org.bytedeco:tesseract:${libs.versions.tesseract.get()}:$abi")
+                implementation("org.bytedeco:leptonica:${libs.versions.leptonica.get()}:$abi")
+            }
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -152,6 +160,8 @@ kotlin {
             implementation(libs.bytedeco.ffmpeg)
             implementation("org.bytedeco:javacpp:${libs.versions.javacpp.get()}:$javacppPlatform")
             implementation("org.bytedeco:ffmpeg:${libs.versions.ffmpeg.get()}:$javacppPlatform")
+            implementation("org.bytedeco:tesseract:${libs.versions.tesseract.get()}:$javacppPlatform")
+            implementation("org.bytedeco:leptonica:${libs.versions.leptonica.get()}:$javacppPlatform")
             implementation(libs.pdfbox)
             implementation(libs.jna)
         }

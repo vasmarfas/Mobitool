@@ -20,4 +20,6 @@ val developerTools: List<Tool> = listOf(
     chmodCalculatorTool,
     semverTool,
     mimeTypesTool,
+    licensePickerTool,
+    privacyPolicyTool,
 )

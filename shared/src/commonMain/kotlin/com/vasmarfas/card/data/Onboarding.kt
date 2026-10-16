@@ -50,8 +50,8 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
     MONEY(
         "money", InterestGroup.EVERYDAY, Res.string.interest_money, Icons.Filled.Payments,
         listOf(
-            "currency-converter", "percentage", "discount-vat", "unit-price", "tip-split", "shopping-split", "loan-calculator",
-            "compound-interest", "number-to-words", "crypto-converter", "electricity-cost",
+            "currency-converter", "percentage", "salary-calculator", "discount-vat", "unit-price", "tip-split", "shopping-split",
+            "loan-calculator", "compound-interest", "number-to-words", "crypto-converter", "electricity-cost",
         ),
     ),
     HOME(
@@ -65,8 +65,9 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
     DOCUMENTS(
         "documents", InterestGroup.EVERYDAY, Res.string.interest_documents, Icons.Filled.Description,
         listOf(
-            "pdf-editor", "images-to-pdf", "merge-pdf", "compress-pdf", "id-photo", "document-converter", "pdf-pages", "pdf-to-images",
-            "pdf-to-text", "unlock-pdf", "zip-archive", "qr-generator", "number-check", "number-to-words", "paper-sizes", "csv-converter",
+            "pdf-editor", "doc-scanner", "images-to-pdf", "merge-pdf", "compress-pdf", "id-photo", "document-converter", "pdf-pages",
+            "pdf-to-images", "pdf-to-text", "photo-to-text", "unlock-pdf", "zip-archive", "qr-generator", "number-check", "number-to-words", "paper-sizes",
+            "csv-converter",
         ),
     ),
     PHOTO(
@@ -128,7 +129,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
     ),
     VIDEO(
         "video", InterestGroup.HOBBY, Res.string.interest_video, Icons.Filled.Movie,
-        listOf("video-editor", "video-converter", "video-frame", "gif-maker", "audio-converter", "audio-editor", "aspect-ratio"),
+        listOf("video-editor", "video-converter", "video-frame", "gif-maker", "audio-converter", "audio-editor", "video-to-text", "aspect-ratio"),
     ),
     MUSIC(
         "music", InterestGroup.HOBBY, Res.string.interest_music, Icons.Filled.MusicNote,
@@ -138,7 +139,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
         "design", InterestGroup.HOBBY, Res.string.interest_design, Icons.Filled.Palette,
         listOf(
             "color-converter", "contrast-checker", "image-palette", "gradient-generator", "aspect-ratio",
-            "typography-scale", "material-scheme", "css-units", "paper-sizes", "barcode-generator", "qr-generator", "lorem-ipsum",
+            "typography-scale", "material-scheme", "css-units", "paper-sizes", "barcode-generator", "qr-generator", "lorem-ipsum", "license-picker",
         ),
     ),
     SENSORS(
@@ -160,7 +161,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
         "texts", InterestGroup.HOBBY, Res.string.interest_texts, Icons.Filled.TextFields,
         listOf(
             "text-counter", "keyboard-layout", "case-converter", "find-replace", "transliteration", "text-cleaner", "text-diff",
-            "line-tools", "mojibake-fixer", "markdown-preview", "phonetic-alphabet", "morse-code", "ciphers", "lorem-ipsum",
+            "line-tools", "photo-to-text", "mojibake-fixer", "markdown-preview", "phonetic-alphabet", "morse-code", "ciphers", "lorem-ipsum",
             "unicode-inspector",
         ),
     ),
@@ -184,7 +185,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
         listOf(
             "json-formatter", "base64", "regex-tester", "jwt-decoder", "hash-generator", "uuid-generator", "url-tools",
             "unix-timestamp", "text-diff", "http-status-codes", "string-escape", "csv-converter",
-            "programmer-calculator", "float-inspector", "semver", "mime-types", "ascii-table", "unicode-inspector",
+            "programmer-calculator", "float-inspector", "semver", "license-picker", "privacy-policy", "mime-types", "ascii-table", "unicode-inspector",
             "markdown-preview", "http-request", "css-units", "material-scheme", "clipboard-inspector", "lorem-ipsum",
         ),
     ),

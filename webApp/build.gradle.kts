@@ -29,12 +29,13 @@ kotlin {
             implementation(npm("@mediabunny/mp3-encoder", libs.versions.mediabunny.get()))
             implementation(npm("pdfjs-dist", libs.versions.pdfjs.get()))
             implementation(npm("zxing-wasm", libs.versions.zxingWasm.get()))
+            implementation(npm("tesseract.js", libs.versions.tesseractJs.get()))
         }
         wasmJsMain.get().resources.srcDir(layout.buildDirectory.dir("vendor"))
     }
 }
 
-// media, PDF and barcode libraries load on demand from vendor/ and stay out of the app bundle
+// media, PDF, barcode and OCR libraries load on demand from vendor/ and stay out of the app bundle
 val vendorScripts = tasks.register<Sync>("vendorScripts") {
     dependsOn(":kotlinWasmNpmInstall")
     val modules = rootProject.layout.buildDirectory.dir("wasm/node_modules")
@@ -43,6 +44,15 @@ val vendorScripts = tasks.register<Sync>("vendorScripts") {
     from(modules.map { it.dir("zxing-wasm/dist") }) {
         include("es/**", "reader/zxing_reader.wasm")
         into("zxing")
+    }
+    from(modules.map { it.dir("tesseract.js/dist") }) {
+        include("tesseract.esm.min.js", "worker.min.js")
+        into("tesseract")
+    }
+    // the worker picks one of three builds by the browser's SIMD support, the language models are LSTM only
+    from(modules.map { it.dir("tesseract.js-core") }) {
+        include("tesseract-core-lstm.wasm.js", "tesseract-core-simd-lstm.wasm.js", "tesseract-core-relaxedsimd-lstm.wasm.js")
+        into("tesseract/core")
     }
     from(modules.map { it.dir("pdfjs-dist") }) {
         include("build/pdf.min.mjs", "build/pdf.worker.min.mjs", "cmaps/**", "standard_fonts/**", "wasm/**", "iccs/**")
