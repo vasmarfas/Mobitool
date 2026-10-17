@@ -12,6 +12,7 @@ on:
       - 'settings.gradle.kts'
       - 'gradle.properties'
       - '.github/workflows/deploy_web.yml'
+      - '.github/scripts/static_copy_check.py'
   workflow_dispatch:
     inputs:
       version_name:
