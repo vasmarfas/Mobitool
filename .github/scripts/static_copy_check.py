@@ -245,7 +245,7 @@ def compare(app, copy):
 
 
 # the screen is ready when nothing is loading, two readings of its tree agree and it shows every text the copy shows, or
-# when nothing has changed for five seconds: Compose Resources read strings after the first frame, and on a slow runner
+# when nothing has changed for ten seconds: Compose Resources read strings after the first frame, and on a slow runner
 # a screen stands still for a second or two with its labels empty
 def settle(page, pending, texts):
     last = nodes = None
@@ -255,7 +255,7 @@ def settle(page, pending, texts):
         nodes = page.evaluate(APP_NODES)
         shown = " | ".join(norm(n["text"]) + " " + norm(n["label"]) for n in nodes)
         quiet = quiet + 1 if nodes and nodes == last and not pending else 0
-        if quiet and all(text in shown for text in texts) or quiet >= 10:
+        if quiet and all(text in shown for text in texts) or quiet >= 20:
             return nodes
         last = nodes
     return nodes
@@ -275,7 +275,8 @@ def check(browser, base, width, ratio, lang):
     page.on("requestfinished", lambda request: pending.discard(request))
     page.on("requestfailed", lambda request: pending.discard(request))
     page.goto(base + "#home", wait_until="domcontentloaded")
-    page.wait_for_function("document.getElementById('splash').classList.contains('hidden')", timeout=180_000)
+    # the app fades the copy out and sets display: none 400 ms later, which would hide it again in the middle of a measurement
+    page.wait_for_function("document.getElementById('splash').style.display === 'none'", timeout=180_000)
     results = {}
     for view in VIEWS:
         if view == "articles":
