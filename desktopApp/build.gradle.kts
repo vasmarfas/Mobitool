@@ -39,6 +39,7 @@ val nativeJars = configurations.runtimeClasspath.map { classpath ->
 val unpackMacNatives = tasks.register<Sync>("unpackMacNatives") {
     from(nativeJars.map { jars -> jars.map { zipTree(it) } }) {
         include("org/bytedeco/*/macosx-${if (macArm) "arm64" else "x86_64"}/*")
+        exclude("org/bytedeco/tesseract/*/tesseract")
         include("com/sun/jna/darwin-${if (macArm) "aarch64" else "x86-64"}/*.jnilib")
         eachFile { path = name }
         includeEmptyDirs = false
@@ -197,7 +198,7 @@ if (macAppStore || developerIdIdentity != null) {
             } else {
                 bundle.resolve("Contents/app").listFiles { file -> file.extension == "jar" }.orEmpty().forEach { jar ->
                     val entries = ZipFile(jar).use { zip ->
-                        zip.entries().toList().map { it.name }.filter { it.substringAfterLast('/') in programs }
+                        zip.entries().toList().map { it.name }.filter { it.substringAfterLast('/') in programs + "tesseract" }
                     }
                     if (entries.isEmpty()) return@forEach
                     FileSystems.newFileSystem(jar.toPath()).use { fs ->
