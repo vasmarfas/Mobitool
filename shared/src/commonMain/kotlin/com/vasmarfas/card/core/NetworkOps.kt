@@ -1,5 +1,7 @@
 package com.vasmarfas.card.core
 
+import org.jetbrains.compose.resources.StringResource
+
 data class PingReply(
     val sequence: Int,
     val timeMs: Double?,
@@ -68,11 +70,15 @@ data class DiscoveredDevice(
     val headers: Map<String, String>,
 )
 
+class NetException(val reason: StringResource, val detail: String = "") : Exception(detail)
+
 object NetCapabilities {
     val icmpPing: Boolean get() = platformNetCapabilities().icmpPing
     val tcp: Boolean get() = platformNetCapabilities().tcp
     val udp: Boolean get() = platformNetCapabilities().udp
     val interfaces: Boolean get() = platformNetCapabilities().interfaces
+    val dnsOverTls: Boolean get() = platformNetCapabilities().dnsOverTls
+    val dnsOverQuic: Boolean get() = platformNetCapabilities().dnsOverQuic
 }
 
 data class PlatformNetCapabilities(
@@ -80,6 +86,8 @@ data class PlatformNetCapabilities(
     val tcp: Boolean,
     val udp: Boolean,
     val interfaces: Boolean,
+    val dnsOverTls: Boolean,
+    val dnsOverQuic: Boolean,
 )
 
 expect fun platformNetCapabilities(): PlatformNetCapabilities
@@ -104,7 +112,11 @@ expect suspend fun whoisQuery(server: String, query: String, timeoutMs: Int): St
 
 expect suspend fun udpQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray?
 
-expect suspend fun tcpDnsQuery(host: String, payload: ByteArray, timeoutMs: Int): ByteArray?
+expect suspend fun tcpDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray?
+
+expect suspend fun tlsDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray
+
+expect suspend fun quicDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray
 
 expect suspend fun ssdpDiscover(timeoutMs: Int): List<DiscoveredDevice>
 

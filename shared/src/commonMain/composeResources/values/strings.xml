@@ -1866,10 +1866,10 @@
         <item quantity="other">%1$d service types</item>
     </plurals>
     <string name="dns_lookup">DNS lookup</string>
-    <string name="dns_lookup_description">DNS records of any type over DoH, UDP or your own resolver. A, AAAA, MX, TXT, NS, SOA, SRV, CAA, PTR and more. DNS-over-HTTPS works everywhere, and answers can be compared across resolvers.</string>
+    <string name="dns_lookup_description">DNS records of any type over UDP, TCP, DoT, DoQ or DoH. A, AAAA, MX, TXT, SOA, CAA, PTR and more from public resolvers, your router or your own DoH, with answers compared across resolvers.</string>
     <string name="domain_name_or_ip_reverse_lookup">Domain name or IP (reverse lookup)</string>
     <string name="resolver">Resolver</string>
-    <string name="dns_server_ip">DNS server IP</string>
+    <string name="dns_server_address">DNS server</string>
     <string name="dns_browser_build_only_dns">Browser build: only DNS-over-HTTPS resolvers are available, including your own below.</string>
     <string name="compare_resolvers">Compare resolvers</string>
     <string name="resolved_via">Resolved via</string>
@@ -1877,6 +1877,8 @@
     <string name="additional">Additional</string>
     <string name="answers_across_resolvers">Answers across resolvers</string>
     <string name="dns_no_response">No answer from %1$s within 4 s.</string>
+    <string name="dns_doq_unsupported">The server does not accept DNS over QUIC.</string>
+    <string name="dns_connection_closed">The server closed the connection, code %1$s.</string>
     <string name="all_resolvers_agree">All resolvers agree.</string>
     <string name="dns_resolvers_return_different">Resolvers return different answers (propagation in progress or GeoDNS).</string>
     <string name="custom_doh_resolvers">Custom DoH resolvers</string>
@@ -1891,7 +1893,6 @@
     <string name="json_api">JSON API</string>
     <string name="wire_rfc_8484">Wire (RFC 8484)</string>
     <string name="cloudflare_1_1_1_1">Cloudflare (1.1.1.1)</string>
-    <string name="dns_over_https">DNS over HTTPS</string>
     <string name="google_8_8_8_8">Google (8.8.8.8)</string>
     <string name="quad9_9_9_9_9">Quad9 (9.9.9.9)</string>
     <string name="blocks_malicious_domains">Blocks malicious domains</string>
@@ -1906,9 +1907,9 @@
     <string name="comss_one">Comss.one</string>
     <string name="nodes_in_russia_and_europe">Nodes in Russia and Europe</string>
     <string name="yandex_77_88_8_8">Yandex Basic (77.88.8.8)</string>
-    <string name="udp_only">No filtering, UDP only</string>
-    <string name="custom_udp_server">Custom UDP server</string>
-    <string name="any_dns_server_over_udp_53">Any DNS server over UDP/53</string>
+    <string name="no_filtering">No filtering</string>
+    <string name="custom_dns_server">Custom server</string>
+    <string name="any_dns_server_by_address">Any DNS server by IP or name, a port goes after a colon</string>
     <string name="request_none">None</string>
     <string name="raw">Raw</string>
     <string name="form">Form</string>
@@ -1987,6 +1988,7 @@
     <string name="net_error_timeout">The host did not answer in time.</string>
     <string name="net_error_unknown_host">The host name does not resolve: check the spelling and the connection.</string>
     <string name="net_error_refused">The connection was refused or the host is unreachable.</string>
+    <string name="net_error_closed">The server closed the connection without an answer.</string>
     <string name="net_error_certificate">The server certificate is not trusted: it has expired, is self-signed, was issued for another name or by an unknown authority.</string>
     <string name="net_error_tls">The TLS connection could not be set up.</string>
     <string name="network_interfaces">Network interfaces</string>
@@ -4452,6 +4454,7 @@
     <string name="link_email">Email</string>
     <string name="link_googleplay">Google Play</string>
     <string name="link_appstore">App Store</string>
+    <string name="link_macappstore">Mac App Store</string>
     <string name="link_rustore">RuStore</string>
     <string name="link_msstore">Microsoft Store</string>
     <string name="link_support">Support</string>
@@ -4607,8 +4610,8 @@
     <string name="pdf_edit_save_pdf">Save PDF</string>
     <string name="yandex_safe_77_88_8_88">Yandex Safe (77.88.8.88)</string>
     <string name="yandex_family_77_88_8_7">Yandex Family (77.88.8.7)</string>
-    <string name="yandex_dns_safe">Blocks fraudulent and infected sites, UDP only</string>
-    <string name="yandex_dns_family">Also blocks adult sites, UDP only</string>
+    <string name="yandex_dns_safe">Blocks fraudulent and infected sites</string>
+    <string name="yandex_dns_family">Also blocks adult sites</string>
     <string name="open_file">Open file</string>
     <string name="oven_recipe_for_fan">The recipe is for a fan oven</string>
     <string name="oven_fan_hint">A fan carries the heat, so a fan oven is set about 20 °C lower than a conventional one.</string>

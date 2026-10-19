@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-09-25",
+  "updated": "2026-10-20",
   "summary": {
     "en": "Android and Kotlin Multiplatform developer with a systems and network background. I take a project from the first commit to a signed store build, and I run the infrastructure it talks to.",
     "ru": "Android и Kotlin Multiplatform разработчик с фоном системного и сетевого инженера. Веду проект от первого коммита до подписанной сборки в магазине и сам поддерживаю инфраструктуру, с которой он работает."
@@ -25,7 +25,7 @@
   ],
   "experience": [
     {
-      "company": { "en": "Temporarily hidden", "ru": "Временно скрыто" },
+      "company": { "en": "IdeaPlatform", "ru": "IdeaPlatform" },
       "role": { "en": "Middle Android developer", "ru": "Middle Android-разработчик" },
       "from": "2025-04",
       "to": null,

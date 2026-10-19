@@ -168,6 +168,16 @@ class DnsMessageTest {
     }
 
     @Test
+    fun customServerTakesAnOptionalPort() {
+        assertEquals("192.168.88.1" to 53, DnsClient.parseServer(" 192.168.88.1 ", 53))
+        assertEquals("dns.example.com" to 8853, DnsClient.parseServer("dns.example.com:8853", 853))
+        assertEquals("dns.example.com" to 853, DnsClient.parseServer("dns.example.com:99999", 853))
+        assertEquals("2a10:50c0::ad1:ff" to 853, DnsClient.parseServer("2a10:50c0::ad1:ff", 853))
+        assertEquals("2a10:50c0::ad1:ff" to 5353, DnsClient.parseServer("[2a10:50c0::ad1:ff]:5353", 853))
+        assertEquals("2a10:50c0::ad1:ff" to 53, DnsClient.parseServer("[2a10:50c0::ad1:ff]", 53))
+    }
+
+    @Test
     fun parsesAnswerWithCompression() {
         val header = byteArrayOf(0x12, 0x34, 0x81.toByte(), 0x80.toByte(), 0, 1, 0, 1, 0, 0, 0, 0)
         val question = byteArrayOf(7) + "example".encodeToByteArray() + byteArrayOf(3) + "com".encodeToByteArray() + byteArrayOf(0, 0, 1, 0, 1)

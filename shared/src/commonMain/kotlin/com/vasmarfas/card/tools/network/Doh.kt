@@ -5,7 +5,9 @@ import com.vasmarfas.card.core.Net
 import com.vasmarfas.card.core.NetCapabilities
 import com.vasmarfas.card.core.Prefs
 import com.vasmarfas.card.core.str
+import com.vasmarfas.card.core.quicDnsQuery
 import com.vasmarfas.card.core.tcpDnsQuery
+import com.vasmarfas.card.core.tlsDnsQuery
 import com.vasmarfas.card.core.udpQuery
 import com.vasmarfas.card.resources.*
 import io.ktor.client.request.get
@@ -34,21 +36,56 @@ enum class DohFlavour(val label: StringResource) {
     WIRE(Res.string.wire_rfc_8484),
 }
 
-enum class DnsResolver(val label: StringResource, val dohUrl: String?, val dohFlavour: DohFlavour, val udpAddress: String?, val description: StringResource) {
-    CLOUDFLARE(Res.string.cloudflare_1_1_1_1, "https://cloudflare-dns.com/dns-query", DohFlavour.JSON, "1.1.1.1", Res.string.dns_over_https),
-    GOOGLE(Res.string.google_8_8_8_8, "https://dns.google/resolve", DohFlavour.JSON, "8.8.8.8", Res.string.dns_over_https),
-    QUAD9(Res.string.quad9_9_9_9_9, "https://dns.quad9.net:5053/dns-query", DohFlavour.JSON, "9.9.9.9", Res.string.blocks_malicious_domains),
-    QUAD9_ECS(Res.string.quad9_ecs_9_9_9_11, "https://dns11.quad9.net/dns-query", DohFlavour.AUTO, "9.9.9.11", Res.string.doh_same_filtering_plus_edns),
-    ADGUARD(Res.string.adguard_94_140_14_14, "https://dns.adguard-dns.com/resolve", DohFlavour.JSON, "94.140.14.14", Res.string.blocks_ads_and_trackers),
-    MULLVAD(Res.string.mullvad_194_242_2_2, "https://dns.mullvad.net/dns-query", DohFlavour.AUTO, "194.242.2.2", Res.string.no_logging),
-    DNS4EU(Res.string.dns4eu_86_54_11_1, "https://unfiltered.joindns4.eu/dns-query", DohFlavour.AUTO, "86.54.11.1", Res.string.eu_public_resolver_unfiltered),
-    COMSS(Res.string.comss_one, "https://dns.comss.one/dns-query", DohFlavour.AUTO, null, Res.string.nodes_in_russia_and_europe),
-    YANDEX(Res.string.yandex_77_88_8_8, null, DohFlavour.AUTO, "77.88.8.8", Res.string.udp_only),
-    YANDEX_SAFE(Res.string.yandex_safe_77_88_8_88, null, DohFlavour.AUTO, "77.88.8.88", Res.string.yandex_dns_safe),
-    YANDEX_FAMILY(Res.string.yandex_family_77_88_8_7, null, DohFlavour.AUTO, "77.88.8.7", Res.string.yandex_dns_family),
-    CUSTOM(Res.string.custom_udp_server, null, DohFlavour.AUTO, null, Res.string.any_dns_server_over_udp_53);
+enum class DnsTransport(val label: String, val scheme: String, val defaultPort: Int) {
+    UDP("UDP", "udp", 53),
+    TCP("TCP", "tcp", 53),
+    DOT("DoT", "tls", 853),
+    DOQ("DoQ", "quic", 853),
+    DOH("DoH", "https", 443);
 
-    val usableHere: Boolean get() = dohUrl != null || (udpAddress != null || this == CUSTOM) && NetCapabilities.udp
+    val availableHere: Boolean
+        get() = when (this) {
+            UDP -> NetCapabilities.udp
+            TCP -> NetCapabilities.tcp
+            DOT -> NetCapabilities.dnsOverTls
+            DOQ -> NetCapabilities.dnsOverQuic
+            DOH -> true
+        }
+}
+
+enum class DnsResolver(
+    val label: StringResource,
+    val dohUrl: String?,
+    val dohFlavour: DohFlavour,
+    val udpAddress: String?,
+    val dotHost: String?,
+    val doqHost: String?,
+    val description: StringResource,
+) {
+    CLOUDFLARE(Res.string.cloudflare_1_1_1_1, "https://cloudflare-dns.com/dns-query", DohFlavour.JSON, "1.1.1.1", "one.one.one.one", null, Res.string.reliable_anycast_no_filtering),
+    GOOGLE(Res.string.google_8_8_8_8, "https://dns.google/resolve", DohFlavour.JSON, "8.8.8.8", "dns.google", null, Res.string.reliable_anycast_no_filtering),
+    QUAD9(Res.string.quad9_9_9_9_9, "https://dns.quad9.net:5053/dns-query", DohFlavour.JSON, "9.9.9.9", "dns.quad9.net", "dns.quad9.net", Res.string.blocks_malicious_domains),
+    QUAD9_ECS(Res.string.quad9_ecs_9_9_9_11, "https://dns11.quad9.net/dns-query", DohFlavour.AUTO, "9.9.9.11", "dns11.quad9.net", "dns11.quad9.net", Res.string.doh_same_filtering_plus_edns),
+    ADGUARD(Res.string.adguard_94_140_14_14, "https://dns.adguard-dns.com/resolve", DohFlavour.JSON, "94.140.14.14", "dns.adguard-dns.com", "dns.adguard-dns.com", Res.string.blocks_ads_and_trackers),
+    MULLVAD(Res.string.mullvad_194_242_2_2, "https://dns.mullvad.net/dns-query", DohFlavour.AUTO, "194.242.2.2", "dns.mullvad.net", null, Res.string.no_logging),
+    DNS4EU(Res.string.dns4eu_86_54_11_1, "https://unfiltered.joindns4.eu/dns-query", DohFlavour.AUTO, "86.54.11.1", "unfiltered.joindns4.eu", null, Res.string.eu_public_resolver_unfiltered),
+    COMSS(Res.string.comss_one, "https://dns.comss.one/dns-query", DohFlavour.AUTO, null, "dns.comss.one", "dns.comss.one", Res.string.nodes_in_russia_and_europe),
+    YANDEX(Res.string.yandex_77_88_8_8, null, DohFlavour.AUTO, "77.88.8.8", "common.dot.dns.yandex.net", null, Res.string.no_filtering),
+    YANDEX_SAFE(Res.string.yandex_safe_77_88_8_88, null, DohFlavour.AUTO, "77.88.8.88", "safe.dot.dns.yandex.net", null, Res.string.yandex_dns_safe),
+    YANDEX_FAMILY(Res.string.yandex_family_77_88_8_7, null, DohFlavour.AUTO, "77.88.8.7", "family.dot.dns.yandex.net", null, Res.string.yandex_dns_family),
+    CUSTOM(Res.string.custom_dns_server, null, DohFlavour.AUTO, null, null, null, Res.string.any_dns_server_by_address);
+
+    val transports: List<DnsTransport>
+        get() = DnsTransport.entries.filter { transport ->
+            transport.availableHere && when (transport) {
+                DnsTransport.UDP, DnsTransport.TCP -> udpAddress != null || this == CUSTOM
+                DnsTransport.DOT -> dotHost != null || this == CUSTOM
+                DnsTransport.DOQ -> doqHost != null || this == CUSTOM
+                DnsTransport.DOH -> dohUrl != null
+            }
+        }
+
+    val usableHere: Boolean get() = transports.isNotEmpty()
 }
 
 @Serializable
@@ -56,12 +93,14 @@ data class CustomResolver(val name: String, val url: String, val flavour: DohFla
 
 sealed interface ResolverChoice {
     val key: String
+    val transports: List<DnsTransport>
 
     @Composable
     fun label(): String
 
     data class BuiltIn(val resolver: DnsResolver) : ResolverChoice {
         override val key: String get() = resolver.name
+        override val transports: List<DnsTransport> get() = resolver.transports
 
         @Composable
         override fun label(): String = resolver.label.str()
@@ -69,6 +108,7 @@ sealed interface ResolverChoice {
 
     data class Custom(val resolver: CustomResolver) : ResolverChoice {
         override val key: String get() = "custom:${resolver.url}"
+        override val transports: List<DnsTransport> get() = listOf(DnsTransport.DOH)
 
         @Composable
         override fun label(): String = resolver.name.ifBlank { resolver.url }
@@ -108,28 +148,46 @@ object DohRequest {
 object DnsClient {
     private val flavours = mutableMapOf<String, DohFlavour>()
 
-    suspend fun query(name: String, type: String, choice: ResolverChoice, customServer: String = ""): DnsQueryResult {
+    suspend fun query(name: String, type: String, choice: ResolverChoice, transport: DnsTransport, customServer: String = ""): DnsQueryResult {
         val typeCode = DnsTypes.byName[type] ?: type.removePrefix("TYPE").toIntOrNull() ?: 1
-        return when (choice) {
-            is ResolverChoice.Custom -> doh(DohRequest.normalize(choice.resolver.url), name, typeCode, choice.resolver.flavour)
-            is ResolverChoice.BuiltIn -> {
-                val resolver = choice.resolver
-                val server = if (resolver == DnsResolver.CUSTOM) customServer.trim() else resolver.udpAddress
-                when {
-                    resolver.dohUrl != null -> doh(resolver.dohUrl, name, typeCode, resolver.dohFlavour)
-                    !server.isNullOrBlank() && NetCapabilities.udp -> DnsQueryResult(queryUdp(server, name, typeCode), "udp://$server:53", null)
-                    else -> doh(DnsResolver.CLOUDFLARE.dohUrl!!, name, typeCode, DnsResolver.CLOUDFLARE.dohFlavour)
-                }
-            }
+        val resolver = when (choice) {
+            is ResolverChoice.Custom -> return doh(DohRequest.normalize(choice.resolver.url), name, typeCode, choice.resolver.flavour)
+            is ResolverChoice.BuiltIn -> choice.resolver
+        }
+        if (transport == DnsTransport.DOH) return doh(resolver.dohUrl!!, name, typeCode, resolver.dohFlavour)
+        val (host, port) = when {
+            resolver == DnsResolver.CUSTOM -> parseServer(customServer, transport.defaultPort)
+            transport == DnsTransport.DOT -> resolver.dotHost!! to transport.defaultPort
+            transport == DnsTransport.DOQ -> resolver.doqHost!! to transport.defaultPort
+            else -> resolver.udpAddress!! to transport.defaultPort
+        }
+        val endpoint = "${transport.scheme}://${if (host.contains(':')) "[$host]" else host}:$port"
+        if (transport == DnsTransport.UDP) return DnsQueryResult(queryUdp(host, name, typeCode, port), endpoint, null)
+        val payload = DnsMessage.buildQuery(name, typeCode, if (transport == DnsTransport.DOQ) 0 else Random.nextInt(1, 0xFFFF))
+        val answer = when (transport) {
+            DnsTransport.DOT -> tlsDnsQuery(host, port, payload, 4000)
+            DnsTransport.DOQ -> quicDnsQuery(host, port, payload, 4000)
+            else -> tcpDnsQuery(host, port, payload, 4000) ?: error(getString(Res.string.dns_no_response, host))
+        }
+        return DnsQueryResult(DnsMessage.parse(answer), endpoint, null)
+    }
+
+    fun parseServer(text: String, defaultPort: Int): Pair<String, Int> {
+        val value = text.trim()
+        fun port(raw: String) = raw.toIntOrNull()?.takeIf { it in 1..65535 } ?: defaultPort
+        return when {
+            value.startsWith("[") -> value.substringAfter('[').substringBefore(']') to port(value.substringAfter("]:", ""))
+            value.count { it == ':' } == 1 -> value.substringBefore(':') to port(value.substringAfter(':'))
+            else -> value to defaultPort
         }
     }
 
-    suspend fun queryUdp(server: String, name: String, typeCode: Int): DnsResponse {
+    suspend fun queryUdp(server: String, name: String, typeCode: Int, port: Int = 53): DnsResponse {
         val id = Random.nextInt(1, 0xFFFF)
         val payload = DnsMessage.buildQuery(name, typeCode, id)
-        val response = DnsMessage.parse(udpQuery(server, 53, payload, 4000) ?: error(getString(Res.string.dns_no_response, server)))
+        val response = DnsMessage.parse(udpQuery(server, port, payload, 4000) ?: error(getString(Res.string.dns_no_response, server)))
         if (!response.truncated) return response
-        return tcpDnsQuery(server, payload, 4000)?.let(DnsMessage::parse) ?: response
+        return tcpDnsQuery(server, port, payload, 4000)?.let(DnsMessage::parse) ?: response
     }
 
     suspend fun queryDoh(url: String, name: String, typeCode: Int, flavour: DohFlavour = DohFlavour.AUTO): DnsResponse {

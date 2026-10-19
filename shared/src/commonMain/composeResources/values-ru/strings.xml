@@ -1886,10 +1886,10 @@
         <item quantity="other">%1$d типа сервисов</item>
     </plurals>
     <string name="dns_lookup">DNS-запрос</string>
-    <string name="dns_lookup_description">DNS-записи любого типа через DoH, UDP или свой резолвер. A, AAAA, MX, TXT, NS, SOA, SRV, CAA, PTR и другие. DNS-over-HTTPS работает везде, а ответы разных резолверов можно сравнить.</string>
+    <string name="dns_lookup_description">DNS-записи любого типа по UDP, TCP, DoT, DoQ или DoH. A, AAAA, MX, TXT, SOA, CAA, PTR и другие записи у публичных резолверов, своего роутера или DoH-сервера, ответы разных резолверов можно сравнить.</string>
     <string name="domain_name_or_ip_reverse_lookup">Домен или IP (обратный запрос)</string>
     <string name="resolver">Резолвер</string>
-    <string name="dns_server_ip">IP DNS-сервера</string>
+    <string name="dns_server_address">DNS-сервер</string>
     <string name="dns_browser_build_only_dns">В браузере доступны только резолверы DNS-over-HTTPS, в том числе свои из списка ниже.</string>
     <string name="compare_resolvers">Сравнить резолверы</string>
     <string name="resolved_via">Запрос через</string>
@@ -1897,6 +1897,8 @@
     <string name="additional">Additional</string>
     <string name="answers_across_resolvers">Ответы разных резолверов</string>
     <string name="dns_no_response">Сервер %1$s не ответил за 4 с.</string>
+    <string name="dns_doq_unsupported">Сервер не принимает DNS over QUIC.</string>
+    <string name="dns_connection_closed">Сервер закрыл соединение, код %1$s.</string>
     <string name="all_resolvers_agree">Все резолверы отвечают одинаково.</string>
     <string name="dns_resolvers_return_different">Резолверы отвечают по-разному (идёт распространение или GeoDNS).</string>
     <string name="custom_doh_resolvers">Свои DoH-резолверы</string>
@@ -1911,7 +1913,6 @@
     <string name="json_api">JSON API</string>
     <string name="wire_rfc_8484">Wire (RFC 8484)</string>
     <string name="cloudflare_1_1_1_1">Cloudflare (1.1.1.1)</string>
-    <string name="dns_over_https">DNS over HTTPS</string>
     <string name="google_8_8_8_8">Google (8.8.8.8)</string>
     <string name="quad9_9_9_9_9">Quad9 (9.9.9.9)</string>
     <string name="blocks_malicious_domains">Блокирует вредоносные домены</string>
@@ -1926,9 +1927,9 @@
     <string name="comss_one">Comss.one</string>
     <string name="nodes_in_russia_and_europe">Узлы в России и Европе</string>
     <string name="yandex_77_88_8_8">Яндекс Базовый (77.88.8.8)</string>
-    <string name="udp_only">Без фильтрации, только UDP</string>
-    <string name="custom_udp_server">Свой UDP-сервер</string>
-    <string name="any_dns_server_over_udp_53">Любой DNS-сервер по UDP/53</string>
+    <string name="no_filtering">Без фильтрации</string>
+    <string name="custom_dns_server">Свой сервер</string>
+    <string name="any_dns_server_by_address">Любой DNS-сервер по IP или имени, порт пишется через двоеточие</string>
     <string name="request_none">Нет</string>
     <string name="raw">Текст</string>
     <string name="form">Форма</string>
@@ -2008,6 +2009,7 @@
     <string name="net_error_timeout">Узел не ответил вовремя.</string>
     <string name="net_error_unknown_host">Имя узла не разрешается: проверьте написание и подключение.</string>
     <string name="net_error_refused">Соединение отклонено или узел недоступен.</string>
+    <string name="net_error_closed">Сервер закрыл соединение, не ответив.</string>
     <string name="net_error_certificate">Сертификату сервера нет доверия: он истёк, самоподписан, выдан на другое имя или неизвестным центром.</string>
     <string name="net_error_tls">Не удалось установить TLS-соединение.</string>
     <string name="net_in_the_browser_requests">В браузере запросы ограничены CORS: целевой сервер должен разрешать кросс-доменный доступ.</string>
@@ -4574,6 +4576,7 @@
     <string name="link_email">Почта</string>
     <string name="link_googleplay">Google Play</string>
     <string name="link_appstore">App Store</string>
+    <string name="link_macappstore">Mac App Store</string>
     <string name="link_rustore">RuStore</string>
     <string name="link_msstore">Microsoft Store</string>
     <string name="link_support">Поддержать</string>
@@ -4735,8 +4738,8 @@
     <string name="pdf_edit_save_pdf">Сохранить PDF</string>
     <string name="yandex_safe_77_88_8_88">Яндекс Безопасный (77.88.8.88)</string>
     <string name="yandex_family_77_88_8_7">Яндекс Семейный (77.88.8.7)</string>
-    <string name="yandex_dns_safe">Блокирует мошеннические и заражённые сайты, только UDP</string>
-    <string name="yandex_dns_family">Ещё и сайты для взрослых, только UDP</string>
+    <string name="yandex_dns_safe">Блокирует мошеннические и заражённые сайты</string>
+    <string name="yandex_dns_family">Ещё и сайты для взрослых</string>
     <string name="open_file">Открыть файл</string>
     <string name="oven_recipe_for_fan">Температура в рецепте для конвекции</string>
     <string name="oven_fan_hint">Вентилятор гоняет горячий воздух, поэтому с конвекцией ставят примерно на 20 °C ниже, чем в обычном режиме.</string>

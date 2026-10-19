@@ -54,7 +54,7 @@ val dnsLookupTool = Tool(
     title = Res.string.dns_lookup,
     description = Res.string.dns_lookup_description,
     icon = Icons.Filled.Dns,
-    keywords = listOf("dig", "nslookup", "resolve", "domain", "mx", "txt", "ptr", "днс", "домен", "doh", "rfc 8484"),
+    keywords = listOf("dig", "nslookup", "resolve", "domain", "mx", "txt", "ptr", "днс", "домен", "doh", "dot", "doq", "dns over tls", "dns over quic", "rfc 8484", "rfc 9250"),
 ) { DnsLookupScreen() }
 
 private data class DnsState(
@@ -72,6 +72,7 @@ private fun DnsLookupScreen() {
     var name by rememberSaveable { mutableStateOf("vasmarfas.com") }
     var type by rememberSaveable { mutableStateOf("A") }
     var resolverKey by rememberSaveable { mutableStateOf(DnsResolver.CLOUDFLARE.name) }
+    var transportKey by rememberSaveable { mutableStateOf(DnsTransport.DOH.name) }
     var customServer by rememberSaveable { mutableStateOf("192.168.88.1") }
     var customResolvers by remember { mutableStateOf(CustomResolvers.load()) }
     var state by remember { mutableStateOf(DnsState()) }
@@ -80,10 +81,15 @@ private fun DnsLookupScreen() {
     val choices: List<ResolverChoice> =
         DnsResolver.entries.filter { it.usableHere }.map { ResolverChoice.BuiltIn(it) } + customResolvers.map { ResolverChoice.Custom(it) }
     val choice = choices.firstOrNull { it.key == resolverKey } ?: ResolverChoice.BuiltIn(DnsResolver.CLOUDFLARE)
+    val transports = choice.transports
+    val transport = transports.firstOrNull { it.name == transportKey }
+        ?: transports.firstOrNull { it == DnsTransport.DOH }
+        ?: transports.first()
+    val customSelected = choice == ResolverChoice.BuiltIn(DnsResolver.CUSTOM)
 
     fun run() {
         val query = name.trim()
-        if (query.isEmpty()) return
+        if (query.isEmpty() || customSelected && customServer.isBlank()) return
         val effectiveType = if (looksLikeIp(query)) "PTR" else type
         val effectiveName = when {
             Ipv4.parse(query) != null -> Ipv4.ptrName(Ipv4.parse(query)!!)
@@ -94,7 +100,7 @@ private fun DnsLookupScreen() {
         compare = null
         scope.launch {
             val started = currentEpochMillis()
-            state = runCatching { DnsClient.query(effectiveName, effectiveType, choice, customServer) }
+            state = runCatching { DnsClient.query(effectiveName, effectiveType, choice, transport, customServer) }
                 .fold(
                     onSuccess = { DnsState(result = it, elapsedMs = currentEpochMillis() - started) },
                     onFailure = { DnsState(error = networkErrorText(it)) },
@@ -136,9 +142,19 @@ private fun DnsLookupScreen() {
         label = Res.string.resolver.str(),
         text = { it.label() },
     )
+    if (transports.size > 1) {
+        ChoiceChips(options = transports, selected = transport, onSelect = { transportKey = it.name }, label = { it.label })
+    }
     if (choice is ResolverChoice.BuiltIn) {
-        if (choice.resolver == DnsResolver.CUSTOM) {
-            ToolInputField(value = customServer, onValueChange = { customServer = it }, label = Res.string.dns_server_ip.str(), keyboardType = KeyboardType.Uri, monospace = true)
+        if (customSelected) {
+            ToolInputField(
+                value = customServer,
+                onValueChange = { customServer = it },
+                label = Res.string.dns_server_address.str(),
+                placeholder = "192.168.88.1, dns.example.com:853",
+                keyboardType = KeyboardType.Uri,
+                monospace = true,
+            )
         }
         Text(choice.resolver.description.str(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

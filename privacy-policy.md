@@ -118,7 +118,9 @@ them.
   personal data.
 - **DNS lookup, public DNS benchmark.** Queries go to the resolvers you pick in the tool (Cloudflare,
   Google, Quad9, AdGuard, Mullvad, DNS4EU, Comss, OpenDNS, Control D and Yandex are listed) or to any
-  server you enter. The resolver sees the domain name you typed.
+  server you enter. The resolver sees the domain name you typed. In the apps you choose the protocol:
+  UDP or TCP on port 53 go unencrypted, so the network between you and the resolver sees the name too,
+  DNS over TLS and DNS over QUIC (port 853) and DNS over HTTPS are encrypted.
 - **Whois / RDAP.** The domain, IP address or AS number you typed is sent to `rdap.org` and the
   registry it redirects to, and, where sockets are available, to whois servers on port 43.
 - **IP info.** `ipwho.is` (with `ipapi.co` as a fallback) receives the IP address you typed. When you

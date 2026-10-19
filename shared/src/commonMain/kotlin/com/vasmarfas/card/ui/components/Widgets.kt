@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LaptopMac
 import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Shop
@@ -579,6 +580,7 @@ fun linkIcon(type: String): ImageVector = when (type) {
     "email" -> Icons.Filled.Email
     "googleplay" -> Icons.Filled.Shop
     "appstore" -> Icons.Filled.PhoneIphone
+    "macappstore" -> Icons.Filled.LaptopMac
     "rustore", "msstore" -> Icons.Filled.Storefront
     "support" -> Icons.Filled.Favorite
     "channel" -> Icons.Filled.Campaign
@@ -596,6 +598,7 @@ fun linkDefaultLabel(type: String): String = when (type) {
     "email" -> Res.string.link_email.str()
     "googleplay" -> Res.string.link_googleplay.str()
     "appstore" -> Res.string.link_appstore.str()
+    "macappstore" -> Res.string.link_macappstore.str()
     "rustore" -> Res.string.link_rustore.str()
     "msstore" -> Res.string.link_msstore.str()
     "support" -> Res.string.link_support.str()

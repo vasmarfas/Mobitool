@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated": "2026-09-26",
+  "updated": "2026-10-20",
   "person": {
     "name": {
       "en": "Vasilii",
@@ -133,6 +133,10 @@
         {
           "type": "googleplay",
           "url": "https://play.google.com/store/apps/details?id=com.vasmarfas.notivisor"
+        },
+        {
+          "type": "rustore",
+          "url": "https://www.rustore.ru/catalog/app/com.vasmarfas.notivisor"
         }
       ],
       "year": "2026",
@@ -171,6 +175,10 @@
         {
           "type": "googleplay",
           "url": "https://play.google.com/store/apps/details?id=com.vasmarfas.UniversalAmbientLight"
+        },
+        {
+          "type": "rustore",
+          "url": "https://www.rustore.ru/catalog/app/com.vasmarfas.UniversalAmbientLight"
         },
         {
           "type": "habr",
@@ -227,6 +235,18 @@
         {
           "type": "googleplay",
           "url": "https://play.google.com/store/apps/details?id=com.vasmarfas.smsnode"
+        },
+        {
+          "type": "appstore",
+          "url": "https://apps.apple.com/app/id6760977645"
+        },
+        {
+          "type": "msstore",
+          "url": "https://apps.microsoft.com/detail/9NVHGS0T2HD2"
+        },
+        {
+          "type": "rustore",
+          "url": "https://www.rustore.ru/catalog/app/com.vasmarfas.smsnode"
         },
         {
           "type": "habr",
@@ -303,6 +323,10 @@
           "url": "https://play.google.com/store/apps/details?id=com.vasmarfas.screenvigil"
         },
         {
+          "type": "rustore",
+          "url": "https://www.rustore.ru/catalog/app/com.vasmarfas.screenvigil"
+        },
+        {
           "type": "habr",
           "url": "https://habr.com/ru/articles/1070708/"
         }
@@ -313,7 +337,7 @@
     },
     {
       "id": "vasmarfas-app",
-      "name": "vasmarfas",
+      "name": "Mobitool (vasmarfas)",
       "source": "github",
       "tagline": {
         "en": "This site and app: a business card and a multitool from one Kotlin codebase.",
@@ -344,6 +368,26 @@
           "url": "https://github.com/vasmarfas/mobitool"
         },
         {
+          "type": "googleplay",
+          "url": "https://play.google.com/store/apps/details?id=com.vasmarfas.mobitool"
+        },
+        {
+          "type": "appstore",
+          "url": "https://apps.apple.com/app/id6816425850"
+        },
+        {
+          "type": "macappstore",
+          "url": "https://apps.apple.com/app/id6816425850?platform=mac"
+        },
+        {
+          "type": "msstore",
+          "url": "https://apps.microsoft.com/detail/9MWHC2SBXFV1"
+        },
+        {
+          "type": "rustore",
+          "url": "https://www.rustore.ru/catalog/app/com.vasmarfas.mobitool"
+        },
+        {
           "type": "website",
           "url": "https://vasmarfas.com"
         }
@@ -359,8 +403,8 @@
         "ru": "Аналитика драфтов Dota 2: KMP-приложение, Telegram-бот и бэкенд."
       },
       "description": {
-        "en": "Dota 2 players want to know how a draft plays out before the match starts. It began as a Telegram bot and is now a Python backend (aiogram, FastAPI, PostgreSQL) with live match parsing and ML predictions, plus a Kotlin Multiplatform client for Android, iOS, Windows, macOS, Linux and the browser. The app is published to Google Play, App Store and Microsoft Store and has 1K+ installs on Google Play.",
-        "ru": "Игрокам Dota 2 важно понять расклад драфта ещё до начала матча. Всё началось с Telegram-бота, сейчас это бэкенд на Python (aiogram, FastAPI, PostgreSQL) с разбором live-матчей и ML-прогнозами и Kotlin Multiplatform-клиент для Android, iOS, Windows, macOS, Linux и браузера. Приложение опубликовано в Google Play, App Store и Microsoft Store, в Google Play у него больше тысячи установок."
+        "en": "Dota 2 players want to know how a draft plays out before the match starts. It began as a Telegram bot and is now a Python backend (aiogram, FastAPI, PostgreSQL) with live match parsing and ML predictions, plus a Kotlin Multiplatform client for Android, iOS, Windows, macOS, Linux and the browser. The app is published to Google Play, App Store, Microsoft Store and RuStore and has 1K+ installs on Google Play.",
+        "ru": "Игрокам Dota 2 важно понять расклад драфта ещё до начала матча. Всё началось с Telegram-бота, сейчас это бэкенд на Python (aiogram, FastAPI, PostgreSQL) с разбором live-матчей и ML-прогнозами и Kotlin Multiplatform-клиент для Android, iOS, Windows, macOS, Linux и браузера. Приложение опубликовано в Google Play, App Store, Microsoft Store и RuStore, в Google Play у него больше тысячи установок."
       },
       "tech": [
         "Kotlin Multiplatform",
@@ -388,6 +432,18 @@
         {
           "type": "googleplay",
           "url": "https://play.google.com/store/apps/details?id=ru.vasmarfas.dotadivinerapp"
+        },
+        {
+          "type": "appstore",
+          "url": "https://apps.apple.com/app/id6741724843"
+        },
+        {
+          "type": "msstore",
+          "url": "https://apps.microsoft.com/detail/9N06XZ0QV6MT"
+        },
+        {
+          "type": "rustore",
+          "url": "https://www.rustore.ru/catalog/app/ru.vasmarfas.dotadivinerapp"
         },
         {
           "type": "telegram",

@@ -2,6 +2,9 @@
 
 package com.vasmarfas.card.core
 
+import com.vasmarfas.card.resources.*
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.time.DurationUnit
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
@@ -9,6 +12,7 @@ import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.IntVar
+import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.allocPointerTo
@@ -20,17 +24,53 @@ import kotlinx.cinterop.refTo
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.sizeOf
 import kotlinx.cinterop.toKString
+import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import platform.Network.NW_CONNECTION_DEFAULT_MESSAGE_CONTEXT
+import platform.Network.NW_CONNECTION_FINAL_MESSAGE_CONTEXT
+import platform.Network._nw_parameters_configure_protocol_default_configuration
+import platform.Network.nw_connection_cancel
+import platform.Network.nw_connection_create
+import platform.Network.nw_connection_receive
+import platform.Network.nw_connection_send
+import platform.Network.nw_connection_set_queue
+import platform.Network.nw_connection_set_state_changed_handler
+import platform.Network.nw_connection_start
+import platform.Network.nw_connection_state_failed
+import platform.Network.nw_connection_state_ready
+import platform.Network.nw_connection_state_waiting
+import platform.Network.nw_content_context_t
+import platform.Network.nw_endpoint_create_host
+import platform.Network.nw_error_domain_dns
+import platform.Network.nw_error_domain_tls
+import platform.Network.nw_error_get_error_code
+import platform.Network.nw_error_get_error_domain
+import platform.Network.nw_error_t
+import platform.Network.nw_parameters_create_quic
+import platform.Network.nw_parameters_create_secure_tcp
+import platform.Network.nw_parameters_t
+import platform.Network.nw_quic_add_tls_application_protocol
+import platform.darwin.dispatch_data_apply
+import platform.darwin.dispatch_data_create
+import platform.darwin.dispatch_data_get_size
+import platform.darwin.dispatch_data_t
+import platform.darwin.dispatch_queue_create
 import platform.darwin.freeifaddrs
 import platform.darwin.getifaddrs
 import platform.darwin.ifaddrs
 import platform.posix.AF_INET
 import platform.posix.AF_INET6
 import platform.posix.AF_UNSPEC
+import platform.posix.ECONNREFUSED
+import platform.posix.EHOSTUNREACH
 import platform.posix.EINPROGRESS
+import platform.posix.ENETUNREACH
+import platform.posix.ETIMEDOUT
 import platform.posix.F_GETFL
 import platform.posix.F_SETFL
 import platform.posix.IPPROTO_ICMP
@@ -57,6 +97,7 @@ import platform.posix.getaddrinfo
 import platform.posix.getnameinfo
 import platform.posix.getpid
 import platform.posix.getsockopt
+import platform.posix.memcpy
 import platform.posix.poll
 import platform.posix.pollfd
 import platform.posix.recv
@@ -79,6 +120,8 @@ actual fun platformNetCapabilities() = PlatformNetCapabilities(
     tcp = true,
     udp = true,
     interfaces = true,
+    dnsOverTls = true,
+    dnsOverQuic = true,
 )
 
 @OptIn(ExperimentalForeignApi::class)
@@ -444,9 +487,9 @@ private fun receiveExactly(descriptor: Int, count: Int): ByteArray? {
 }
 
 @OptIn(ExperimentalForeignApi::class)
-actual suspend fun tcpDnsQuery(host: String, payload: ByteArray, timeoutMs: Int): ByteArray? = withContext(Dispatchers.IO) {
+actual suspend fun tcpDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray? = withContext(Dispatchers.IO) {
     var result: ByteArray? = null
-    resolveFirst(host, 53, SOCK_STREAM) { info ->
+    resolveFirst(host, port, SOCK_STREAM) { info ->
         val descriptor = socket(info.pointed.ai_family, info.pointed.ai_socktype, info.pointed.ai_protocol)
         if (descriptor >= 0) {
             setTimeout(descriptor, timeoutMs)
@@ -460,6 +503,100 @@ actual suspend fun tcpDnsQuery(host: String, payload: ByteArray, timeoutMs: Int)
         }
     }
     result
+}
+
+actual suspend fun tlsDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray {
+    val parameters = nw_parameters_create_secure_tcp(
+        _nw_parameters_configure_protocol_default_configuration,
+        _nw_parameters_configure_protocol_default_configuration,
+    )
+    return framedDnsQuery(host, port, parameters, NW_CONNECTION_DEFAULT_MESSAGE_CONTEXT, payload, timeoutMs)
+}
+
+// a QUIC nw_connection is one bidirectional stream, and the final-send context ends it with the FIN
+// that RFC 9250 asks for after the query
+actual suspend fun quicDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray {
+    val parameters = nw_parameters_create_quic { options -> nw_quic_add_tls_application_protocol(options, "doq") }
+    return framedDnsQuery(host, port, parameters, NW_CONNECTION_FINAL_MESSAGE_CONTEXT, payload, timeoutMs)
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private suspend fun framedDnsQuery(
+    host: String,
+    port: Int,
+    parameters: nw_parameters_t,
+    sendContext: nw_content_context_t,
+    payload: ByteArray,
+    timeoutMs: Int,
+): ByteArray {
+    val connection = nw_connection_create(nw_endpoint_create_host(host, port.toString()), parameters)
+    val queue = dispatch_queue_create("com.vasmarfas.dns", null)
+    nw_connection_set_queue(connection, queue)
+    try {
+        return withTimeoutOrNull(timeoutMs.toLong()) {
+            suspendCancellableCoroutine<ByteArray> { continuation ->
+                var received = ByteArray(0)
+                fun fail(error: Throwable) {
+                    if (continuation.isActive) continuation.resumeWithException(error)
+                }
+                fun receive() {
+                    nw_connection_receive(connection, 1u, 65537u) { content, _, complete, error ->
+                        if (content != null) received += content.toByteArray()
+                        val length = if (received.size >= 2) ((received[0].toInt() and 0xFF) shl 8) or (received[1].toInt() and 0xFF) else -1
+                        when {
+                            length >= 0 && received.size >= 2 + length -> if (continuation.isActive) continuation.resume(received.copyOfRange(2, 2 + length))
+                            error != null -> fail(error.toNetException())
+                            complete -> fail(NetException(Res.string.request_failed))
+                            else -> receive()
+                        }
+                    }
+                }
+                nw_connection_set_state_changed_handler(connection) { state, error ->
+                    when (state) {
+                        nw_connection_state_ready -> {
+                            val framed = byteArrayOf((payload.size shr 8).toByte(), payload.size.toByte()) + payload
+                            val content = framed.usePinned { dispatch_data_create(it.addressOf(0), framed.size.convert(), queue, null) }
+                            nw_connection_send(connection, content, sendContext, true) { sendError -> sendError?.let { fail(it.toNetException()) } }
+                            receive()
+                        }
+                        nw_connection_state_failed, nw_connection_state_waiting -> error?.let { fail(it.toNetException()) }
+                        else -> Unit
+                    }
+                }
+                nw_connection_start(connection)
+            }
+        } ?: throw NetException(Res.string.net_error_timeout)
+    } finally {
+        nw_connection_cancel(connection)
+    }
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun dispatch_data_t.toByteArray(): ByteArray {
+    val bytes = ByteArray(dispatch_data_get_size(this).toInt())
+    bytes.usePinned { pinned ->
+        dispatch_data_apply(this) { _, offset, buffer, size ->
+            memcpy(pinned.addressOf(offset.toInt()), buffer, size)
+            true
+        }
+    }
+    return bytes
+}
+
+private val certificateErrors = setOf(-9807, -9808, -9812, -9813, -9814, -9815, -9843)
+
+private fun nw_error_t.toNetException(): NetException {
+    val code = nw_error_get_error_code(this)
+    val reason = when (nw_error_get_error_domain(this)) {
+        nw_error_domain_dns -> Res.string.net_error_unknown_host
+        nw_error_domain_tls -> if (code in certificateErrors) Res.string.net_error_certificate else Res.string.net_error_tls
+        else -> when (code) {
+            ETIMEDOUT -> Res.string.net_error_timeout
+            ECONNREFUSED, EHOSTUNREACH, ENETUNREACH -> Res.string.net_error_refused
+            else -> Res.string.request_failed
+        }
+    }
+    return NetException(reason)
 }
 
 actual suspend fun ssdpDiscover(timeoutMs: Int): List<DiscoveredDevice> = emptyList()

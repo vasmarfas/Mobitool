@@ -8,6 +8,8 @@ actual fun platformNetCapabilities() = PlatformNetCapabilities(
     tcp = false,
     udp = false,
     interfaces = false,
+    dnsOverTls = false,
+    dnsOverQuic = false,
 )
 
 actual suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: Int?): PingReply =
@@ -38,7 +40,11 @@ actual suspend fun whoisQuery(server: String, query: String, timeoutMs: Int): St
 
 actual suspend fun udpQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray? = null
 
-actual suspend fun tcpDnsQuery(host: String, payload: ByteArray, timeoutMs: Int): ByteArray? = null
+actual suspend fun tcpDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray? = null
+
+actual suspend fun tlsDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray = throw UnsupportedOperationException("unsupported")
+
+actual suspend fun quicDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray = throw UnsupportedOperationException("unsupported")
 
 actual suspend fun ssdpDiscover(timeoutMs: Int): List<DiscoveredDevice> = emptyList()
 

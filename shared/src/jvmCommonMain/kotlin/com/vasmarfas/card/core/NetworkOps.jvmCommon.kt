@@ -7,7 +7,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
-import java.io.DataOutputStream
 import java.io.File
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -27,9 +26,11 @@ import java.security.interfaces.ECPublicKey
 import java.security.interfaces.RSAPublicKey
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SNIHostName
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLEngine
+import javax.net.ssl.SSLPeerUnverifiedException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509ExtendedTrustManager
@@ -60,6 +61,8 @@ actual fun platformNetCapabilities() = PlatformNetCapabilities(
     tcp = true,
     udp = true,
     interfaces = true,
+    dnsOverTls = true,
+    dnsOverQuic = true,
 )
 
 private fun pingCommand(host: String, timeoutMs: Int, ttl: Int?): List<String> = buildList {
@@ -261,20 +264,47 @@ actual suspend fun udpQuery(host: String, port: Int, payload: ByteArray, timeout
     }.getOrNull()
 }
 
-actual suspend fun tcpDnsQuery(host: String, payload: ByteArray, timeoutMs: Int): ByteArray? = withContext(Dispatchers.IO) {
+actual suspend fun tcpDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray? = withContext(Dispatchers.IO) {
     runCatching {
         Socket().use { socket ->
-            socket.connect(InetSocketAddress(host, 53), timeoutMs)
+            socket.connect(InetSocketAddress(host, port), timeoutMs)
             socket.soTimeout = timeoutMs
-            DataOutputStream(socket.getOutputStream()).apply {
-                writeShort(payload.size)
-                write(payload)
-                flush()
-            }
-            val input = DataInputStream(socket.getInputStream())
-            ByteArray(input.readUnsignedShort()).also { input.readFully(it) }
+            exchangeFramed(socket, payload)
         }
     }.getOrNull()
+}
+
+actual suspend fun tlsDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray = withContext(Dispatchers.IO) {
+    Socket().use { raw ->
+        raw.connect(InetSocketAddress(host, port), timeoutMs)
+        raw.soTimeout = timeoutMs
+        (SSLContext.getDefault().socketFactory.createSocket(raw, host, port, true) as SSLSocket).use { socket ->
+            socket.sslParameters = socket.sslParameters.apply {
+                endpointIdentificationAlgorithm = "HTTPS"
+                runCatching { serverNames = listOf(SNIHostName(host)) }
+            }
+            socket.startHandshake()
+            if (isAndroid && !HttpsURLConnection.getDefaultHostnameVerifier().verify(host, socket.session)) {
+                throw SSLPeerUnverifiedException(host)
+            }
+            exchangeFramed(socket, payload)
+        }
+    }
+}
+
+actual suspend fun quicDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray = withContext(Dispatchers.IO) {
+    QuicDnsExchange(host, port, timeoutMs).run(payload)
+}
+
+// length and message in one write (RFC 7766, 8): on Android writeShort sends two one-byte TLS records,
+// and dns.comss.one closes the connection on them
+private fun exchangeFramed(socket: Socket, payload: ByteArray): ByteArray {
+    socket.getOutputStream().apply {
+        write(byteArrayOf((payload.size shr 8).toByte(), payload.size.toByte()) + payload)
+        flush()
+    }
+    val input = DataInputStream(socket.getInputStream())
+    return ByteArray(input.readUnsignedShort()).also { input.readFully(it) }
 }
 
 actual suspend fun ssdpDiscover(timeoutMs: Int): List<DiscoveredDevice> = withContext(Dispatchers.IO) {
