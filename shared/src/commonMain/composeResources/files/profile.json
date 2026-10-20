@@ -245,12 +245,12 @@
           "url": "https://apps.microsoft.com/detail/9NVHGS0T2HD2"
         },
         {
-          "type": "rustore",
-          "url": "https://www.rustore.ru/catalog/app/com.vasmarfas.smsnode"
-        },
-        {
           "type": "habr",
           "url": "https://habr.com/ru/articles/1081702/"
+        },
+        {
+          "type": "rustore",
+          "url": "https://www.rustore.ru/catalog/app/com.vasmarfas.smsnode"
         }
       ],
       "year": "2026",
