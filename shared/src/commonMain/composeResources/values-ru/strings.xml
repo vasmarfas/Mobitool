@@ -5465,4 +5465,134 @@
     <string name="privacy_apple_other_diagnostics">Диагностика › Другие диагностические данные</string>
     <string name="privacy_apple_note_deletion">App Store требует, чтобы аккаунт удалялся в самом приложении, одной ссылки на сайт недостаточно.</string>
     <string name="privacy_apple_note_kids">В приложениях категории «Для детей» нельзя подключать стороннюю аналитику и рекламу, кроме узких исключений без IDFA.</string>
+    <string name="dmarc_analyzer">DMARC-анализатор</string>
+    <string name="dmarc_analyzer_description">Проверяет DMARC-политику домена и читает отчёты. Разбирает каждый тег TXT-записи _dmarc, собирает новую запись и сводит агрегатные отчёты в XML, .gz или .zip по IP отправителей с результатами SPF и DKIM.</string>
+    <string name="dmarc_record">Запись</string>
+    <string name="dmarc_report">Отчёт</string>
+    <string name="dmarc_domain_or_email">Домен или адрес почты</string>
+    <string name="dmarc_no_record">У %1$s нет записи DMARC. Получатели не применяют к письмам этого домена никакую политику DMARC.</string>
+    <string name="dmarc_inherited">У %1$s своей записи нет, политика берётся с %2$s. К поддоменам применяется sp, а без него p.</string>
+    <string name="dmarc_several_records">Записей DMARC больше одной. Получатели игнорируют их все, оставьте одну.</string>
+    <string name="dmarc_record_ok">Ошибок и предупреждений нет.</string>
+    <string name="dmarc_version_first">Запись должна начинаться с v=DMARC1, иначе получатели её не читают.</string>
+    <string name="dmarc_repeated_tag">Тег %1$s встречается несколько раз.</string>
+    <string name="dmarc_bad_value">Недопустимое значение %1$s=%2$s.</string>
+    <string name="dmarc_no_policy">Нет тега p. Получатели считают запись p=none или пропускают её.</string>
+    <string name="dmarc_policy_none">p=none только собирает отчёты: письма, не прошедшие DMARC, доставляются как обычно.</string>
+    <string name="dmarc_sp_none">sp=none оставляет поддомены без защиты, хотя основной домен защищён.</string>
+    <string name="dmarc_pct_partial">pct=%1$s: политика касается только части писем, не прошедших проверку, к остальным применяется на ступень мягче.</string>
+    <string name="dmarc_no_rua">Тега rua нет, агрегатные отчёты никто не пришлёт.</string>
+    <string name="dmarc_unknown_tag">Неизвестный тег</string>
+    <string name="dmarc_tag_p">Политика</string>
+    <string name="dmarc_tag_sp">Политика для поддоменов</string>
+    <string name="dmarc_tag_np">Политика для несуществующих поддоменов</string>
+    <string name="dmarc_tag_pct">Доля писем под политикой</string>
+    <string name="dmarc_tag_rua">Агрегатные отчёты на адрес</string>
+    <string name="dmarc_tag_ruf">Отчёты о сбоях на адрес</string>
+    <string name="dmarc_tag_adkim">Выравнивание DKIM</string>
+    <string name="dmarc_tag_aspf">Выравнивание SPF</string>
+    <string name="dmarc_tag_fo">Отчёт о сбое, когда</string>
+    <string name="dmarc_tag_rf">Формат отчётов о сбоях</string>
+    <string name="dmarc_tag_ri">Интервал агрегатных отчётов</string>
+    <string name="dmarc_policy_deliver">доставлять как обычно</string>
+    <string name="dmarc_policy_quarantine">класть в спам</string>
+    <string name="dmarc_policy_reject">отклонять</string>
+    <string name="dmarc_relaxed">мягкое, поддомен подходит</string>
+    <string name="dmarc_strict">строгое, только тот же домен</string>
+    <string name="dmarc_fo_all">не прошли все проверки</string>
+    <string name="dmarc_fo_any">не прошла любая проверка</string>
+    <string name="dmarc_fo_dkim">не прошёл DKIM</string>
+    <string name="dmarc_fo_spf">не прошёл SPF</string>
+    <string name="dmarc_report_xml">XML отчёта</string>
+    <string name="dmarc_file_too_large">Файл больше %1$d МБ, отчёты DMARC меньше.</string>
+    <string name="dmarc_not_a_report">Это не агрегатный отчёт DMARC. Откройте XML, .gz или .zip из письма, пришедшего на адрес rua.</string>
+    <string name="dmarc_report_id">Номер отчёта</string>
+    <string name="dmarc_published_policy">Опубликованная политика</string>
+    <string name="dmarc_messages">Писем</string>
+    <string name="dmarc_passed">Прошли DMARC</string>
+    <string name="dmarc_failed">Не прошли DMARC</string>
+    <string name="dmarc_quarantined">Отправлены в спам</string>
+    <string name="dmarc_rejected">Отклонены</string>
+    <string name="dmarc_senders">Отправители</string>
+    <string name="dmarc_reports">Отчётов</string>
+    <string name="dmarc_resolve_hosts">Узнать имена хостов</string>
+    <string name="dmarc_damaged_archive">Архив повреждён и не распаковывается.</string>
+    <string name="dmarc_rua_not_authorized">%1$s не соглашался принимать отчёты для %2$s: записи %3$s нет, получатели туда ничего не отправят.</string>
+    <string name="dmarc_alignment_hint">Строки под результатом показывают домены, которые проверили SPF и DKIM. Успех для чужого домена не засчитывается: DMARC нужен домен из заголовка From.</string>
+    <string name="email_headers">Анализатор заголовков письма</string>
+    <string name="email_headers_description">Показывает путь письма и проверку отправителя. Читает вставленные заголовки или файл .eml, декодирует тему и отправителя, показывает результаты SPF, DKIM и DMARC, текст и вложения.</string>
+    <string name="email_headers_input">Заголовки или письмо целиком</string>
+    <string name="email_file_too_large">Файл больше %1$d МБ.</string>
+    <string name="email_no_headers">Заголовков не нашлось. Вставьте текст, который начинается с Received: или Return-Path:, в Gmail он открывается командой «Показать оригинал».</string>
+    <string name="email_reply_to_foreign">Ответ уйдёт на домен %1$s, хотя письмо пришло от %2$s. Так часто выглядит фишинг.</string>
+    <string name="email_return_path_foreign">Return-Path на домене %1$s, а From на %2$s. SPF проверял %1$s, поэтому DMARC пройдёт только с DKIM-подписью %2$s. Так делают сервисы рассылок, но и подделки тоже.</string>
+    <string name="email_route">Путь письма</string>
+    <string name="email_server">Сервер</string>
+    <string name="email_delay">Задержка</string>
+    <string name="email_total_delay">Всего в пути</string>
+    <string name="email_authentication">Проверки подлинности</string>
+    <string name="email_check">Проверка</string>
+    <string name="email_checked_by">Кто проверял</string>
+    <string name="email_no_auth">Заголовков Authentication-Results нет. Их добавляет сервер получателя, у письма из «Отправленных» их не бывает.</string>
+    <string name="email_attachments">Вложения</string>
+    <string name="spf_checker">Проверка SPF</string>
+    <string name="spf_checker_description">Показывает, какие серверы могут слать почту домена. Раскрывает include и redirect деревом, считает DNS-запросы до предела в 10 и проверяет, проходит ли заданный IP.</string>
+    <string name="spf_no_record">У %1$s нет SPF-записи. Получатели видят результат none, DMARC пройдёт только по DKIM.</string>
+    <string name="spf_several_records">У %1$s больше одной SPF-записи, получатели вернут permerror. Их нужно слить в одну.</string>
+    <string name="spf_target_without_record">%1$s ссылается на %2$s, а там нет SPF-записи: получатели вернут permerror.</string>
+    <string name="spf_unknown_mechanism">Неизвестный механизм %1$s в записи %2$s, получатели вернут permerror.</string>
+    <string name="spf_ptr">В записи %1$s есть ptr. RFC 7208 его не советует: он медленный, и многие получатели его пропускают.</string>
+    <string name="spf_pass_all">+all в записи %1$s разрешает слать почту домена любому серверу в интернете.</string>
+    <string name="spf_neutral_all">?all в записи %1$s ничего не говорит о чужих серверах, письма с них не отклоняются.</string>
+    <string name="spf_no_all">Запись не заканчивается на all или redirect, поэтому серверы не из списка получают neutral.</string>
+    <string name="spf_too_many_lookups">DNS-запросов: %1$s при пределе %2$s. Получатели вернут permerror, часть include нужно убрать или заменить адресами.</string>
+    <string name="spf_too_many_voids">Пустых ответов: %1$s при пределе %2$s. Получатели вернут permerror.</string>
+    <string name="spf_lookups">DNS-запросы</string>
+    <string name="spf_voids">Пустые ответы</string>
+    <string name="spf_mechanisms">Механизмы</string>
+    <string name="spf_allowed">Разрешённые адреса</string>
+    <string name="spf_check_ip">Проверить IP-адрес</string>
+    <string name="spf_ip">IP-адрес</string>
+    <string name="spf_matched">Сработало</string>
+    <string name="spf_verdict_pass">%1$s может отправлять почту от имени %2$s.</string>
+    <string name="spf_verdict_fail">%1$s не может отправлять почту от имени %2$s, получатели отклонят такое письмо.</string>
+    <string name="spf_verdict_softfail">%1$s нет среди отправителей %2$s. Письмо примут, но отметят как подозрительное.</string>
+    <string name="spf_verdict_neutral">Запись %2$s ничего определённого не говорит о %1$s, получатели считают, что SPF нет.</string>
+    <string name="spf_verdict_none">У %2$s нет SPF-записи.</string>
+    <string name="spf_verdict_permerror">SPF-запись %2$s сломана. Получатели вернут permerror, а DMARC засчитает это как провал SPF.</string>
+    <string name="spf_mech_ip">адреса</string>
+    <string name="spf_mech_a">адреса A и AAAA домена</string>
+    <string name="spf_mech_mx">почтовые серверы домена</string>
+    <string name="spf_mech_include">правила другого домена</string>
+    <string name="spf_mech_all">все остальные</string>
+    <string name="spf_mech_exists">имя есть в DNS</string>
+    <string name="spf_mech_ptr">обратная зона, устарело</string>
+    <string name="spf_mech_redirect">вместо этой записи действует запись другого домена</string>
+    <string name="spf_mech_exp">пояснение к отказу</string>
+    <string name="dkim_checker">Проверка DKIM</string>
+    <string name="dkim_checker_description">Находит DKIM-ключи домена и проверяет их. Без селектора перебирает 13 распространённых, объясняет каждый тег записи и считает длину RSA-ключа.</string>
+    <string name="dkim_selector">Селектор, s= из DKIM-Signature</string>
+    <string name="dkim_selector_hint">Если пусто, проверятся %1$s</string>
+    <string name="dkim_not_found">По имени %1$s DKIM-ключа нет.</string>
+    <string name="dkim_none_common">Ни у одного из распространённых селекторов нет ключа на %1$s. Селектор записан в теге s= заголовка DKIM-Signature письма с этого домена.</string>
+    <string name="dkim_bad_version">v=%1$s вместо DKIM1, получатели не примут запись.</string>
+    <string name="dkim_no_key">Нет тега p, в записи нет ключа.</string>
+    <string name="dkim_revoked">p пустой: ключ отозван, подписи с этим селектором не проходят.</string>
+    <string name="dkim_unknown_type">Неизвестный тип ключа k=%1$s.</string>
+    <string name="dkim_bad_key">В p не открытый ключ, а что-то другое.</string>
+    <string name="dkim_short_key">RSA-ключ короче 1024 бит (%1$s), получатели считают такие подписи недействительными.</string>
+    <string name="dkim_weak_key">RSA-ключ короче 2048 бит (%1$s) считается слабым. Google и Yahoo советуют 2048.</string>
+    <string name="dkim_testing">t=y: домен проверяет DKIM в тестовом режиме, получатели не должны наказывать за непрошедшую подпись строже, чем за её отсутствие.</string>
+    <string name="dkim_tag_k">Тип ключа</string>
+    <string name="dkim_tag_t">Флаги</string>
+    <string name="dkim_tag_h">Хеш-алгоритмы</string>
+    <string name="dkim_tag_s">Назначение</string>
+    <string name="dkim_tag_n">Заметка</string>
+    <string name="dkim_flag_y">тестовый режим</string>
+    <string name="dkim_flag_s">только точный домен, без поддоменов</string>
+    <string name="dkim_key_bits">Длина ключа, бит</string>
+    <string name="dkim_check_key">Проверить ключ</string>
+    <string name="dmarc_builder">Конструктор</string>
+    <string name="dmarc_same_as_p">как p</string>
+    <string name="dmarc_build_external">Домен %1$s чужой, он должен опубликовать TXT-запись %2$s со значением v=DMARC1, иначе отчёты туда не придут.</string>
 </resources>

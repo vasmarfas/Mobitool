@@ -177,7 +177,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
         "servers", InterestGroup.WORK, Res.string.interest_servers, Icons.Filled.Dns,
         listOf(
             "chmod-calculator", "cron-parser", "tls-certificate", "ports-reference", "http-request", "dns-lookup", "whois-rdap",
-            "unix-timestamp", "hash-generator", "checksum-compare", "data-size",
+            "dmarc", "email-headers", "spf", "dkim", "unix-timestamp", "hash-generator", "checksum-compare", "data-size",
         ),
     ),
     CODE(

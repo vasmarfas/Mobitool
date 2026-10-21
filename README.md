@@ -33,7 +33,7 @@ the OS provides them, and the catalogue shows which platforms each tool runs on.
 | Security | password generator and strength, breach check (HIBP k-anonymity), TOTP, random data, checksum comparison |
 | Device | device info, screen test, battery, display, touch and keyboard testers, screen light and torch, vibration, benchmarks, stress test, clipboard |
 | Developer | JSON, Base64, hashes and HMAC, UUID, programmer calculator, floating-point inspector, regex tester and builder, URL and punycode, JWT, Markdown, CSV, cron, HTTP codes, escaping, chmod, semver, MIME |
-| Network | speed test, my IP, ping (ICMP/TCP/HTTP), DNS over UDP, TCP, TLS, QUIC and HTTPS, whois/RDAP, traceroute, port and LAN scanners, Wake-on-LAN, subnet calculator and splitter, HTTP requests, TLS certificates, public DNS, interfaces and Wi-Fi, UPnP/Bonjour, MAC lookup, port reference, data size and transfer time |
+| Network | speed test, my IP, ping (ICMP/TCP/HTTP), DNS over UDP, TCP, TLS, QUIC and HTTPS, whois/RDAP, traceroute, port and LAN scanners, Wake-on-LAN, subnet calculator and splitter, HTTP requests, TLS certificates, DMARC records and reports, email headers, SPF and DKIM, public DNS, interfaces and Wi-Fi, UPnP/Bonjour, MAC lookup, port reference, data size and transfer time |
 | Electronics | Ohm's law, resistor color code, LED resistor, voltage divider, battery life, wire gauge |
 | 3D printing | print and resin cost, filament picker and table of 51 plastics, filament length and weight, time estimate, layer and nozzle, E-steps and flow, temperature tower, shrinkage, G-code cheat sheet |
 

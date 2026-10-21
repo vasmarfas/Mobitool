@@ -98,7 +98,7 @@ is synced or sent anywhere, except the random number the desktop apps send to Ya
 described in section 1. Uninstalling the App, or clearing the site's data in the browser, removes
 it.
 
-Photo, video, audio and document tools read only the files you pick and process them on the device.
+Photo, video, audio and document tools and the email header analyzer read only the files you pick and process them on the device.
 The results are saved where you choose, and nothing is uploaded.
 
 ## 3. Network requests
@@ -121,6 +121,17 @@ them.
   server you enter. The resolver sees the domain name you typed. In the apps you choose the protocol:
   UDP or TCP on port 53 go unencrypted, so the network between you and the resolver sees the name too,
   DNS over TLS and DNS over QUIC (port 853) and DNS over HTTPS are encrypted.
+- **DMARC analyzer.** The domain you typed, its parent domains when it has no record of its own and
+  the authorization records of report addresses on other domains are looked up over DNS over HTTPS at
+  `cloudflare-dns.com`. Reports you open or paste are read on the device. Only when you press "Look up
+  host names" are the sender IP addresses from the report sent to `cloudflare-dns.com` as reverse DNS
+  queries.
+- **SPF checker.** The domain you typed, the domains its record names in include and redirect, and their
+  A, AAAA and MX records are looked up over DNS over HTTPS at `cloudflare-dns.com`. When you check an IP
+  address against a record with an `exists` mechanism, a name built from that address goes to the same
+  resolver.
+- **DKIM checker.** The domain and selector you typed, or 13 common selectors when the field is empty,
+  are looked up as `<selector>._domainkey.<domain>` over DNS over HTTPS at `cloudflare-dns.com`.
 - **Whois / RDAP.** The domain, IP address or AS number you typed is sent to `rdap.org` and the
   registry it redirects to, and, where sockets are available, to whois servers on port 43.
 - **IP info.** `ipwho.is` (with `ipapi.co` as a fallback) receives the IP address you typed. When you

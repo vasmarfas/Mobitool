@@ -291,10 +291,15 @@ fun LoadedFileCard(file: LoadedFile, onClear: () -> Unit) {
 }
 
 @Composable
-fun OpenFileButton(extensions: Set<String> = emptySet(), label: String = Res.string.open_file.str(), onPicked: suspend (PlatformFile) -> Unit) {
+fun OpenFileButton(
+    extensions: Set<String> = emptySet(),
+    label: String = Res.string.open_file.str(),
+    multiple: Boolean = false,
+    onPicked: suspend (PlatformFile) -> Unit,
+) {
     val scope = rememberCoroutineScope()
     TextButton(
-        onClick = { scope.launch { runCatching { pickFiles(extensions) }.getOrNull()?.firstOrNull()?.let { onPicked(it) } } },
+        onClick = { scope.launch { runCatching { pickFiles(extensions, multiple = multiple) }.getOrNull()?.forEach { onPicked(it) } } },
         modifier = Modifier.pointerHoverIcon(PointerIcon.Hand),
     ) {
         Icon(Icons.Filled.FileOpen, contentDescription = null, modifier = Modifier.size(18.dp))
