@@ -81,7 +81,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
         "time", InterestGroup.EVERYDAY, Res.string.interest_time, Icons.Filled.Schedule,
         listOf(
             "date-calculator", "countdown-timer", "working-hours", "reminder-countdown", "world-clock", "age-calculator", "calendar",
-            "stopwatch", "sunrise-sunset",
+            "stopwatch", "sunrise-sunset", "exact-time",
         ),
     ),
     TRAVEL(
@@ -119,7 +119,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
     PHONE(
         "phone", InterestGroup.EVERYDAY, Res.string.interest_phone, Icons.Filled.PhoneAndroid,
         listOf(
-            "device-info", "battery", "screen-test", "touch-tester", "display-info", "benchmarks", "stress-test", "vibration-test",
+            "device-info", "file-transfer", "battery", "screen-test", "touch-tester", "display-info", "benchmarks", "stress-test", "vibration-test",
             "keyboard-tester", "speed-test", "clipboard-inspector",
         ),
     ),
@@ -168,7 +168,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
     NETWORK(
         "network", InterestGroup.WORK, Res.string.interest_network, Icons.Filled.Wifi,
         listOf(
-            "ping", "speed-test", "ip-info", "dns-lookup", "traceroute", "port-scanner", "lan-scanner", "subnet-calculator",
+            "ping", "speed-test", "ip-info", "connection-check", "wifi-analyzer", "site-check", "nat-check", "cellular", "bluetooth-radar", "dns-lookup", "traceroute", "port-scanner", "lan-scanner", "subnet-calculator",
             "whois-rdap", "wake-on-lan", "network-interfaces", "mac-lookup", "public-dns", "subnet-splitter", "device-discovery",
             "data-size",
         ),
@@ -177,7 +177,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
         "servers", InterestGroup.WORK, Res.string.interest_servers, Icons.Filled.Dns,
         listOf(
             "chmod-calculator", "cron-parser", "tls-certificate", "ports-reference", "http-request", "dns-lookup", "whois-rdap",
-            "dmarc", "email-headers", "spf", "dkim", "unix-timestamp", "hash-generator", "checksum-compare", "data-size",
+            "dmarc", "email-headers", "spf", "dkim", "socket-client", "unix-timestamp", "hash-generator", "checksum-compare", "data-size",
         ),
     ),
     CODE(

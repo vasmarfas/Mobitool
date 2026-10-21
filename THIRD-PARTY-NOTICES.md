@@ -145,6 +145,18 @@ runtime image, licensed under GPLv2 with the Classpath Exception,
 <https://openjdk.org/legal/gplv2+ce.html>. The exception is what permits bundling it with an
 application under different terms.
 
+## Protocols and network services
+
+File transfer speaks the LocalSend protocol v2 so that LocalSend apps and Mobitool can send files to each other. It is
+implemented in this project from the public description at <https://github.com/localsend/protocol>; no source code of
+the LocalSend app (<https://github.com/localsend/localsend>, Apache-2.0) is included. LocalSend is the name of its
+authors' project, and Mobitool is not affiliated with or endorsed by it.
+
+Transfers over the internet go through a piping server (<https://github.com/nwtgck/piping-server>, MIT), by default the
+public instance at ppng.io that its author runs, used as a hosted service; none of its code is included. Peers also look
+each other up in the BitTorrent mainline DHT (BEP 5) as an ordinary node. ChaCha20-Poly1305 (RFC 8439), PBKDF2 (RFC 8018)
+and the STUN binding request (RFC 8489) are implemented in this project from the specifications.
+
 ## License texts
 
 The license picker ships the texts of the licenses it describes, unmodified, under

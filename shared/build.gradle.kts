@@ -317,6 +317,7 @@ tasks.named<Test>("jvmTest") {
 }
 
 apply(from = "mac-vendors.gradle.kts")
+apply(from = "bluetooth-numbers.gradle.kts")
 
 compose.resources {
     publicResClass = true

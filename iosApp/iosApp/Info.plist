@@ -6,6 +6,10 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<false/>
 	<key>FirebaseAutomaticScreenReportingEnabled</key>
@@ -30,6 +34,8 @@
 	<string>The compass, level and pedometer tools read the motion sensors and show the values on screen.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>The sound meter, spectrum analyzer and tuner read the microphone in real time. No audio is recorded or sent anywhere.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>The Bluetooth radar lists nearby Bluetooth devices and shows how close they are. Nothing is stored or sent anywhere.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Network tools such as ping, port scanner and device discovery talk to devices on your local network.</string>
 	<key>NSBonjourServices</key>

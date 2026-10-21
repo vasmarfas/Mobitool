@@ -85,6 +85,8 @@ The App keeps a small amount of data locally so that it works the way you left i
 - data you enter into tools that offer to remember it: saved Wake-on-LAN devices, world clock
   zones, counters, the scratchpad, countdown events, the running stopwatch and timer, workout plans,
   calibration values, speed test sources, custom DNS resolvers and HTTP requests you save
+- Wi-Fi coverage maps: the floor plan picture you chose, reduced to 1600 pixels, and for every measured
+  spot its place on the plan, the signal of the networks heard there, latency and speed
 - the last 20 HTTP requests, kept without their bodies, form fields, credentials and a login written into
   the address, and with the values of headers and query parameters whose names mention auth, cookie, key,
   token, secret, pass, session or signature left empty
@@ -132,8 +134,53 @@ them.
   resolver.
 - **DKIM checker.** The domain and selector you typed, or 13 common selectors when the field is empty,
   are looked up as `<selector>._domainkey.<domain>` over DNS over HTTPS at `cloudflare-dns.com`.
+- **Connection check.** The tool pings `1.1.1.1` and `8.8.8.8` (falling back to TCP port 443), resolves
+  `one.one.one.one` through the system resolver and over DNS over HTTPS at `cloudflare-dns.com`, fetches
+  `connectivitycheck.gstatic.com/generate_204` over plain HTTP to detect a sign-in page,
+  `www.cloudflare.com/cdn-cgi/trace` to test HTTPS and compare the clock, and `api6.ipify.org` to test IPv6.
+  In the browser `1.1.1.1/cdn-cgi/trace` stands in for the ping. These services see your public IP address,
+  as with any request. The router gets pings and an SSDP query on the local network.
+- **Site availability check.** The domain you typed is resolved by the system resolver and over DNS over
+  HTTPS at `cloudflare-dns.com` and `dns.google`, the app connects to the site on ports 443 and 80 and requests
+  its home page. The domain also goes to `api.globalping.io`, whose probes open the site from other networks;
+  the country for two of them comes from `www.cloudflare.com/cdn-cgi/trace`.
+- **Public IP and NAT check.** The outside address is asked from several services at once, so a VPN that wraps only
+  part of the traffic shows up: `ipv4-internet.yandex.net`, `ip.beget.ru` (apps only), `1.1.1.1/cdn-cgi/trace`,
+  `api.ipify.org` and `api6.ipify.org`. STUN requests go to `stun.l.google.com`, `stun.cloudflare.com`, `stun.sipnet.ru` and
+  `stun.zadarma.com`, in the browser through WebRTC. Each address found is looked up at `stat.ripe.net` for its network owner. In the apps the
+  router is asked for its outside address over UPnP and NAT-PMP, and pings with a short TTL towards `1.1.1.1` show
+  the first hops of the route. These services see your public IP address, as with any request.
+- **Cellular signal.** The cell list comes from the operating system and stays on the device. The modem tab
+  asks the modem address you entered in your local network for its signal page.
+- **Wi-Fi analyzer.** Scanning reads the list of networks from the operating system, nothing leaves the
+  device for that. A spot on a coverage map pings the router, or `1.1.1.1/cdn-cgi/trace` in the browser, and
+  with "Measure speed" on downloads random data from `speed.cloudflare.com` for three seconds.
 - **Whois / RDAP.** The domain, IP address or AS number you typed is sent to `rdap.org` and the
-  registry it redirects to, and, where sockets are available, to whois servers on port 43.
+  registry it redirects to, and, where sockets are available, to whois servers on port 43. An IP address or AS
+  number also goes to `stat.ripe.net` for its routing.
+- **Exact time.** The apps send NTP requests to `ntp1.vniiftri.ru`, `time.google.com`, `time.cloudflare.com`,
+  `time.apple.com`, `pool.ntp.org` and `time.windows.com`, the website reads the time from
+  `www.cloudflare.com/cdn-cgi/trace`. A request carries only the device's current time.
+- **TCP and UDP client.** What you typed is sent to the host and port you entered, exactly as written.
+- **File transfer.** In the apps, while the tool is open, the device announces itself on the local network to the
+  multicast group `224.0.0.167` on port 53317, as the LocalSend protocol does: its name, model and a random identifier.
+  It answers devices that announce themselves the same way, and a refresh of the device list asks every address of
+  the local /24 network on port 53317. Files and text go straight to the device you pick and arrive the same way, over
+  HTTPS when that device uses it (its certificate is checked against the fingerprint it announced) and over plain HTTP
+  otherwise. The browser link serves its page only under a random path. Over the internet the two devices first swap,
+  through `ppng.io` or the piping server you set, encrypted notes with their names and the addresses they can be
+  reached at: local addresses, public IPv6 addresses, a port the app asks your router to open over NAT-PMP or UPnP
+  while the transfer waits, closed again when it ends, and the outside address of a UDP socket, learned from the STUN
+  servers listed above. To find each other when the relay cannot be reached, both devices also join the BitTorrent
+  DHT as read-only nodes, starting from `router.bittorrent.com`, `dht.transmissionbt.com`, `router.utorrent.com` and
+  `dht.libtorrent.org`: each one announces that UDP socket under a hash made from the code and looks up the other
+  side's hash. DHT nodes see the IP address, the port and the hash, which tells nothing about the files or the code.
+  The devices then send each other probes sealed with the key until one gets through. If a direct connection opens,
+  the files go straight between the devices; otherwise the relay passes the stream without storing it. With encryption on, the code on screen is the key
+  (PBKDF2 and ChaCha20-Poly1305) and never leaves the two devices, so the relay sees only ciphertext, its size and the
+  IP addresses of both sides. With encryption off, the relay passes the file as it is to whoever opens the link.
+  Received files are saved to Download/Mobitool on Android, to the Downloads folder on a computer, to the app's folder
+  in Files on iOS and to the browser's downloads on the website.
 - **IP info.** `ipwho.is` (with `ipapi.co` as a fallback) receives the IP address you typed. When you
   ask for your own address, the request itself reveals your public IP to that service, and
   `api.ipify.org` or `api6.ipify.org` is asked for the address of the other IP version. The network
@@ -143,7 +190,8 @@ them.
   site, nothing leaves the device for that. When you press "Check online" in the apps, the first nine hex
   digits of the address go to `api.maclookup.app` and `api.macvendors.com`: they name the block, the rest
   of the address stays on the device. The website does not make these requests.
-- **Speed test.** Random data is downloaded from and uploaded to the source you pick:
+- **Speed test.** Random data is downloaded from and uploaded to the source you pick, and while it runs
+  small requests to the same source measure the latency under load:
   `speed.cloudflare.com`, the Yandex Internetometer at `yandex.ru/internet` (apps only), an
   OpenSpeedTest server of your own or a file URL you enter. The uploaded bytes carry no information.
 - **HTTP request.** The request you compose is sent to the URL you entered, exactly as written.
@@ -165,8 +213,19 @@ Some tools use device capabilities, always after you open the tool and, where th
 requires it, after you grant the permission:
 
 - **Location** (Android, iOS, browser). The GPS tool shows your coordinates and speed on screen. On
-  Android the same permission is required by the system to read the Wi-Fi network name. The
+  Android and iOS the same permission is required by the system to read the Wi-Fi network name; on Android, in precise
+  form, to list nearby Wi-Fi networks in the Wi-Fi analyzer and mobile cells in the cellular tool, which never
+  read the location itself. The
   location is not stored or transmitted.
+- **Bluetooth** (Android, iOS, Windows, macOS, Linux). The Bluetooth radar receives the advertising packets of nearby devices and
+  shows them on screen: names, makers, signal strength. On Android 12 and newer the permission is declared as never
+  used for location. Nothing is stored or transmitted. File transfer over Bluetooth hands the files to Android's own
+  Bluetooth sharing.
+- **Nearby Wi-Fi devices** (Android 13 and newer, location on older versions). Needed only to start the phone's own
+  hotspot for a file transfer. The network name and password are shown on screen and dropped when the hotspot stops.
+- **NFC** (Android). While the file transfer screen shows a link, the phone answers as an NFC tag carrying that link,
+  so another phone held to it opens the link. Nothing else is sent over NFC.
+- **Local network** (iOS). File transfer, device discovery and the LAN tools reach devices on your network.
 - **Motion and environment sensors.** Compass, level, accelerometer, magnetometer, light,
   barometer and pedometer read the sensors and display the values. Nothing is recorded beyond the
   short history shown in the chart.
@@ -177,7 +236,7 @@ requires it, after you grant the permission:
   the scanner is read the same way.
 - **Camera flash.** The torch tool toggles the LED without taking any image.
 - **Vibration.** Used by the vibration test and by a few tools as haptic feedback.
-- **Network state.** Used to show the connection details in the network interfaces tool.
+- **Network state.** Used to show the connection details in the network interfaces tool and the connection check.
 
 ## 5. Third-party services
 

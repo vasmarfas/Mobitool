@@ -62,6 +62,7 @@ private val fieldNames: Map<String, StringResource> = mapOf(
     "Upstream" to Res.string.platform_field_upstream,
     "Metered" to Res.string.platform_field_metered,
     "Validated" to Res.string.platform_field_validated,
+    "Captive portal" to Res.string.platform_field_captive_portal,
     "Interface" to Res.string.platform_field_interface,
     "Addresses" to Res.string.platform_field_addresses,
     "Gateway" to Res.string.platform_field_gateway,

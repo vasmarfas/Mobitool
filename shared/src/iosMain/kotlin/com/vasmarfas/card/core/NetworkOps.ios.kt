@@ -22,6 +22,7 @@ import kotlinx.cinterop.pointed
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.refTo
 import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.set
 import kotlinx.cinterop.sizeOf
 import kotlinx.cinterop.toKString
 import kotlinx.cinterop.usePinned
@@ -55,6 +56,8 @@ import platform.Network.nw_parameters_create_quic
 import platform.Network.nw_parameters_create_secure_tcp
 import platform.Network.nw_parameters_t
 import platform.Network.nw_quic_add_tls_application_protocol
+import platform.NetworkExtension.NEHotspotNetwork
+import platform.darwin.CTL_NET
 import platform.darwin.dispatch_data_apply
 import platform.darwin.dispatch_data_create
 import platform.darwin.dispatch_data_get_size
@@ -63,6 +66,7 @@ import platform.darwin.dispatch_queue_create
 import platform.darwin.freeifaddrs
 import platform.darwin.getifaddrs
 import platform.darwin.ifaddrs
+import platform.darwin.sysctl
 import platform.posix.AF_INET
 import platform.posix.AF_INET6
 import platform.posix.AF_UNSPEC
@@ -76,10 +80,12 @@ import platform.posix.F_SETFL
 import platform.posix.IPPROTO_ICMP
 import platform.posix.IPPROTO_IP
 import platform.posix.IP_TTL
+import platform.posix.NET_RT_FLAGS
 import platform.posix.NI_MAXHOST
 import platform.posix.NI_NAMEREQD
 import platform.posix.NI_NUMERICHOST
 import platform.posix.O_NONBLOCK
+import platform.posix.PF_ROUTE
 import platform.posix.POLLOUT
 import platform.posix.SOCK_DGRAM
 import platform.posix.SOCK_STREAM
@@ -105,6 +111,7 @@ import platform.posix.recvfrom
 import platform.posix.send
 import platform.posix.sendto
 import platform.posix.setsockopt
+import platform.posix.size_tVar
 import platform.posix.sockaddr
 import platform.posix.sockaddr_in
 import platform.posix.sockaddr_in6
@@ -114,6 +121,7 @@ import platform.posix.socklen_t
 import platform.posix.socklen_tVar
 import platform.posix.timeval
 import platform.posix.uint32_tVar
+import kotlin.time.Duration.Companion.milliseconds
 
 actual fun platformNetCapabilities() = PlatformNetCapabilities(
     icmpPing = true,
@@ -125,7 +133,7 @@ actual fun platformNetCapabilities() = PlatformNetCapabilities(
 )
 
 @OptIn(ExperimentalForeignApi::class)
-private fun resolveFirst(host: String, port: Int, socketType: Int, family: Int = AF_UNSPEC, block: (CPointer<addrinfo>) -> Unit) {
+internal fun resolveFirst(host: String, port: Int, socketType: Int, family: Int = AF_UNSPEC, block: (CPointer<addrinfo>) -> Unit) {
     memScoped {
         val hints = alloc<addrinfo>()
         hints.ai_family = family
@@ -155,7 +163,7 @@ private fun setTimeout(descriptor: Int, timeoutMs: Int) {
 // kernel's own TCP timeout; O_NONBLOCK plus poll() makes the deadline real, and the original
 // flags go back so the caller's later recv() still honours SO_RCVTIMEO
 @OptIn(ExperimentalForeignApi::class)
-private fun connectWithin(descriptor: Int, address: CPointer<sockaddr>?, length: socklen_t, timeoutMs: Int): Boolean {
+internal fun connectWithin(descriptor: Int, address: CPointer<sockaddr>?, length: socklen_t, timeoutMs: Int): Boolean {
     val flags = fcntl(descriptor, F_GETFL, 0)
     if (flags < 0 || fcntl(descriptor, F_SETFL, flags or O_NONBLOCK) < 0) return false
     val connected = when {
@@ -277,7 +285,7 @@ private fun awaitIcmpReply(descriptor: Int, sequence: Int, timeoutMs: Int, targe
 }
 
 @OptIn(ExperimentalForeignApi::class)
-actual suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: Int?): PingReply = withContext(Dispatchers.IO) {
+actual suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: Int?, size: Int?): PingReply = withContext(Dispatchers.IO) {
     var reply = PingReply(sequence, null, null, null, null)
     resolveFirst(host, 0, SOCK_DGRAM, AF_INET) { info ->
         val target = info.pointed.ai_addr?.let { numericHost(it, info.pointed.ai_addrlen.convert()) }
@@ -427,32 +435,31 @@ actual suspend fun networkInterfaces(): List<InterfaceInfo> {
     }
 }
 
-actual suspend fun tlsHandshake(host: String, port: Int, timeoutMs: Int): TlsInfo =
+actual suspend fun tlsHandshake(host: String, port: Int, timeoutMs: Int, serverName: String): TlsInfo =
     throw UnsupportedOperationException("unsupported")
 
 @OptIn(ExperimentalForeignApi::class)
-actual suspend fun whoisQuery(server: String, query: String, timeoutMs: Int): String = withContext(Dispatchers.IO) {
-    var response = ""
-    resolveFirst(server, 43, SOCK_STREAM) { info ->
+actual suspend fun tcpExchange(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray = withContext(Dispatchers.IO) {
+    var response: ByteArray? = null
+    resolveFirst(host, port, SOCK_STREAM) { info ->
         val descriptor = socket(info.pointed.ai_family, info.pointed.ai_socktype, info.pointed.ai_protocol)
         if (descriptor >= 0) {
             setTimeout(descriptor, timeoutMs)
             if (connectWithin(descriptor, info.pointed.ai_addr, info.pointed.ai_addrlen, timeoutMs)) {
-                val request = (query + "\r\n").encodeToByteArray()
-                send(descriptor, request.refTo(0), request.size.convert(), 0)
-                val builder = StringBuilder()
-                val buffer = ByteArray(4096)
-                while (true) {
+                if (payload.isNotEmpty()) send(descriptor, payload.refTo(0), payload.size.convert(), 0)
+                var received = ByteArray(0)
+                val buffer = ByteArray(8192)
+                while (received.size < MAX_EXCHANGE_BYTES) {
                     val read = recv(descriptor, buffer.refTo(0), buffer.size.convert(), 0)
                     if (read <= 0) break
-                    builder.append(buffer.decodeToString(0, read.toInt()))
+                    received += buffer.copyOf(read.toInt())
                 }
-                response = builder.toString()
+                response = received
             }
             close(descriptor)
         }
     }
-    response
+    response ?: throw NetException(Res.string.net_error_refused)
 }
 
 @OptIn(ExperimentalForeignApi::class)
@@ -473,6 +480,30 @@ actual suspend fun udpQuery(host: String, port: Int, payload: ByteArray, timeout
     }
     result
 }
+
+@OptIn(ExperimentalForeignApi::class)
+actual suspend fun udpExchanges(targets: List<Pair<String, Int>>, payload: ByteArray, timeoutMs: Int): List<ByteArray?> = withContext(Dispatchers.IO) {
+    val descriptor = socket(AF_INET, SOCK_DGRAM, 0)
+    if (descriptor < 0) return@withContext targets.map { null }
+    setTimeout(descriptor, timeoutMs)
+    val replies = targets.map { (host, port) ->
+        var reply: ByteArray? = null
+        resolveFirst(host, port, SOCK_DGRAM, AF_INET) { info ->
+            if (sendto(descriptor, payload.refTo(0), payload.size.convert(), 0, info.pointed.ai_addr, info.pointed.ai_addrlen) > 0) {
+                val buffer = ByteArray(2048)
+                val read = recv(descriptor, buffer.refTo(0), buffer.size.convert(), 0)
+                if (read > 0) reply = buffer.copyOf(read.toInt())
+            }
+        }
+        reply
+    }
+    close(descriptor)
+    replies
+}
+
+actual suspend fun browserIceCandidates(stunServers: List<String>, timeoutMs: Int): List<String> = emptyList()
+
+actual suspend fun browserJsonp(url: String, timeoutMs: Int): String? = null
 
 @OptIn(ExperimentalForeignApi::class)
 private fun receiveExactly(descriptor: Int, count: Int): ByteArray? {
@@ -533,7 +564,7 @@ private suspend fun framedDnsQuery(
     val queue = dispatch_queue_create("com.vasmarfas.dns", null)
     nw_connection_set_queue(connection, queue)
     try {
-        return withTimeoutOrNull(timeoutMs.toLong()) {
+        return withTimeoutOrNull(timeoutMs.toLong().milliseconds) {
             suspendCancellableCoroutine<ByteArray> { continuation ->
                 var received = ByteArray(0)
                 fun fail(error: Throwable) {
@@ -603,4 +634,60 @@ actual suspend fun ssdpDiscover(timeoutMs: Int): List<DiscoveredDevice> = emptyL
 
 actual suspend fun mdnsQuery(serviceName: String, timeoutMs: Int): List<ByteArray> = emptyList()
 
-actual suspend fun wifiDetails(): Map<String, String> = emptyMap()
+actual suspend fun wifiDetails(): Map<String, String> = buildMap {
+    currentHotspot()?.let {
+        put("SSID", it.SSID)
+        put("BSSID", it.BSSID.uppercase())
+    }
+    defaultGateway()?.let { put("Gateway", it) }
+}
+
+// answers only with the wifi-info entitlement and location access, otherwise nil
+private suspend fun currentHotspot(): NEHotspotNetwork? = withTimeoutOrNull(3_000.milliseconds) {
+    suspendCancellableCoroutine { cont -> NEHotspotNetwork.fetchCurrentWithCompletionHandler { cont.resume(it) } }
+}
+
+private const val RTF_GATEWAY = 0x2
+private const val RT_MSGHDR_SIZE = 92
+
+// the routing table from sysctl is a run of rt_msghdr records, each followed by the sockaddrs its
+// rtm_addrs bits name, padded to 4 bytes; net/route.h is not in the iOS SDK, so the offsets are spelled out
+@OptIn(ExperimentalForeignApi::class)
+private fun defaultGateway(): String? = memScoped {
+    val mib = allocArray<IntVar>(6)
+    intArrayOf(CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS, RTF_GATEWAY).forEachIndexed { i, value -> mib[i] = value }
+    val size = alloc<size_tVar>()
+    if (sysctl(mib, 6u, null, size.ptr, null, 0u) != 0 || size.value == 0uL) return null
+    val table = ByteArray(size.value.toInt())
+    if (table.usePinned { sysctl(mib, 6u, it.addressOf(0), size.ptr, null, 0u) } != 0) return null
+    val length = size.value.toInt().coerceAtMost(table.size)
+    fun u8(at: Int) = table[at].toInt() and 0xFF
+    fun u16(at: Int) = u8(at) or (u8(at + 1) shl 8)
+    fun i32(at: Int) = u16(at) or (u16(at + 2) shl 16)
+    var record = 0
+    while (record + RT_MSGHDR_SIZE <= length) {
+        val recordLength = u16(record)
+        if (recordLength == 0) break
+        val present = i32(record + 12)
+        var at = record + RT_MSGHDR_SIZE
+        var defaultRoute = false
+        for (slot in 0 until 8) {
+            if (present and (1 shl slot) == 0) continue
+            if (at + 8 > length) break
+            val saLength = u8(at)
+            when (slot) {
+                0 -> defaultRoute = saLength < 8 || (4 until 8).all { table[at + it] == 0.toByte() }
+                1 -> if (defaultRoute && u8(at + 1) == AF_INET) return (4 until 8).joinToString(".") { u8(at + it).toString() }
+            }
+            at += if (saLength == 0) 4 else (saLength + 3) and 3.inv()
+        }
+        record += recordLength
+    }
+    null
+}
+
+actual suspend fun scanWifi(): WifiScan = WifiScan(emptyList(), false, WifiProblem.UNSUPPORTED)
+
+actual fun wifiScanLimit(): ScanLimit? = null
+
+actual fun openScanLimitSettings() = Unit

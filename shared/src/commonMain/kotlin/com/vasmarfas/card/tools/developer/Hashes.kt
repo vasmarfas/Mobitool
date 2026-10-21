@@ -371,10 +371,13 @@ object Crc32 {
         c
     }
 
-    fun compute(data: ByteArray): Int {
-        var crc = -1
-        for (b in data) crc = table[(crc xor b.toInt()) and 0xFF] xor (crc ushr 8)
-        return crc.inv()
+    fun compute(data: ByteArray): Int = update(-1, data, 0, data.size).inv()
+
+    // a running state starts at -1 and ends inverted
+    fun update(state: Int, data: ByteArray, offset: Int, length: Int): Int {
+        var crc = state
+        for (i in offset until offset + length) crc = table[(crc xor data[i].toInt()) and 0xFF] xor (crc ushr 8)
+        return crc
     }
 
     fun digest(data: ByteArray): ByteArray {

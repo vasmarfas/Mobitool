@@ -92,7 +92,7 @@ data class PlatformNetCapabilities(
 
 expect fun platformNetCapabilities(): PlatformNetCapabilities
 
-expect suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: Int? = null): PingReply
+expect suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: Int? = null, size: Int? = null): PingReply
 
 expect suspend fun tcpConnect(host: String, port: Int, timeoutMs: Int): Long?
 
@@ -106,11 +106,22 @@ expect suspend fun wakeOnLan(mac: String, broadcast: String, port: Int): Boolean
 
 expect suspend fun networkInterfaces(): List<InterfaceInfo>
 
-expect suspend fun tlsHandshake(host: String, port: Int, timeoutMs: Int): TlsInfo
+expect suspend fun tlsHandshake(host: String, port: Int, timeoutMs: Int, serverName: String = host): TlsInfo
 
-expect suspend fun whoisQuery(server: String, query: String, timeoutMs: Int): String
+const val MAX_EXCHANGE_BYTES = 1 shl 20
+
+expect suspend fun tcpExchange(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray
+
+suspend fun whoisQuery(server: String, query: String, timeoutMs: Int): String =
+    tcpExchange(server, 43, (query + "\r\n").encodeToByteArray(), timeoutMs).decodeToString()
 
 expect suspend fun udpQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray?
+
+expect suspend fun udpExchanges(targets: List<Pair<String, Int>>, payload: ByteArray, timeoutMs: Int): List<ByteArray?>
+
+expect suspend fun browserJsonp(url: String, timeoutMs: Int): String?
+
+expect suspend fun browserIceCandidates(stunServers: List<String>, timeoutMs: Int): List<String>
 
 expect suspend fun tcpDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray?
 

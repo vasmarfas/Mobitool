@@ -25,6 +25,7 @@ import com.vasmarfas.card.tools.ToolCategory
 import com.vasmarfas.card.tools.developer.Punycode
 import com.vasmarfas.card.ui.components.ActionButton
 import com.vasmarfas.card.ui.components.ErrorText
+import com.vasmarfas.card.ui.components.Hint
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.LoadingRow
 import com.vasmarfas.card.ui.components.MonoText
@@ -42,6 +43,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 
 val whoisTool = Tool(
     id = "whois-rdap",
@@ -153,12 +155,14 @@ private fun WhoisScreen() {
     var error by remember { mutableStateOf<String?>(null) }
     var rdap by remember { mutableStateOf<WhoisFacts?>(null) }
     var whois by remember { mutableStateOf<String?>(null) }
+    var routing by remember { mutableStateOf<Routing?>(null) }
     val scope = rememberCoroutineScope()
 
     fun runRdap() {
         val q = query.trim()
         if (q.isEmpty()) return
-        loading = true; error = null; rdap = null; whois = null
+        loading = true; error = null; rdap = null; whois = null; routing = null
+        scope.launch { routing = runCatching { RipeStat.lookup(q) }.getOrNull() }
         scope.launch {
             runCatching {
                 val response = Net.client.get(Rdap.url(q)) { header("accept", "application/rdap+json, application/json") }
@@ -213,5 +217,21 @@ private fun WhoisScreen() {
         }
         ResultCard(title = Res.string.raw_response.str()) { MonoText(facts.raw) }
     }
+    routing?.let { route ->
+        ResultCard(title = Res.string.whois_routing.str()) {
+            route.prefix?.let { KeyValueRow(Res.string.whois_prefix.str(), it) }
+            route.origins.forEach { (asn, holder) -> KeyValueRow(Res.string.whois_origin.str(), "AS$asn · $holder") }
+            route.holder?.let { KeyValueRow(Res.string.whois_holder.str(), it, mono = false) }
+            route.prefixes?.let { prefixes ->
+                val v6 = prefixes.count { ':' in it }
+                KeyValueRow(Res.string.whois_announced.str(), stringResource(Res.string.whois_announced_count, (prefixes.size - v6).toString(), v6.toString()), mono = false, copyable = false)
+                if (prefixes.isNotEmpty()) MonoText(prefixes.take(ROUTING_LIST).joinToString("\n") + if (prefixes.size > ROUTING_LIST) "\n…" else "")
+            }
+            if (route.prefix == null && route.origins.isEmpty() && route.prefixes.isNullOrEmpty()) Hint(Res.string.whois_not_announced.str())
+            Hint(Res.string.whois_routing_source.str())
+        }
+    }
     whois?.let { ResultCard(title = "Whois") { MonoText(it) } }
 }
+
+private const val ROUTING_LIST = 40

@@ -145,6 +145,15 @@ object YandexSpeedTest {
 
 fun speedMbps(bytes: Long, millis: Long): Double = if (bytes <= 0 || millis <= 0) 0.0 else bytes * 8.0 / millis / 1000.0
 
+fun bufferbloatGrade(addedMs: Double): String = when {
+    addedMs < 5 -> "A+"
+    addedMs < 30 -> "A"
+    addedMs < 60 -> "B"
+    addedMs < 200 -> "C"
+    addedMs < 400 -> "D"
+    else -> "F"
+}
+
 fun latencyStats(samples: List<Double>): LatencyStats {
     if (samples.isEmpty()) return LatencyStats(0.0, 0.0)
     val sorted = samples.sorted()

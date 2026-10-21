@@ -45,9 +45,10 @@ private fun NetworkInterfacesScreen() {
     val interfaces by produceState(emptyList<InterfaceInfo>(), refresh) { value = networkInterfaces() }
     val wifi by produceState(emptyMap<String, String>(), refresh, permission) { value = wifiDetails() }
 
-    if (currentPlatform == PlatformKind.ANDROID) {
+    val asksLocation = currentPlatform in PlatformKind.mobile
+    if (asksLocation || wifi.isNotEmpty()) {
         ResultCard(title = Res.string.connection.str()) {
-            if (!permission) {
+            if (asksLocation && !permission) {
                 PermissionPrompt(AppPermission.LOCATION, Res.string.iface_ssid_and_bssid_require.str()) {
                     permission = true
                     refresh++

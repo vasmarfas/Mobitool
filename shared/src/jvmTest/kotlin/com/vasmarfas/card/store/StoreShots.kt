@@ -16,8 +16,11 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextReplacement
@@ -29,7 +32,9 @@ import com.vasmarfas.card.tools.documents.fixture
 import com.vasmarfas.card.tools.documents.pdf.pdf
 import java.io.File
 import java.lang.reflect.Proxy
+import java.nio.ByteBuffer
 import java.nio.file.Files
+import java.nio.file.StandardOpenOption
 import java.util.prefs.Preferences
 import javax.imageio.ImageIO
 import kotlin.math.abs
@@ -64,18 +69,15 @@ class StoreShots {
     // the home screen puts every category in its own section, one full row each: three tiles on tablets, four on
     // the desktop
     private val home = listOf(
-        listOf("image-compressor", "photo-editor", "video-converter", "audio-converter"),
-        listOf("pdf-editor", "merge-pdf", "document-converter", "images-to-pdf"),
-        listOf("decision-wheel", "dice-roller", "team-splitter", "tally-counter"),
-        listOf("qr-generator", "color-converter", "barcode-generator", "image-palette"),
+        listOf("image-compressor", "video-editor", "photo-editor", "id-photo"),
+        listOf("pdf-editor", "photo-to-text", "doc-scanner", "merge-pdf"),
+        listOf("qr-generator", "barcode-generator", "color-converter", "image-palette"),
         listOf("password-generator", "totp", "pwned-check", "password-strength"),
-        listOf("json-formatter", "base64", "hash-generator", "regex-tester"),
-        listOf("speed-test", "subnet-calculator", "ping", "dns-lookup"),
-        listOf("filament-guide", "print-cost", "filament-length-weight", "print-time-estimate"),
+        listOf("file-transfer", "speed-test", "connection-check", "wifi-analyzer"),
     )
 
     private val shots = listOf(
-        Shot("01-home", "#my"),
+        Shot("01-home", "#my") { ru -> bringToTop(if (ru) "Фото, видео и аудио" else "Photo, video and audio", 12f) },
         Shot("02-pdf", "#tools/pdf-editor") { ru ->
             pick(sampleLease(ru))
             tap(if (ru) "Выбрать PDF" else "Choose a PDF")
@@ -83,24 +85,42 @@ class StoreShots {
             val page = pageBounds()
             onRoot().performTouchInput { click(Offset(page.left + page.width * 0.4f, page.top + page.height * 0.318f)) }
         },
-        Shot("03-currency", "#tools/currency-converter", dark = true) { ru ->
+        Shot("03-transfer", "#tools/file-transfer") { ru ->
+            pick(holidayVideo(ru), sampleLease(ru))
+            tap(if (ru) "Выбрать файлы" else "Choose files")
+            tap(if (ru) "Через интернет" else "Over the internet")
+            tap(if (ru) "Создать ссылку" else "Create a link")
+            waitUntil(timeoutMillis = 10_000) { onAllNodes(hasText("file-transfer?code=", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+            bringToTop(if (ru) "Другие способы" else "Other ways", 90f)
+            onRoot().performMouseInput { moveTo(Offset.Zero) }
+        },
+        Shot("04-text", "#tools/photo-to-text") { ru ->
+            pick(sample("recipe-${if (ru) "ru" else "en"}.jpg", if (ru) "Рецепт.jpg" else "Recipe.jpg"))
+            tap(if (ru) "Выбрать фото, скриншоты или PDF" else "Choose photos, screenshots or PDF")
+            waitUntil(timeoutMillis = 90_000) { onAllNodes(hasText(if (ru) "Копировать" else "Copy")).fetchSemanticsNodes().isNotEmpty() }
+            tap(if (ru) "Склеивать строки в абзацы" else "Join lines into paragraphs")
+            bringToTop(if (ru) "Склеивать строки в абзацы" else "Join lines into paragraphs", -12f)
+        },
+        Shot("05-scan", "#tools/doc-scanner") { ru ->
+            pick(sample("act-${if (ru) "ru" else "en"}.jpg", if (ru) "Акт.jpg" else "Handover.jpg"))
+            tap(if (ru) "Выбрать изображения" else "Choose images")
+            settle()
+            bringToTop(if (ru) "Края" else "Edges", 200f)
+        },
+        Shot("06-currency", "#tools/currency-converter", dark = true) { ru ->
             waitUntil(timeoutMillis = 15_000) { onAllNodes(hasText(if (ru) "Курсы обновлены" else "Rates updated")).fetchSemanticsNodes().isNotEmpty() }
+            if (!ru) {
+                onAllNodes(hasText("RUB") and hasClickAction()).onFirst().performClick()
+                settle()
+                onAllNodes(hasSetTextAction()).onLast().performTextReplacement("Euro")
+                onAllNodes(hasSetTextAction()).onLast().performImeAction()
+            }
         },
-        Shot("04-catalog", "#tools"),
-        Shot("05-qr", "#tools/qr-generator") {
+        Shot("07-qr", "#tools/qr-generator") {
             type("https://vasmarfas.com")
-            bringToTop("vasmarfas.com", 90f)
+            bringToTop("vasmarfas.com", 235f)
         },
-        Shot("06-passwords", "#tools/password-generator", dark = true),
-        Shot("07-filament", "#tools/filament-guide") { ru ->
-            tap(if (ru) "Будет на улице и солнце" else "Outdoors in the sun")
-            tap(if (ru) "Закрытый, без подогрева камеры" else "Enclosed, no chamber heating")
-            bringToTop(if (ru) "Подходят лучше всего" else "Suits best", 90f)
-        },
-        Shot("08-json", "#tools/json-formatter", dark = true) {
-            type(SAMPLE_JSON)
-            bringToTop("JSON", 70f)
-        },
+        Shot("08-catalog", "#tools"),
         Shot("check-filament-table", "#tools/filament-guide") { ru ->
             tap(if (ru) "Таблица" else "Table")
             bringToTop(if (ru) "Поиск по названию" else "Search by name", 90f)
@@ -151,12 +171,12 @@ class StoreShots {
 
     // FileKit keeps the desktop picker, an internal interface, in a lazy: a scene puts a proxy there that hands out a
     // sample file
-    private fun pick(file: File) {
+    private fun pick(vararg files: File) {
         val type = Class.forName("io.github.vinceglb.filekit.dialogs.platform.PlatformFilePicker")
         val picker = Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { proxy, method, args ->
             when (method.name) {
-                "openFilePicker" -> file
-                "openFilesPicker" -> listOf(file)
+                "openFilePicker" -> files.first()
+                "openFilesPicker" -> files.toList()
                 "hashCode" -> System.identityHashCode(proxy)
                 "equals" -> proxy === args?.firstOrNull()
                 "toString" -> "sample picker"
@@ -210,6 +230,22 @@ class StoreShots {
         }
         val dir = Files.createTempDirectory("store").toFile()
         return File(dir, if (ru) "Договор аренды квартиры.pdf" else "Apartment lease.pdf").apply { writeBytes(bytes) }
+    }
+
+    private fun sample(name: String, shownAs: String): File {
+        val source = File(out, "samples/$name")
+        check(source.exists()) { "run python store/tools/samples.py $out first" }
+        return File(Files.createTempDirectory("store").toFile(), shownAs).apply { writeBytes(source.readBytes()) }
+    }
+
+    private fun holidayVideo(ru: Boolean): File {
+        val file = File(Files.createTempDirectory("store").toFile(), if (ru) "Отпуск 2026.mp4" else "Vacation 2026.mp4")
+        Files.newByteChannel(file.toPath(), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, StandardOpenOption.SPARSE).use {
+            it.position(1_288_490_188)
+            it.write(ByteBuffer.wrap(byteArrayOf(0)))
+        }
+        file.deleteOnExit()
+        return file
     }
 
     // the page is the only pure white area of the editor
@@ -271,8 +307,6 @@ class StoreShots {
     }
 
     companion object {
-        const val SAMPLE_JSON = """{"tool":"json-formatter","tags":["format","tree","minify"],"size":{"keys":7,"depth":3},"ok":true}"""
-
         init {
             if (System.getProperty("store.shots") != null) {
                 System.setProperty("java.util.prefs.PreferencesFactory", MemoryPreferencesFactory::class.java.name)

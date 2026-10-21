@@ -92,6 +92,10 @@ compose.desktop {
                     extraKeysRawXml = """
                         <key>NSMicrophoneUsageDescription</key>
                         <string>The sound level meter, tuner and spectrum analyzer listen to the microphone.</string>
+                        <key>NSBluetoothAlwaysUsageDescription</key>
+                        <string>The Bluetooth radar lists nearby devices and their signal strength.</string>
+                        <key>NSLocalNetworkUsageDescription</key>
+                        <string>File transfer, the LAN scanner and device discovery reach devices on your network.</string>
                         <key>ITSAppUsesNonExemptEncryption</key>
                         <false/>
                     """.trimIndent()

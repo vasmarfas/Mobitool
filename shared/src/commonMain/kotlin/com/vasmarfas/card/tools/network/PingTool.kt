@@ -20,8 +20,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.vasmarfas.card.core.NetCapabilities
+import com.vasmarfas.card.core.PlatformKind
 import com.vasmarfas.card.core.PingReply
 import com.vasmarfas.card.core.currentEpochMillis
+import com.vasmarfas.card.core.currentPlatform
 import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.httpPing
 import com.vasmarfas.card.core.icmpPing
@@ -31,10 +33,14 @@ import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
 import com.vasmarfas.card.ui.components.ActionButton
+import com.vasmarfas.card.ui.components.AnswerCard
 import com.vasmarfas.card.ui.components.ChartKind
 import com.vasmarfas.card.ui.components.ChartSeries
+import com.vasmarfas.card.ui.components.ErrorText
+import com.vasmarfas.card.ui.components.Hint
 import com.vasmarfas.card.ui.components.InteractiveChart
 import com.vasmarfas.card.ui.components.KeyValueRow
+import com.vasmarfas.card.ui.components.LoadingRow
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SegmentedChoice
@@ -44,6 +50,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
+import org.jetbrains.compose.resources.StringResource
 
 val pingTool = Tool(
     id = "ping",
@@ -58,6 +65,26 @@ val pingTool = Tool(
 private enum class PingMode(val title: String) { ICMP("ICMP"), TCP("TCP"), HTTP("HTTP") }
 
 private val timedOut = Res.string.ping_timeout
+
+private suspend fun pathMtu(host: String): Int? {
+    suspend fun passes(payload: Int) = (1..2).any { icmpPing(host, it, 2000, size = payload).timeMs != null }
+    var low = 548
+    var high = 1472
+    if (!passes(low)) return null
+    if (passes(high)) return high + 28
+    while (high - low > 1) {
+        val middle = (low + high) / 2
+        if (passes(middle)) low = middle else high = middle
+    }
+    return low + 28
+}
+
+fun mtuNote(mtu: Int): StringResource = when {
+    mtu >= 1500 -> Res.string.ping_mtu_ethernet
+    mtu >= 1492 -> Res.string.ping_mtu_pppoe
+    mtu >= 1400 -> Res.string.ping_mtu_tunnel
+    else -> Res.string.ping_mtu_low
+}
 
 @Composable
 private fun PingScreen() {
@@ -76,6 +103,8 @@ private fun PingScreen() {
     val replies = remember { mutableStateListOf<PingReply>() }
     var job by remember { mutableStateOf<Job?>(null) }
     var running by remember { mutableStateOf(false) }
+    var mtu by remember { mutableStateOf<Result<Int?>?>(null) }
+    var findingMtu by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     fun start() {
@@ -115,6 +144,30 @@ private fun PingScreen() {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ActionButton(text = Res.string.start.str(), onClick = ::start, enabled = !running)
         if (running) TextButton(onClick = { job?.cancel(); running = false }) { Text(Res.string.stop_short.str()) }
+        if (mode == PingMode.ICMP && currentPlatform in PlatformKind.jvm && ':' !in hostFrom(host)) {
+            TextButton(
+                onClick = {
+                    findingMtu = true
+                    scope.launch {
+                        mtu = runCatching { pathMtu(hostFrom(host)) }
+                        findingMtu = false
+                    }
+                },
+                enabled = !running && !findingMtu,
+            ) { Text(Res.string.ping_find_mtu.str()) }
+        }
+    }
+    if (findingMtu) LoadingRow(Res.string.ping_mtu_running.str())
+    mtu?.let { result ->
+        val value = result.getOrNull()
+        if (value == null) {
+            ErrorText(Res.string.ping_mtu_failed.str())
+        } else {
+            ResultCard {
+                AnswerCard("$value ${Res.string.unit_byte.str()}", Res.string.ping_mtu.str())
+                Hint(mtuNote(value).str())
+            }
+        }
     }
     if (!NetCapabilities.icmpPing) {
         val note = if (NetCapabilities.tcp) {

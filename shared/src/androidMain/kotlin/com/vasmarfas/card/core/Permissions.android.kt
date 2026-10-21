@@ -44,6 +44,11 @@ private fun manifestPermissions(permission: AppPermission): Array<String> = when
     AppPermission.ACTIVITY_RECOGNITION -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) arrayOf(Manifest.permission.ACTIVITY_RECOGNITION) else emptyArray()
     AppPermission.MICROPHONE -> arrayOf(Manifest.permission.RECORD_AUDIO)
     AppPermission.CAMERA -> arrayOf(Manifest.permission.CAMERA)
+    AppPermission.BLUETOOTH -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        arrayOf(Manifest.permission.BLUETOOTH_SCAN)
+    } else {
+        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
 }
 
 actual fun hasPermission(permission: AppPermission): Boolean {

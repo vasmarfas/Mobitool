@@ -39,6 +39,7 @@ actual suspend fun wifiDetails(): Map<String, String> {
             result["Upstream"] = (it.linkUpstreamBandwidthKbps / 1000).toString()
             result["Metered"] = (!it.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)).toString()
             result["Validated"] = it.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED).toString()
+            result["Captive portal"] = it.hasCapability(NetworkCapabilities.NET_CAPABILITY_CAPTIVE_PORTAL).toString()
         }
         link?.let {
             result["Interface"] = it.interfaceName ?: ""

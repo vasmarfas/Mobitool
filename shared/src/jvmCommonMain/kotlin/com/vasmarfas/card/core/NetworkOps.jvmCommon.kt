@@ -35,6 +35,7 @@ import javax.net.ssl.SSLSocket
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509ExtendedTrustManager
 import javax.net.ssl.X509TrustManager
+import kotlin.time.Duration.Companion.milliseconds
 
 private val osName = (System.getProperty("os.name") ?: "").lowercase()
 private val isWindows = osName.contains("win")
@@ -65,21 +66,24 @@ actual fun platformNetCapabilities() = PlatformNetCapabilities(
     dnsOverQuic = true,
 )
 
-private fun pingCommand(host: String, timeoutMs: Int, ttl: Int?): List<String> = buildList {
+private fun pingCommand(host: String, timeoutMs: Int, ttl: Int?, size: Int?): List<String> = buildList {
     add(pingBinary)
     when {
         isWindows -> {
             if (!host.contains(':')) add("-4")
             add("-n"); add("1"); add("-w"); add(timeoutMs.toString())
             if (ttl != null) { add("-i"); add(ttl.toString()) }
+            if (size != null) { add("-f"); add("-l"); add(size.toString()) }
         }
         isMac -> {
             add("-c"); add("1"); add("-W"); add(timeoutMs.toString())
             if (ttl != null) { add("-m"); add(ttl.toString()) }
+            if (size != null) { add("-D"); add("-s"); add(size.toString()) }
         }
         else -> {
             add("-c"); add("1"); add("-W"); add(((timeoutMs + 999) / 1000).coerceAtLeast(1).toString())
             if (ttl != null) { add("-t"); add(ttl.toString()) }
+            if (size != null) { add("-M"); add("do"); add("-s"); add(size.toString()) }
         }
     }
     add(host)
@@ -101,13 +105,13 @@ internal fun parsePing(output: String, sequence: Int, ttl: Int?, ipv6: Boolean, 
     return if (ttl != null && hop != null) PingReply(sequence, elapsedMs, null, hop, "ttl-expired") else PingReply(sequence, null, null, null, null)
 }
 
-actual suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: Int?): PingReply = withContext(Dispatchers.IO) {
+actual suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: Int?, size: Int?): PingReply = withContext(Dispatchers.IO) {
     val started = System.nanoTime()
     val output = runCatching {
-        val process = ProcessBuilder(pingCommand(host, timeoutMs, ttl)).redirectErrorStream(true).start()
+        val process = ProcessBuilder(pingCommand(host, timeoutMs, ttl, size)).redirectErrorStream(true).start()
         val text = process.inputStream.bufferedReader(if (isWindows) Charsets.ISO_8859_1 else Charsets.UTF_8).use(BufferedReader::readText)
-        withTimeoutOrNull((timeoutMs + 2000).toLong()) {
-            while (process.isAlive) delay(20)
+        withTimeoutOrNull((timeoutMs + 2000).toLong().milliseconds) {
+            while (process.isAlive) delay(20.milliseconds)
         } ?: process.destroy()
         text
     }.getOrElse { return@withContext PingReply(sequence, null, null, null, it.message ?: "ping failed") }
@@ -167,7 +171,7 @@ actual suspend fun networkInterfaces(): List<InterfaceInfo> = withContext(Dispat
 
 private fun ByteArray.hexColon(): String = joinToString(":") { (it.toInt() and 0xFF).toString(16).padStart(2, '0').uppercase() }
 
-actual suspend fun tlsHandshake(host: String, port: Int, timeoutMs: Int): TlsInfo = withContext(Dispatchers.IO) {
+actual suspend fun tlsHandshake(host: String, port: Int, timeoutMs: Int, serverName: String): TlsInfo = withContext(Dispatchers.IO) {
     val system = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
         .apply { init(null as KeyStore?) }
         .trustManagers.filterIsInstance<X509TrustManager>().first()
@@ -203,10 +207,10 @@ actual suspend fun tlsHandshake(host: String, port: Int, timeoutMs: Int): TlsInf
     Socket().use { raw ->
         raw.connect(InetSocketAddress(host, port), timeoutMs)
         raw.soTimeout = timeoutMs
-        (context.socketFactory.createSocket(raw, host, port, true) as SSLSocket).use {
+        (context.socketFactory.createSocket(raw, serverName, port, true) as SSLSocket).use {
             runCatching {
                 val params = it.sslParameters
-                params.serverNames = listOf(SNIHostName(host))
+                params.serverNames = listOf(SNIHostName(serverName))
                 it.sslParameters = params
             }
             it.startHandshake()
@@ -241,13 +245,24 @@ actual suspend fun tlsHandshake(host: String, port: Int, timeoutMs: Int): TlsInf
     }
 }
 
-actual suspend fun whoisQuery(server: String, query: String, timeoutMs: Int): String = withContext(Dispatchers.IO) {
+actual suspend fun tcpExchange(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray = withContext(Dispatchers.IO) {
     Socket().use { socket ->
-        socket.connect(InetSocketAddress(server, 43), timeoutMs)
+        socket.connect(InetSocketAddress(host, port), timeoutMs)
         socket.soTimeout = timeoutMs
-        socket.getOutputStream().write((query + "\r\n").toByteArray())
+        socket.getOutputStream().write(payload)
         socket.getOutputStream().flush()
-        socket.getInputStream().bufferedReader().readText()
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        try {
+            while (out.size() < MAX_EXCHANGE_BYTES) {
+                val read = socket.getInputStream().read(buffer)
+                if (read < 0) break
+                out.write(buffer, 0, read)
+            }
+        } catch (e: SocketTimeoutException) {
+            if (out.size() == 0) throw e
+        }
+        out.toByteArray()
     }
 }
 
@@ -263,6 +278,30 @@ actual suspend fun udpQuery(host: String, port: Int, payload: ByteArray, timeout
         }
     }.getOrNull()
 }
+
+actual suspend fun udpExchanges(targets: List<Pair<String, Int>>, payload: ByteArray, timeoutMs: Int): List<ByteArray?> = withContext(Dispatchers.IO) {
+    DatagramSocket().use { socket ->
+        socket.soTimeout = timeoutMs
+        targets.map { (host, port) ->
+            runCatching {
+                val address = InetAddress.getByName(host)
+                socket.send(DatagramPacket(payload, payload.size, address, port))
+                val buffer = ByteArray(2048)
+                var reply: ByteArray? = null
+                while (reply == null) {
+                    val packet = DatagramPacket(buffer, buffer.size)
+                    socket.receive(packet)
+                    if (packet.address == address) reply = buffer.copyOf(packet.length)
+                }
+                reply
+            }.getOrNull()
+        }
+    }
+}
+
+actual suspend fun browserIceCandidates(stunServers: List<String>, timeoutMs: Int): List<String> = emptyList()
+
+actual suspend fun browserJsonp(url: String, timeoutMs: Int): String? = null
 
 actual suspend fun tcpDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray? = withContext(Dispatchers.IO) {
     runCatching {

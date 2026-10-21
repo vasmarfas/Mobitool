@@ -38,10 +38,10 @@ object ToolRegistry {
     // timer, stopwatch, compass or torch
     val popular: List<Tool> by lazy {
         listOf(
-            "pdf-editor", "image-compressor", "currency-converter", "percentage", "qr-generator", "speed-test",
-            "document-converter", "video-converter", "unit-converter", "images-to-pdf", "loan-calculator", "image-converter",
-            "text-counter", "merge-pdf", "compress-pdf", "number-to-words", "bmi-body", "date-calculator",
-            "password-generator", "noise-generator", "photo-editor", "video-editor", "audio-editor", "decision-wheel",
+            "pdf-editor", "file-transfer", "image-compressor", "currency-converter", "percentage", "qr-generator", "speed-test",
+            "connection-check", "document-converter", "video-converter", "unit-converter", "images-to-pdf", "image-converter",
+            "text-counter", "merge-pdf", "compress-pdf", "bmi-body", "date-calculator", "site-check",
+            "password-generator", "photo-editor", "video-editor", "audio-editor", "decision-wheel",
         ).map { id -> checkNotNull(byId(id)) { "Unknown popular tool $id" } }
     }
 

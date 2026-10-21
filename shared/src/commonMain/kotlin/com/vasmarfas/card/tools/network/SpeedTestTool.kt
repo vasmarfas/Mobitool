@@ -46,6 +46,7 @@ import com.vasmarfas.card.ui.components.AnswerCard
 import com.vasmarfas.card.ui.components.ChoiceChips
 import com.vasmarfas.card.ui.components.DropdownChoice
 import com.vasmarfas.card.ui.components.ErrorText
+import com.vasmarfas.card.ui.components.Hint
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.ResultCard
 import com.vasmarfas.card.ui.components.SwitchRow
@@ -66,11 +67,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.stringResource
+import kotlin.time.Duration.Companion.milliseconds
 
 val speedTestTool = Tool(
     id = "speed-test",
@@ -92,6 +96,7 @@ private data class SpeedState(
     val endpoint: String = "",
     val latencyMs: Double? = null,
     val jitterMs: Double? = null,
+    val loadedLatencyMs: Double? = null,
     val downloadMbps: Double? = null,
     val uploadMbps: Double? = null,
     val error: String? = null,
@@ -107,6 +112,7 @@ private const val UPLOAD_CHUNK = 2_000_000
 private const val MAX_UPLOAD_CHUNK = 8_000_000
 private const val DOWNLOAD_REQUEST_BYTES = 50_000_000L
 private const val TRANSFER_TIMEOUT_MS = 60_000L
+private const val LOADED_PING_GAP_MS = 300L
 
 private data class Transfer(val bytes: Long, val startedAt: Long, val endedAt: Long) {
     val mbps: Double get() = speedMbps(bytes, endedAt - startedAt)
@@ -168,15 +174,28 @@ private suspend fun measureLatency(url: String, head: Boolean, samples: Int = 6)
     return latencyStats(times.drop(1))
 }
 
+private suspend fun latencyUnderLoad(url: String, head: Boolean, samples: MutableList<Double>) {
+    while (true) {
+        val started = currentEpochMillis()
+        runCatching {
+            if (head) Net.client.head(url) { timeout { requestTimeoutMillis = 5_000 } } else Net.client.get(url) { timeout { requestTimeoutMillis = 5_000 } }
+        }.onSuccess { samples += (currentEpochMillis() - started).toDouble() }
+        delay(LOADED_PING_GAP_MS.milliseconds)
+    }
+}
+
 private val NotAStream = Res.string.speed_address_returns_a_web
 
-private suspend fun measureDownload(urls: List<String>, counter: MutableStateFlow<Long>, lang: Lang): Transfer = coroutineScope {
+private suspend fun measureDownload(urls: List<String>, counter: MutableStateFlow<Long>, lang: Lang, window: Long = WINDOW_MS): Transfer = coroutineScope {
     val warmupEnd = currentEpochMillis() + WARMUP_MS
-    val deadline = warmupEnd + WINDOW_MS
+    val deadline = warmupEnd + window
     List(STREAMS) { index ->
         async { downloadStream(urls[index % urls.size], warmupEnd, deadline, counter, lang) }
     }.awaitAll().merge()
 }
+
+internal suspend fun quickDownloadMbps(lang: Lang): Double =
+    measureDownload(listOf(SpeedEndpoints.download(cloudflareSpeedSource, DOWNLOAD_REQUEST_BYTES, 0)!!), MutableStateFlow(0L), lang, 3_000).mbps
 
 private suspend fun downloadStream(url: String, warmupEnd: Long, deadline: Long, counter: MutableStateFlow<Long>, lang: Lang): Transfer {
     val buffer = ByteArray(READ_BUFFER)
@@ -273,6 +292,8 @@ private fun SpeedTestScreen() {
                 state = state.copy(endpoint = plan.latencyUrl)
                 val latency = measureLatency(plan.latencyUrl, plan.headLatency)
                 state = state.copy(latencyMs = latency.medianMs, jitterMs = latency.jitterMs)
+                val loaded = mutableListOf<Double>()
+                val sampler = launch { delay(WARMUP_MS.milliseconds); latencyUnderLoad(plan.latencyUrl, plan.headLatency, loaded) }
                 if (plan.downloadUrls.isNotEmpty()) {
                     counter.value = 0
                     state = state.copy(phase = SpeedPhase.DOWNLOAD, progress = 0f, transferred = 0, windowStart = currentEpochMillis(), endpoint = plan.downloadUrls.first())
@@ -283,6 +304,8 @@ private fun SpeedTestScreen() {
                     state = state.copy(phase = SpeedPhase.UPLOAD, progress = 0f, transferred = 0, windowStart = currentEpochMillis())
                     state = state.copy(uploadMbps = measureUpload(uploadUrl, plan.uploadChunk, counter).mbps)
                 }
+                sampler.cancel()
+                if (loaded.size >= 3) state = state.copy(loadedLatencyMs = latencyStats(loaded).medianMs)
                 state = state.copy(running = false, phase = SpeedPhase.DONE, progress = 1f)
             }.onFailure { failure ->
                 if (!isActive) return@onFailure
@@ -363,11 +386,22 @@ private fun SpeedTestScreen() {
         state.downloadMbps?.let { AnswerCard("${it.fmt(1)} ${Res.string.unit_mbit_s.str()}", "${Res.string.download.str()} · ${state.source}", copyValue = it.fmt(1)) }
         ResultCard(title = state.source) {
             state.latencyMs?.let { KeyValueRow(Res.string.latency.str(), "${it.fmt(0)} ${Res.string.unit_ms.str()} · ${Res.string.jitter.str()} ${state.jitterMs?.fmt(1) ?: "—"} ${Res.string.unit_ms.str()}", copyable = false) }
+            val idle = state.latencyMs
+            val loaded = state.loadedLatencyMs
+            if (idle != null && loaded != null) {
+                val added = (loaded - idle).coerceAtLeast(0.0)
+                KeyValueRow(
+                    Res.string.speed_loaded_latency.str(),
+                    stringResource(Res.string.speed_loaded_latency_value, loaded.fmt(0), added.fmt(0), bufferbloatGrade(added)),
+                    copyable = false,
+                )
+            }
             state.downloadMbps?.let { KeyValueRow(Res.string.download.str(), "${it.fmt(1)} ${Res.string.unit_mbit_s.str()} (${(it / 8).fmt(2)} ${Res.string.unit_mb_per_second.str()})", copyable = false) }
             state.uploadMbps?.let { KeyValueRow(Res.string.upload.str(), "${it.fmt(1)} ${Res.string.unit_mbit_s.str()} (${(it / 8).fmt(2)} ${Res.string.unit_mb_per_second.str()})", copyable = false) }
             KeyValueRow(Res.string.endpoint.str(), state.endpoint, copyable = false)
         }
     }
+    if (state.loadedLatencyMs != null) Hint(Res.string.speed_bufferbloat_hint.str())
     Text(
         Res.string.speed_results_depend.str(),
         style = MaterialTheme.typography.bodySmall,

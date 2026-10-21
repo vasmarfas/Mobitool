@@ -1,6 +1,9 @@
 package com.vasmarfas.card
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -14,8 +17,9 @@ import com.vasmarfas.card.resources.app_icon
 import com.vasmarfas.card.ui.components.FindState
 import org.jetbrains.compose.resources.painterResource
 
-fun main() = application {
+fun main(args: Array<String>) = application {
     val find = remember { FindState() }
+    var link by remember { mutableStateOf(args.firstOrNull()) }
     Window(
         onCloseRequest = ::exitApplication,
         onPreviewKeyEvent = find::shortcut,
@@ -23,6 +27,6 @@ fun main() = application {
         icon = painterResource(Res.drawable.app_icon),
         state = rememberWindowState(size = DpSize(1180.dp, 820.dp), position = WindowPosition.Aligned(Alignment.Center)),
     ) {
-        App(find = find)
+        App(link = link, onLinkHandled = { link = null }, find = find)
     }
 }

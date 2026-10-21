@@ -94,12 +94,18 @@ object UrlRoutes {
     fun fragmentForCatalog(category: String?): String =
         fragmentFor(TopDestination.TOOLS) + category?.let { "?$CATEGORY_PARAM$it" }.orEmpty()
 
+    // the query of the last tool link, such as a transfer code; read once
+    var toolQuery = ""
+
     fun parse(fragment: String): Any? {
         val f = fragment.trim().trimStart('#')
         val path = f.substringBefore('?').trim('/')
         if (path.startsWith(TOOL_PREFIX)) {
             val id = path.removePrefix(TOOL_PREFIX).substringBefore('/')
-            if (id.isNotBlank()) return ToolRoute(id)
+            if (id.isNotBlank()) {
+                toolQuery = f.substringAfter('?', "")
+                return ToolRoute(id)
+            }
         }
         return when (val route = TopDestination.entries.firstOrNull { it.urlFragment == path.substringBefore('/') }?.route) {
             is ToolsRoute -> {

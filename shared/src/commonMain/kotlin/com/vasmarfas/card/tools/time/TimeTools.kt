@@ -9,6 +9,7 @@ val timeTools: List<Tool> = listOf(
     reminderCountdownTool,
     ageCalculatorTool,
     worldClockTool,
+    exactTimeTool,
     calendarTool,
     sunriseSunsetTool,
     unixTimestampTool,
