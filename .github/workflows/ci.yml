@@ -6,9 +6,11 @@ on:
     branches: [master]
     paths-ignore:
       - '**.md'
+  # by hand it only links the release framework, the slowest part of the App Store build
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -17,6 +19,7 @@ permissions:
 jobs:
   jvm:
     name: Tests, Android, desktop, web
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -79,7 +82,18 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build the app for the simulator
+        if: github.event_name != 'workflow_dispatch'
         run: >-
           xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug
           -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/xcode
           CODE_SIGNING_ALLOWED=NO build
+
+      - name: Link the release framework
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -eu
+          echo "$(sysctl -n hw.ncpu) cores, $(( $(sysctl -n hw.memsize) / 1048576 ))M memory"
+          ( while sleep 300; do echo "$(date -u +%H:%M) $(memory_pressure | tail -n 1), swap $(sysctl -n vm.swapusage)"; done ) &
+          sampler=$!
+          trap 'kill $sampler' EXIT
+          ./gradlew :shared:linkReleaseFrameworkIosArm64

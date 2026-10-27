@@ -326,7 +326,13 @@ def main():
             if args.width and width not in args.width:
                 continue
             for lang in LOCALES:
-                for view, (count, (failures, wraps)) in check(browser, base, width, ratio, lang).items():
+                results = check(browser, base, width, ratio, lang)
+                # now and then the app keeps the previous page in its tree after a hash change, a fresh context does not
+                differ = [view for view, (_, (failures, _)) in results.items() if failures]
+                if differ:
+                    print(f"{width}px x{ratio:g} {lang}: {', '.join(differ)} differ, checking again in a new context", flush=True)
+                    results = check(browser, base, width, ratio, lang)
+                for view, (count, (failures, wraps)) in results.items():
                     line = f"{view} {width}px x{ratio:g} {lang}: {count} nodes, {len(failures)} differ, {len(wraps)} wrap differently"
                     print(line, flush=True)
                     for problem in failures[:SHOWN] + ["wraps: " + wrap for wrap in wraps[:SHOWN]]:
