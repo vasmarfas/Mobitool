@@ -44,7 +44,7 @@ val wakeOnLanTool = Tool(
     description = Res.string.wake_on_lan_description,
     icon = Icons.Filled.PowerSettingsNew,
     keywords = listOf("wol", "magic packet", "wake", "включить", "пробуждение"),
-    platforms = PlatformKind.jvm,
+    platforms = PlatformKind.native,
 ) { WakeOnLanScreen() }
 
 @Serializable

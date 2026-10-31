@@ -70,6 +70,19 @@ data class DiscoveredDevice(
     val headers: Map<String, String>,
 )
 
+const val SSDP_SEARCH = "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\nST: ssdp:all\r\n\r\n"
+
+fun ssdpHeaders(response: String): Map<String, String> = response.lines().drop(1).mapNotNull { line ->
+    val idx = line.indexOf(':')
+    if (idx <= 0) null else line.substring(0, idx).trim().uppercase() to line.substring(idx + 1).trim()
+}.toMap()
+
+// the top bit of the class asks the responder to answer straight to the asking port
+fun mdnsQuestion(name: String, type: Int): ByteArray {
+    val labels = name.trimEnd('.').split('.').flatMap { label -> label.encodeToByteArray().let { listOf(it.size.toByte()) + it.asList() } }
+    return byteArrayOf(0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0) + labels + byteArrayOf(0, (type shr 8).toByte(), type.toByte(), 0x80.toByte(), 1)
+}
+
 class NetException(val reason: StringResource, val detail: String = "") : Exception(detail)
 
 object NetCapabilities {

@@ -347,7 +347,7 @@ private fun exchangeFramed(socket: Socket, payload: ByteArray): ByteArray {
 }
 
 actual suspend fun ssdpDiscover(timeoutMs: Int): List<DiscoveredDevice> = withContext(Dispatchers.IO) {
-    val request = "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\nST: ssdp:all\r\n\r\n".toByteArray()
+    val request = SSDP_SEARCH.toByteArray()
     val found = LinkedHashMap<String, DiscoveredDevice>()
     runCatching {
         DatagramSocket().use { socket ->
@@ -363,11 +363,7 @@ actual suspend fun ssdpDiscover(timeoutMs: Int): List<DiscoveredDevice> = withCo
                 } catch (_: SocketTimeoutException) {
                     continue
                 }
-                val text = String(buffer, 0, packet.length, Charsets.ISO_8859_1)
-                val headers = text.lines().drop(1).mapNotNull { line ->
-                    val idx = line.indexOf(':')
-                    if (idx <= 0) null else line.substring(0, idx).trim().uppercase() to line.substring(idx + 1).trim()
-                }.toMap()
+                val headers = ssdpHeaders(String(buffer, 0, packet.length, Charsets.ISO_8859_1))
                 val address = packet.address.hostAddress ?: continue
                 val key = address + "|" + (headers["USN"] ?: headers["LOCATION"] ?: "")
                 if (key !in found) found[key] = DiscoveredDevice(address, headers)
@@ -384,7 +380,7 @@ actual suspend fun mdnsQuery(serviceName: String, timeoutMs: Int): List<ByteArra
         MulticastSocket(5353).use { socket ->
             socket.soTimeout = 700
             runCatching { socket.joinGroup(InetSocketAddress(group, 5353), null) }
-            val query = buildDnsQuery(serviceName, 12)
+            val query = mdnsQuestion(serviceName, 12)
             socket.send(DatagramPacket(query, query.size, group, 5353))
             val deadline = System.currentTimeMillis() + timeoutMs
             val buffer = ByteArray(9000)
@@ -401,17 +397,4 @@ actual suspend fun mdnsQuery(serviceName: String, timeoutMs: Int): List<ByteArra
         }
     }
     responses
-}
-
-private fun buildDnsQuery(name: String, type: Int): ByteArray {
-    val out = ByteArrayOutputStream()
-    out.write(byteArrayOf(0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0))
-    name.trimEnd('.').split('.').forEach { label ->
-        val bytes = label.toByteArray()
-        out.write(bytes.size)
-        out.write(bytes)
-    }
-    out.write(0)
-    out.write(byteArrayOf((type shr 8).toByte(), type.toByte(), 0x80.toByte(), 1))
-    return out.toByteArray()
 }

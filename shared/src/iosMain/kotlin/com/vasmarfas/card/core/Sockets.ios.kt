@@ -9,6 +9,7 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.IntVar
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.allocPointerTo
 import kotlinx.cinterop.convert
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.pointed
@@ -21,8 +22,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.suspendCancellableCoroutine
+import platform.darwin.freeifaddrs
+import platform.darwin.getifaddrs
+import platform.darwin.ifaddrs
 import platform.posix.AF_INET
 import platform.posix.EINTR
+import platform.posix.IFF_LOOPBACK
+import platform.posix.IFF_MULTICAST
+import platform.posix.IFF_POINTOPOINT
+import platform.posix.IFF_UP
+import platform.posix.IPPROTO_IP
+import platform.posix.IP_ADD_MEMBERSHIP
+import platform.posix.IP_MULTICAST_IF
 import platform.posix.POLLIN
 import platform.posix.POLLOUT
 import platform.posix.SHUT_RDWR
@@ -31,9 +42,12 @@ import platform.posix.SOCK_STREAM
 import platform.posix.SOL_SOCKET
 import platform.posix.SO_NOSIGPIPE
 import platform.posix.SO_REUSEADDR
+import platform.posix.SO_REUSEPORT
 import platform.posix.bind
 import platform.posix.errno
 import platform.posix.getsockname
+import platform.posix.in_addr
+import platform.posix.ip_mreq
 import platform.posix.listen
 import platform.posix.poll
 import platform.posix.pollfd
@@ -131,6 +145,52 @@ private fun dotted(address: sockaddr_in): String {
     return "${ip and 0xFF}.${ip shr 8 and 0xFF}.${ip shr 16 and 0xFF}.${ip ushr 24}"
 }
 
+private fun ipv4(host: String): UInt? {
+    val parts = host.split('.').mapNotNull { it.toIntOrNull()?.takeIf { part -> part in 0..255 } }
+    return if (parts.size == 4) (parts[0] or (parts[1] shl 8) or (parts[2] shl 16) or (parts[3] shl 24)).toUInt() else null
+}
+
+private fun sendTo(fd: Int, ip: UInt, port: Int, data: ByteArray) = memScoped {
+    val address = alloc<sockaddr_in>()
+    address.sin_len = sizeOf<sockaddr_in>().convert()
+    address.sin_family = AF_INET.convert()
+    address.sin_port = swapPort(port).convert()
+    address.sin_addr.s_addr = ip
+    data.usePinned { sendto(fd, it.addressOf(0), data.size.convert(), 0, address.ptr.reinterpret(), sizeOf<sockaddr_in>().convert()) }
+}
+
+// 9000 bytes is the largest mDNS message
+private fun receiveFrom(socket: Descriptor): UdpPacket = memScoped {
+    socket.await(POLLIN)
+    val buffer = ByteArray(9000)
+    val address = alloc<sockaddr_in>()
+    val length = alloc<socklen_tVar>().apply { value = sizeOf<sockaddr_in>().convert() }
+    val read = buffer.usePinned { recvfrom(socket.fd, it.addressOf(0), buffer.size.convert(), 0, address.ptr.reinterpret(), length.ptr) }.toInt()
+    if (read < 0) error("recvfrom failed: $errno")
+    UdpPacket(dotted(address), swapPort(address.sin_port.toInt()), buffer.copyOf(read))
+}
+
+// cellular and VPN tunnels are point-to-point, the peers sit on Wi-Fi, Ethernet or the hotspot bridge
+private fun multicastInterfaces(): List<UInt> = memScoped {
+    val list = allocPointerTo<ifaddrs>()
+    if (getifaddrs(list.ptr) != 0) return@memScoped emptyList()
+    val found = mutableListOf<UInt>()
+    var current = list.value
+    while (current != null) {
+        val entry = current.pointed
+        val flags = entry.ifa_flags.toInt()
+        val address = entry.ifa_addr
+        if (address != null && address.pointed.sa_family.toInt() == AF_INET && (flags and IFF_UP) != 0 &&
+            (flags and IFF_MULTICAST) != 0 && (flags and (IFF_LOOPBACK or IFF_POINTOPOINT)) == 0
+        ) {
+            found += address.reinterpret<sockaddr_in>().pointed.sin_addr.s_addr
+        }
+        current = entry.ifa_next
+    }
+    list.value?.let { freeifaddrs(it) }
+    found.distinct()
+}
+
 actual fun listenTcp(port: Int): TcpServer {
     val fd = socket(AF_INET, SOCK_STREAM, 0)
     check(fd >= 0) { "no socket" }
@@ -176,7 +236,42 @@ actual suspend fun connectTcp(host: String, port: Int, timeoutMs: Int): TcpStrea
     stream ?: throw NetException(Res.string.net_error_refused)
 }
 
-actual fun joinMulticast(group: String, port: Int): MulticastGroup? = null
+// every interface joins and sends, as on the JVM: the route table alone would pick one of them
+actual fun joinMulticast(group: String, port: Int): MulticastGroup? {
+    val groupIp = ipv4(group) ?: return null
+    val fd = socket(AF_INET, SOCK_DGRAM, 0)
+    if (fd < 0) return null
+    option(fd, SO_REUSEADDR)
+    option(fd, SO_REUSEPORT)
+    val joined = if (bindAny(fd, port, stream = false) < 0) emptyList() else multicastInterfaces().filter { local ->
+        memScoped {
+            val request = alloc<ip_mreq>()
+            request.imr_multiaddr.s_addr = groupIp
+            request.imr_interface.s_addr = local
+            setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, request.ptr, sizeOf<ip_mreq>().convert()) == 0
+        }
+    }
+    if (joined.isEmpty()) {
+        closeSocket(fd)
+        return null
+    }
+    val descriptor = Descriptor(fd)
+    return object : MulticastGroup {
+        override suspend fun receive(): Datagram = blocking(descriptor::close) {
+            receiveFrom(descriptor).let { Datagram(it.host, it.data) }
+        }
+
+        override suspend fun send(data: ByteArray) = joined.forEach { local ->
+            memScoped {
+                val via = alloc<in_addr>().apply { s_addr = local }
+                setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, via.ptr, sizeOf<in_addr>().convert())
+            }
+            sendTo(fd, groupIp, port, data)
+        }
+
+        override fun close() = descriptor.close()
+    }
+}
 
 actual fun openUdp(port: Int): UdpSocket {
     val fd = socket(AF_INET, SOCK_DGRAM, 0)
@@ -191,29 +286,11 @@ actual fun openUdp(port: Int): UdpSocket {
         override val port = bound
 
         override suspend fun send(host: String, port: Int, data: ByteArray) {
-            val parts = host.split('.').mapNotNull { it.toIntOrNull()?.takeIf { part -> part in 0..255 } }
-            if (parts.size != 4 || data.isEmpty()) return
-            memScoped {
-                val address = alloc<sockaddr_in>()
-                address.sin_len = sizeOf<sockaddr_in>().convert()
-                address.sin_family = AF_INET.convert()
-                address.sin_port = swapPort(port).convert()
-                address.sin_addr.s_addr = (parts[0] or (parts[1] shl 8) or (parts[2] shl 16) or (parts[3] shl 24)).toUInt()
-                data.usePinned { sendto(fd, it.addressOf(0), data.size.convert(), 0, address.ptr.reinterpret(), sizeOf<sockaddr_in>().convert()) }
-            }
+            val ip = ipv4(host) ?: return
+            if (data.isNotEmpty()) sendTo(fd, ip, port, data)
         }
 
-        override suspend fun receive(): UdpPacket = blocking(descriptor::close) {
-            descriptor.await(POLLIN)
-            memScoped {
-                val buffer = ByteArray(2048)
-                val address = alloc<sockaddr_in>()
-                val length = alloc<socklen_tVar>().apply { value = sizeOf<sockaddr_in>().convert() }
-                val read = buffer.usePinned { recvfrom(fd, it.addressOf(0), buffer.size.convert(), 0, address.ptr.reinterpret(), length.ptr) }.toInt()
-                if (read < 0) error("recvfrom failed: $errno")
-                UdpPacket(dotted(address), swapPort(address.sin_port.toInt()), buffer.copyOf(read))
-            }
-        }
+        override suspend fun receive(): UdpPacket = blocking(descriptor::close) { receiveFrom(descriptor) }
 
         override fun close() = descriptor.close()
     }

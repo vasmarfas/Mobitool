@@ -26,7 +26,7 @@ interface MulticastGroup {
     fun close()
 }
 
-// null in the browser and on iOS without Apple's multicast entitlement
+// null in the browser and where no interface could join the group
 expect fun joinMulticast(group: String, port: Int): MulticastGroup?
 
 class UdpPacket(val host: String, val port: Int, val data: ByteArray)

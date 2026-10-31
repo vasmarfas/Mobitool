@@ -6,6 +6,7 @@ import com.vasmarfas.card.ui.navigation.ToolsRoute
 import com.vasmarfas.card.ui.navigation.UrlRoutes
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
@@ -147,5 +148,23 @@ class UrlRoutesTest {
         assertEquals("#tools/ping", UrlRoutes.fragmentForTool("ping"))
         assertEquals("#tools", UrlRoutes.fragmentForCatalog(null))
         assertEquals("#tools?category=network", UrlRoutes.fragmentForCatalog("network"))
+    }
+}
+
+class DiscoveryWireTest {
+    @Test
+    fun readsSsdpHeaders() {
+        val headers = ssdpHeaders("HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nLocation: http://192.0.2.1:49152/desc.xml\r\nusn: uuid:1::upnp:rootdevice\r\n\r\n")
+        assertEquals("http://192.0.2.1:49152/desc.xml", headers["LOCATION"])
+        assertEquals("uuid:1::upnp:rootdevice", headers["USN"])
+        assertEquals(3, headers.size)
+    }
+
+    @Test
+    fun asksForUnicastAnswer() {
+        val name = byteArrayOf(5) + "_http".encodeToByteArray() + byteArrayOf(4) + "_tcp".encodeToByteArray() +
+            byteArrayOf(5) + "local".encodeToByteArray() + byteArrayOf(0)
+        val expected = byteArrayOf(0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0) + name + byteArrayOf(0, 12, 0x80.toByte(), 1)
+        assertContentEquals(expected, mdnsQuestion("_http._tcp.local.", 12))
     }
 }

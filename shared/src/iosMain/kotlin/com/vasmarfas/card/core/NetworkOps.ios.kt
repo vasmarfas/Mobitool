@@ -630,9 +630,32 @@ private fun nw_error_t.toNetException(): NetException {
     return NetException(reason)
 }
 
-actual suspend fun ssdpDiscover(timeoutMs: Int): List<DiscoveredDevice> = emptyList()
+actual suspend fun ssdpDiscover(timeoutMs: Int): List<DiscoveredDevice> {
+    val found = LinkedHashMap<String, DiscoveredDevice>()
+    collectReplies("239.255.255.250", 1900, SSDP_SEARCH.encodeToByteArray(), timeoutMs, sends = 2) { packet ->
+        val headers = ssdpHeaders(packet.data.decodeToString())
+        found.getOrPut(packet.host + "|" + (headers["USN"] ?: headers["LOCATION"] ?: "")) { DiscoveredDevice(packet.host, headers) }
+    }
+    return found.values.toList()
+}
 
-actual suspend fun mdnsQuery(serviceName: String, timeoutMs: Int): List<ByteArray> = emptyList()
+// the question leaves from a random port, so responders answer it directly and the app never binds 5353,
+// which belongs to mDNSResponder
+actual suspend fun mdnsQuery(serviceName: String, timeoutMs: Int): List<ByteArray> = buildList {
+    collectReplies("224.0.0.251", 5353, mdnsQuestion(serviceName, 12), timeoutMs) { add(it.data) }
+}
+
+private suspend fun collectReplies(group: String, port: Int, request: ByteArray, timeoutMs: Int, sends: Int = 1, onReply: (UdpPacket) -> Unit) {
+    val socket = runCatching { openUdp(0) }.getOrNull() ?: return
+    try {
+        withTimeoutOrNull(timeoutMs.milliseconds) {
+            repeat(sends) { socket.send(group, port, request) }
+            while (true) onReply(socket.receive())
+        }
+    } finally {
+        socket.close()
+    }
+}
 
 actual suspend fun wifiDetails(): Map<String, String> = buildMap {
     currentHotspot()?.let {

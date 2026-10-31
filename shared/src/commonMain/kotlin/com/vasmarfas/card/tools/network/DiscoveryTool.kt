@@ -35,7 +35,7 @@ val discoveryTool = Tool(
     description = Res.string.device_discovery_description,
     icon = Icons.Filled.Cast,
     keywords = listOf("ssdp", "upnp", "mdns", "bonjour", "dns-sd", "avahi", "printers", "chromecast", "устройства", "сервисы"),
-    platforms = PlatformKind.jvm,
+    platforms = PlatformKind.native,
 ) { DiscoveryScreen() }
 
 @Composable
