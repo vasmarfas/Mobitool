@@ -5,6 +5,7 @@ import com.vasmarfas.card.tools.network.transfer.fileTransferTool
 
 val networkTools: List<Tool> = listOf(
     speedTestTool,
+    lanSpeedTool,
     fileTransferTool,
     connectionCheckTool,
     wifiAnalyzerTool,
@@ -19,6 +20,9 @@ val networkTools: List<Tool> = listOf(
     tracerouteTool,
     portScannerTool,
     socketClientTool,
+    sshClientTool,
+    snmpTool,
+    modbusTool,
     lanScannerTool,
     wakeOnLanTool,
     subnetCalculatorTool,

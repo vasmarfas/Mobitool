@@ -1,0 +1,46 @@
+name: Update tables
+
+on:
+  schedule:
+    - cron: '17 4 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: IEEE and Bluetooth tables
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Rebuild the tables
+        run: ./gradlew :shared:updateMacVendors :shared:updateBluetoothNumbers
+
+      # the tables land on a branch of their own, master changes only through a merge by hand
+      - name: Publish the branch
+        run: |
+          set -eu
+          if git diff --quiet; then
+            echo 'The tables did not change.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c update-tables
+          git commit -am 'Update IEEE and Bluetooth tables'
+          git push --force origin update-tables
+          echo "Review and merge: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/master...update-tables" >> "$GITHUB_STEP_SUMMARY"

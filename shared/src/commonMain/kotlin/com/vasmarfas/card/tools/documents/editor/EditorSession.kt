@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.text.TextRange
 import com.vasmarfas.card.core.PdfRaster
 import com.vasmarfas.card.tools.documents.pdf.PageContent
 import com.vasmarfas.card.tools.documents.pdf.PageGraphic
@@ -80,6 +81,7 @@ internal class EditorSession(
     var style by mutableStateOf(ToolStyle())
     var selected by mutableStateOf<Long?>(null)
     var editing by mutableStateOf<Long?>(null)
+    var textRange by mutableStateOf<TextRange?>(null)
     var preview by mutableStateOf<Mark?>(null)
     var undoDepth by mutableStateOf(0)
         private set

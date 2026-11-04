@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Rotate90DegreesCw
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -62,6 +63,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.vasmarfas.card.core.PickKind
+import com.vasmarfas.card.core.discardPhoto
 import com.vasmarfas.card.core.imageBitmapOf
 import com.vasmarfas.card.core.limitedTo
 import com.vasmarfas.card.core.photoCapture
@@ -147,6 +149,7 @@ private fun render(source: DecodedImage, quad: Quad, filter: ScanFilter, longSid
 private fun DocScannerScreen() {
     val scope = rememberCoroutineScope()
     val pages = remember { mutableStateListOf<ScanPage>() }
+    val shots = remember { HashSet<PlatformFile>() }
     var selected by remember { mutableStateOf(0) }
     var loading by remember { mutableStateOf(false) }
     var loadError by remember { mutableStateOf<String?>(null) }
@@ -157,6 +160,8 @@ private fun DocScannerScreen() {
     val task = remember { TaskState() }
     val unreadable = Res.string.image_not_readable.str()
     val cameraFailed = Res.string.doc_scan_camera_failed.str()
+    // a second PDF with another filter reads the sources again, so shots stay until the tool closes
+    DisposableEffect(Unit) { onDispose { shots.forEach(::discardPhoto) } }
 
     fun add(files: List<PlatformFile>) {
         loading = true
@@ -182,7 +187,12 @@ private fun DocScannerScreen() {
     fun shoot() {
         scope.launch {
             runCatching { takePhoto() }
-                .onSuccess { photo -> if (photo != null) add(listOf(photo)) }
+                .onSuccess { photo ->
+                    if (photo != null) {
+                        shots += photo
+                        add(listOf(photo))
+                    }
+                }
                 .onFailure { loadError = cameraFailed }
         }
     }
@@ -240,7 +250,8 @@ private fun DocScannerScreen() {
             selected = index + 1
             result = null
         }
-        EditButton(Res.string.remove.str(), Icons.Filled.Delete, true) {
+        EditButton(Res.string.remove.str(), Icons.Filled.Delete, !task.running) {
+            if (shots.remove(page.file)) discardPhoto(page.file)
             pages.removeAt(index)
             selected = (index - 1).coerceAtLeast(0)
             result = null

@@ -89,6 +89,9 @@ kotlin {
                 implementation(libs.bytedeco.javacpp)
                 implementation(libs.bytedeco.tesseract)
                 implementation(libs.bytedeco.leptonica)
+                implementation(libs.sshj)
+                implementation(libs.bouncycastle.bcprov)
+                implementation(libs.bouncycastle.bcpkix)
             }
         }
         jvmMain.get().dependsOn(jvmCommonMain)

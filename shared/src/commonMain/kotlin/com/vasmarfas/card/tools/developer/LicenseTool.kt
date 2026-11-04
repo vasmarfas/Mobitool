@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.vasmarfas.card.core.appLang
 import com.vasmarfas.card.core.openUrl
 import com.vasmarfas.card.core.saveBytes
 import com.vasmarfas.card.core.str
@@ -381,7 +382,7 @@ private fun LicenseReader(license: License, onBack: () -> Unit) {
         Text(Res.string.license_back.str(), modifier = Modifier.padding(start = 8.dp))
     }
     Text(license.fullName(), style = MaterialTheme.typography.titleLarge)
-    val loaded = rememberLicenseFile("files/licenses/${license.file}")
+    val loaded = rememberLicenseFile("files/licenses/${LicenseTexts.readerFile(license, appLang)}")
     when {
         loaded == null -> LoadingRow()
         loaded.isFailure -> ErrorText(Res.string.license_text_failed.str())

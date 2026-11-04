@@ -65,7 +65,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
     DOCUMENTS(
         "documents", InterestGroup.EVERYDAY, Res.string.interest_documents, Icons.Filled.Description,
         listOf(
-            "pdf-editor", "doc-scanner", "images-to-pdf", "merge-pdf", "compress-pdf", "id-photo", "document-converter", "pdf-pages",
+            "pdf-editor", "doc-scanner", "images-to-pdf", "merge-pdf", "compress-pdf", "id-photo", "document-converter", "pdf-pages", "invoice-act",
             "pdf-to-images", "pdf-to-text", "photo-to-text", "unlock-pdf", "zip-archive", "qr-generator", "number-check", "number-to-words", "paper-sizes",
             "csv-converter",
         ),
@@ -112,7 +112,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
     HEALTH(
         "health", InterestGroup.EVERYDAY, Res.string.interest_health, Icons.Filled.MonitorHeart,
         listOf(
-            "bmi-body", "water-intake", "sleep-calculator", "blood-pressure", "breathing", "caffeine-decay", "body-metrics",
+            "bmi-body", "water-intake", "sleep-calculator", "blood-pressure", "due-date", "breathing", "caffeine-decay", "body-metrics",
             "hba1c-glucose", "water-and-macros", "blood-alcohol",
         ),
     ),
@@ -138,7 +138,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
     DESIGN(
         "design", InterestGroup.HOBBY, Res.string.interest_design, Icons.Filled.Palette,
         listOf(
-            "color-converter", "contrast-checker", "image-palette", "gradient-generator", "aspect-ratio",
+            "color-converter", "contrast-checker", "image-palette", "app-icons", "gradient-generator", "aspect-ratio",
             "typography-scale", "material-scheme", "css-units", "paper-sizes", "barcode-generator", "qr-generator", "lorem-ipsum", "license-picker",
         ),
     ),
@@ -148,7 +148,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
     ),
     ELECTRONICS(
         "electronics", InterestGroup.HOBBY, Res.string.interest_electronics, Icons.Filled.ElectricBolt,
-        listOf("ohms-law", "resistor-color-code", "led-resistor", "voltage-divider", "battery-calculator", "wire-gauge", "programmer-calculator"),
+        listOf("ohms-law", "resistor-color-code", "smd-codes", "led-resistor", "voltage-divider", "timer-555", "battery-calculator", "wire-gauge", "pcb-trace-width", "programmer-calculator"),
     ),
     PRINTING(
         "printing", InterestGroup.HOBBY, Res.string.interest_printing, Icons.Filled.Print,
@@ -168,16 +168,16 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
     NETWORK(
         "network", InterestGroup.WORK, Res.string.interest_network, Icons.Filled.Wifi,
         listOf(
-            "ping", "speed-test", "ip-info", "connection-check", "wifi-analyzer", "site-check", "nat-check", "cellular", "bluetooth-radar", "dns-lookup", "traceroute", "port-scanner", "lan-scanner", "subnet-calculator",
-            "whois-rdap", "wake-on-lan", "network-interfaces", "mac-lookup", "public-dns", "subnet-splitter", "device-discovery",
+            "ping", "speed-test", "lan-speed", "ip-info", "connection-check", "wifi-analyzer", "site-check", "nat-check", "cellular", "bluetooth-radar", "dns-lookup", "traceroute", "port-scanner", "lan-scanner", "subnet-calculator",
+            "whois-rdap", "wake-on-lan", "network-interfaces", "mac-lookup", "public-dns", "subnet-splitter", "device-discovery", "snmp-client",
             "data-size",
         ),
     ),
     SERVERS(
         "servers", InterestGroup.WORK, Res.string.interest_servers, Icons.Filled.Dns,
         listOf(
-            "chmod-calculator", "cron-parser", "tls-certificate", "ports-reference", "http-request", "dns-lookup", "whois-rdap",
-            "dmarc", "email-headers", "spf", "dkim", "socket-client", "unix-timestamp", "hash-generator", "checksum-compare", "data-size",
+            "ssh-client", "chmod-calculator", "cron-parser", "tls-certificate", "ports-reference", "http-request", "dns-lookup", "whois-rdap",
+            "dmarc", "email-headers", "spf", "dkim", "socket-client", "modbus-client", "unix-timestamp", "hash-generator", "checksum-compare", "data-size",
         ),
     ),
     CODE(
@@ -185,7 +185,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
         listOf(
             "json-formatter", "base64", "regex-tester", "jwt-decoder", "hash-generator", "uuid-generator", "url-tools",
             "unix-timestamp", "text-diff", "http-status-codes", "string-escape", "csv-converter",
-            "programmer-calculator", "float-inspector", "semver", "license-picker", "privacy-policy", "mime-types", "ascii-table", "unicode-inspector",
+            "programmer-calculator", "float-inspector", "json-to-types", "yaml-toml-converter", "semver", "license-picker", "privacy-policy", "mime-types", "ascii-table", "unicode-inspector",
             "markdown-preview", "http-request", "css-units", "material-scheme", "clipboard-inspector", "lorem-ipsum",
         ),
     ),

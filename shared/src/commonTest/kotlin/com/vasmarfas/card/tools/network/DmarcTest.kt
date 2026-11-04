@@ -58,6 +58,18 @@ class DmarcTest {
     }
 
     @Test
+    fun comparisonCountsDefaultsAsWritten() {
+        val published = "v=DMARC1; p=reject; pct=100; adkim=r; rua=mailto:a@example.com,mailto:b@example.com; ri=86400"
+        assertTrue(Dmarc.differences(published, "v=DMARC1; p=REJECT; sp=reject; np=reject; rua=mailto:b@example.com, mailto:a@example.com").isEmpty())
+        val changes = Dmarc.differences("v=DMARC1; p=none", "v=DMARC1; p=reject; sp=none; ruf=mailto:f@example.com; ri=3600")
+        assertEquals(listOf("p", "ri", "ruf"), changes.map { it.tag }.sorted())
+        val policy = changes.first { it.tag == "p" }
+        assertEquals("none" to "reject", policy.published to policy.built)
+        assertEquals("" to "mailto:f@example.com", changes.first { it.tag == "ruf" }.let { it.published to it.built })
+        assertEquals(listOf("np"), Dmarc.differences("v=DMARC1; p=reject", "v=DMARC1; p=reject; np=none").map { it.tag })
+    }
+
+    @Test
     fun weakRecordGetsWarnings() {
         val record = Dmarc.parse("v=DMARC1;p=none;pct=50")
         assertEquals(

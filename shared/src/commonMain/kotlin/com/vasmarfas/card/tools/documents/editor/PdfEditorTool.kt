@@ -165,14 +165,14 @@ private fun PdfEditorScreen() {
             scope.launch {
                 val fonts = MarkFonts(documentFonts(serif = true))
                 val page = EditPage(1, BlankPage(PageFormat.A4.width.toDouble(), PageFormat.A4.height.toDouble()))
-                session = EditorSession(getString(Res.string.pdf_edit_untitled) + ".pdf", null, fonts, DocumentEdit(listOf(page)), emptyList(), signed = false)
+                session = EditorSession(getString(Res.string.untitled) + ".pdf", null, fonts, DocumentEdit(listOf(page)), emptyList(), signed = false)
             }
         }
     } else {
         Text(file.name, style = MaterialTheme.typography.bodyLarge)
         ToolInputField(value = password, onValueChange = { password = it }, label = Res.string.password.str(), supportingText = Res.string.pdf_edit_password_needed.str())
         ActionButton(
-            text = Res.string.pdf_edit_open.str(),
+            text = Res.string.open.str(),
             icon = Icons.Filled.LockOpen,
             enabled = password.isNotEmpty() && !loading,
             onClick = { scope.launch { open(file.name, file.bytes, password) } },

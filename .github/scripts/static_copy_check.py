@@ -1,6 +1,7 @@
 import argparse
 import functools
 import http.server
+import itertools
 import os
 import sys
 import threading
@@ -124,41 +125,53 @@ def whole_lines(delta, lines):
     return any(round(abs(delta) / line) in (1, 2, 3) and abs(abs(delta) - round(abs(delta) / line) * line) < 1 for line in lines)
 
 
+# a button of the app is a link or button of the copy, a text of the app is the element holding that text;
+# a paragraph starts where its letters do, a single line is measured by its box or its letters, whichever fits
+def target(node, c):
+    if node["role"]:
+        return c["box"]
+    x, _, w, h = node["box"]
+    content, text = c["content"], c["range"]
+    if c["line"] and h > 1.5 * c["line"]:
+        across = text
+    else:
+        across = min((content, text), key=lambda b: abs(b[0] - x) + abs(b[2] - w))
+    return [across[0], content[1], across[2], content[3]]
+
+
+def score(node, c):
+    kind = c["interactive"] if node["role"] else c["own"]
+    tx, ty, _, _ = target(node, c)
+    return (0 if kind else 10000) + abs(tx - node["box"][0]) + abs(ty - node["box"][1])
+
+
 def match(app, copy):
     used = set()
-    pairs, missing = [], []
+    chosen, missing = [], []
     for node in app:
         if keys(node) & APP_ONLY:
             continue
-        interactive = bool(node["role"])
-        x, y, w, h = node["box"]
-
-        # a button of the app is a link or button of the copy, a text of the app is the element holding that text;
-        # a paragraph starts where its letters do, a single line is measured by its box or its letters, whichever fits
-        def target(c):
-            if interactive:
-                return c["box"]
-            content, text = c["content"], c["range"]
-            if c["line"] and h > 1.5 * c["line"]:
-                across = text
-            else:
-                across = min((content, text), key=lambda b: abs(b[0] - x) + abs(b[2] - w))
-            return [across[0], content[1], across[2], content[3]]
-
-        def score(i):
-            c = copy[i]
-            kind = c["interactive"] if interactive else c["own"]
-            tx, ty, _, _ = target(c)
-            return (0 if kind else 10000) + abs(tx - x) + abs(ty - y)
-
         candidates = [i for i, c in enumerate(copy) if i not in used and keys(node) & keys(c)]
         if not candidates:
             missing.append(f"missing in the copy: {describe(node)} at {rect(node['box'])}")
             continue
-        best = min(candidates, key=score)
+        best = min(candidates, key=lambda i: score(node, copy[i]))
         used.add(best)
-        pairs.append((node, best, node["box"], target(copy[best])))
-    return pairs, used, missing
+        chosen.append([node, best])
+
+    # nearest first hands a chip the pair of a neighbour when one row wraps differently, so equal texts trade pairs
+    # while that lowers their total distance
+    swapped = True
+    while swapped:
+        swapped = False
+        for a, b in itertools.combinations(chosen, 2):
+            if not (keys(a[0]) & keys(copy[b[1]]) and keys(b[0]) & keys(copy[a[1]])):
+                continue
+            now = score(a[0], copy[a[1]]) + score(b[0], copy[b[1]])
+            if score(a[0], copy[b[1]]) + score(b[0], copy[a[1]]) < now - 0.5:
+                a[1], b[1] = b[1], a[1]
+                swapped = True
+    return [(node, i, node["box"], target(node, copy[i])) for node, i in chosen], used, missing
 
 
 # Skia and Chrome break a few lines differently; a text that wraps into other lines and an item that moves to another

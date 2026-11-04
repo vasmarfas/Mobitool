@@ -7,6 +7,7 @@ androidx-activity = "1.13.0"
 camerax = "1.6.2"
 androidx-core = "1.19.1"
 androidx-lifecycle = "2.11.0"
+bouncycastle = "1.86"
 commonsImaging = "1.0.0-alpha6"
 composeMultiplatform = "1.13.0-alpha01"
 ffmpeg = "8.1.2-1.5.14"
@@ -35,6 +36,7 @@ navigationevent = "1.1.0"
 pdfbox = "3.0.8"
 pdfjs = "6.3.289"
 qrose = "1.3.0"
+sshj = "0.41.2"
 tesseract = "5.5.3-1.5.14"
 tesseractJs = "7.0.0"
 zxing = "3.5.4"
@@ -90,6 +92,9 @@ navigationevent-compose = { module = "org.jetbrains.androidx.navigationevent:nav
 pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 qrose = { module = "io.github.alexzhirkevich:qrose", version.ref = "qrose" }
 qrose-oned = { module = "io.github.alexzhirkevich:qrose-oned", version.ref = "qrose" }
+bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
+bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+sshj = { module = "com.hierynomus:sshj", version.ref = "sshj" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 
 [plugins]

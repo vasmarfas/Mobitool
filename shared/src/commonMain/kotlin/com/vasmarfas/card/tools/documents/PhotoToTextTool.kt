@@ -48,6 +48,7 @@ import com.vasmarfas.card.core.OcrPage
 import com.vasmarfas.card.core.PdfRaster
 import com.vasmarfas.card.core.PickKind
 import com.vasmarfas.card.core.baseName
+import com.vasmarfas.card.core.discardPhoto
 import com.vasmarfas.card.core.limitedTo
 import com.vasmarfas.card.core.photoCapture
 import com.vasmarfas.card.core.renamed
@@ -195,13 +196,14 @@ private fun PhotoToTextScreen() {
         }
     }
 
-    fun add(files: List<PlatformFile>) {
+    fun add(files: List<PlatformFile>, captured: Boolean = false) {
         loading = true
         loadError = null
         scope.launch {
             val failed = mutableListOf<String>()
             files.forEach { file ->
                 val bytes = runCatching { file.readBytes() }.getOrNull()
+                if (captured) discardPhoto(file)
                 if (bytes == null) {
                     failed += file.name
                 } else if (file.name.endsWith(".pdf", ignoreCase = true)) {
@@ -232,7 +234,7 @@ private fun PhotoToTextScreen() {
     fun shoot() {
         scope.launch {
             runCatching { takePhoto() }
-                .onSuccess { photo -> if (photo != null) add(listOf(photo)) }
+                .onSuccess { photo -> if (photo != null) add(listOf(photo), captured = true) }
                 .onFailure { loadError = cameraFailed }
         }
     }
@@ -247,11 +249,11 @@ private fun PhotoToTextScreen() {
     val extensions = imageExtensions + "pdf"
     if (items.isEmpty()) {
         if (photoCapture) ActionButton(text = Res.string.doc_scan_shoot.str(), icon = Icons.Filled.PhotoCamera, onClick = ::shoot)
-        PickButton(Res.string.ocr_choose.str(), extensions, PickKind.FILE, multiple = true, icon = Icons.Filled.AddPhotoAlternate, empty = true, onPicked = ::add)
+        PickButton(Res.string.ocr_choose.str(), extensions, PickKind.FILE, multiple = true, icon = Icons.Filled.AddPhotoAlternate, empty = true, onPicked = { add(it) })
     } else {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (photoCapture) ActionButton(text = Res.string.doc_scan_shoot.str(), icon = Icons.Filled.PhotoCamera, onClick = ::shoot)
-            PickButton(Res.string.add_files.str(), extensions, PickKind.FILE, multiple = true, icon = Icons.Filled.AddPhotoAlternate, onPicked = ::add)
+            PickButton(Res.string.add_files.str(), extensions, PickKind.FILE, multiple = true, icon = Icons.Filled.AddPhotoAlternate, onPicked = { add(it) })
             TextButton(onClick = {
                 task.cancel()
                 items.clear()

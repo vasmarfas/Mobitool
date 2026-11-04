@@ -14,6 +14,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -35,6 +36,7 @@ import com.vasmarfas.card.ui.components.Hint
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.LoadedFile
 import com.vasmarfas.card.ui.components.LoadedFileCard
+import com.vasmarfas.card.ui.components.LoadingRow
 import com.vasmarfas.card.ui.components.LocalOpenTool
 import com.vasmarfas.card.ui.components.OpenFileButton
 import com.vasmarfas.card.ui.components.ResultCard
@@ -90,12 +92,12 @@ private fun EmailHeadersScreen() {
             fileError = tooLarge
         } else {
             val bytes = picked.readBytes()
-            opened = withContext(Dispatchers.Default) { EmailHeaders.parse(bytes) }
+            opened = withContext(Dispatchers.Default) { EmailHeaders.read(bytes) }
             file = LoadedFile(picked.name, bytes)
         }
     }
     fileError?.let { ErrorText(it) }
-    val pasted = remember(typed) { typed.trim().takeIf { it.isNotEmpty() }?.let { EmailHeaders.parse(it.encodeToByteArray()) } }
+    val pasted by produceState<MailMessage?>(null, typed) { value = typed.trim().takeIf { it.isNotEmpty() }?.let { EmailHeaders.read(it.encodeToByteArray()) } }
     val message = (if (current != null) opened else pasted) ?: return
     if (message.headers.isEmpty()) {
         ErrorText(Res.string.email_no_headers.str())
@@ -103,7 +105,7 @@ private fun EmailHeadersScreen() {
     }
     SummaryCard(message)
     RouteCard(message)
-    AuthCard(message)
+    AuthCard(message, current?.bytes ?: typed.encodeToByteArray())
     message.text?.let { text ->
         ResultCard(title = Res.string.body.str()) { SelectableText(text) }
     }
@@ -147,7 +149,11 @@ private fun RouteCard(message: MailMessage) {
 }
 
 @Composable
-private fun AuthCard(message: MailMessage) {
+private fun AuthCard(message: MailMessage, raw: ByteArray) {
+    var verdicts by remember(message) { mutableStateOf<List<DkimVerdict>?>(null) }
+    var verifying by remember(message) { mutableStateOf(false) }
+    var error by remember(message) { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
     ResultCard(title = Res.string.email_authentication.str()) {
         if (message.auth.isEmpty()) {
             Hint(Res.string.email_no_auth.str())
@@ -160,7 +166,7 @@ private fun AuthCard(message: MailMessage) {
             )
         }
         val openTool = LocalOpenTool.current
-        message.signatures.forEach { signature ->
+        message.signatures.forEachIndexed { index, signature ->
             KeyValueRow("DKIM-Signature", "d=${signature.domain} s=${signature.selector}")
             TextButton(
                 onClick = {
@@ -168,7 +174,29 @@ private fun AuthCard(message: MailMessage) {
                     openTool("dkim")
                 },
             ) { Text(Res.string.dkim_check_key.str()) }
+            verdicts?.getOrNull(index)?.let { verdict ->
+                if (verdict.verified) {
+                    Text(Res.string.dkim_verify_ok.str(), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                }
+                verdict.issues.forEach { MailIssueText(it) }
+            }
         }
+        if (message.signatures.isNotEmpty()) {
+            TextButton(
+                onClick = {
+                    verifying = true; error = null
+                    scope.launch {
+                        runCatching { withContext(Dispatchers.Default) { DkimVerifier.verify(raw) } }
+                            .onSuccess { verdicts = it }
+                            .onFailure { error = networkErrorText(it) }
+                        verifying = false
+                    }
+                },
+                enabled = !verifying,
+            ) { Text(Res.string.dkim_verify.str()) }
+        }
+        if (verifying) LoadingRow()
+        error?.let { ErrorText(it) }
     }
 }
 

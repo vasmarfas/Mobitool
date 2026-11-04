@@ -1,5 +1,7 @@
 package com.vasmarfas.card.tools.developer
 
+import com.vasmarfas.card.core.Lang
+
 enum class CommentStyle(val label: String) {
     SLASHES("//"),
     HASH("#"),
@@ -19,6 +21,10 @@ class Attribution(val title: String, val author: String, val source: String, val
 class LicenseGuess(val license: License, val score: Double)
 
 object LicenseTexts {
+    // Creative Commons publishes Russian texts of the 4.0 licenses only, English stays the file a project ships
+    fun readerFile(license: License, lang: Lang): String =
+        if (lang == Lang.RU && license.id.startsWith("CC-BY") && license.id.endsWith("-4.0")) license.file.replace(".txt", ".ru.txt") else license.file
+
     private val listItem = Regex("^\\s*(\\(?[0-9a-zA-Z]{1,4}[.)]|[-*•–])\\s")
 
     fun fill(license: License, template: String, holder: String, year: String, project: String): String {

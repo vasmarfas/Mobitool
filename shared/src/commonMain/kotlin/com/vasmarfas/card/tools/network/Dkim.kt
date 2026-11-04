@@ -31,6 +31,8 @@ class DkimKey(val selector: String, val record: String) {
 private class Tlv(val tag: Int, val start: Int, val end: Int)
 
 object Dkim {
+    const val MAX_RSA_BITS = 8192
+
     val commonSelectors = listOf("google", "selector1", "selector2", "default", "dkim", "mail", "k1", "s1", "s2", "mta", "smtp", "yandex", "mailru")
 
     private val cloudflare = DnsResolver.CLOUDFLARE.dohUrl!!
@@ -46,10 +48,16 @@ object Dkim {
         }.awaitAll().flatten()
     }
 
-    // RFC 8463 publishes the bare 32-byte Ed25519 key, RSA comes as SubjectPublicKeyInfo or, from some hosts, a bare RSAPublicKey
+    // RFC 8463 publishes the bare 32-byte Ed25519 key
     fun keyBits(type: String, key: String): Int? = runCatching {
+        if (type == "ed25519") return if (base64.decode(key).size == 32) 256 else null
+        val modulus = rsaKey(key).first
+        (modulus.size - 1) * 8 + (32 - (modulus[0].toInt() and 0xFF).countLeadingZeroBits())
+    }.getOrNull()
+
+    // modulus and exponent without leading zeros. RSA comes as SubjectPublicKeyInfo or, from some hosts, a bare RSAPublicKey
+    fun rsaKey(key: String): Pair<ByteArray, ByteArray> {
         val der = base64.decode(key)
-        if (type == "ed25519") return if (der.size == 32) 256 else null
         val outer = der.tlv(0)
         require(outer.tag == 0x30)
         val first = der.tlv(outer.start)
@@ -62,11 +70,16 @@ object Dkim {
         }
         require(rsa.tag == 0x30)
         val modulus = der.tlv(rsa.start)
-        require(modulus.tag == 0x02)
-        var at = modulus.start
-        while (at < modulus.end - 1 && der[at] == 0.toByte()) at++
-        (modulus.end - at - 1) * 8 + (32 - (der[at].toInt() and 0xFF).countLeadingZeroBits())
-    }.getOrNull()
+        val exponent = der.tlv(modulus.end)
+        require(modulus.tag == 0x02 && exponent.tag == 0x02)
+        return der.integer(modulus) to der.integer(exponent)
+    }
+
+    private fun ByteArray.integer(value: Tlv): ByteArray {
+        var at = value.start
+        while (at < value.end - 1 && this[at] == 0.toByte()) at++
+        return copyOfRange(at, value.end)
+    }
 
     private fun ByteArray.tlv(at: Int): Tlv {
         val tag = this[at].toInt() and 0xFF

@@ -568,8 +568,17 @@ private fun fadeGain(ms: Double, volume: Float, fadeInMs: Long, fadeOutMs: Long,
 // export mono
 private fun channelMixer(channels: Int): AudioProcessor = ChannelMixingAudioProcessor().apply {
     val output = if (channels == 1) 1 else 2
-    for (input in 1..6) {
-        putChannelMixingMatrix(if (input <= 2) ChannelMixingMatrix.createForConstantGain(input, output) else ChannelMixingMatrix.createForConstantPower(input, output))
+    for (input in 1..2) putChannelMixingMatrix(ChannelMixingMatrix.createForConstantGain(input, output))
+    for (input in 3..8) {
+        val (left, right) = stereoMatrix(input)
+        val rows = FloatArray(input * output) { i ->
+            when {
+                output == 1 -> (left[i] + right[i]) / 2
+                i % 2 == 0 -> left[i / 2]
+                else -> right[i / 2]
+            }
+        }
+        putChannelMixingMatrix(ChannelMixingMatrix(input, output, rows))
     }
 }
 

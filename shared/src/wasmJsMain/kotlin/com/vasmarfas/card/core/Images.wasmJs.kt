@@ -8,10 +8,20 @@ import org.khronos.webgl.get
 import org.khronos.webgl.toInt8Array
 import kotlin.js.Promise
 
-private fun jsDecodeImage(bytes: Int8Array): Promise<JsAny?> = js(
+private fun jsDecodeImage(bytes: Int8Array, maxSide: Int): Promise<JsAny?> = js(
     """(async () => {
         try {
-            const bitmap = await createImageBitmap(new Blob([bytes]));
+            let bitmap = await createImageBitmap(new Blob([bytes]));
+            const scale = maxSide / Math.max(bitmap.width, bitmap.height);
+            if (maxSide > 0 && scale < 1) {
+                const full = bitmap;
+                bitmap = await createImageBitmap(full, {
+                    resizeWidth: Math.max(1, Math.round(full.width * scale)),
+                    resizeHeight: Math.max(1, Math.round(full.height * scale)),
+                    resizeQuality: 'high',
+                });
+                full.close();
+            }
             const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
             const context = canvas.getContext('2d');
             context.drawImage(bitmap, 0, 0);
@@ -29,12 +39,17 @@ private fun jsImageHeight(image: JsAny): Int = js("image.height")
 
 private fun jsImagePixels(image: JsAny): Int32Array = js("image.pixels")
 
-// Skia in wasm knows the common formats, the browser's decoder adds AVIF, and HEIC in Safari
-actual suspend fun decodeRawImage(bytes: ByteArray, maxSide: Int): RawImage? {
-    skiaDecode(bytes)?.let { return RawImage(it, oriented = true) }
-    val decoded = jsDecodeImage(bytes.toInt8Array()).await<JsAny?>() ?: return null
+private suspend fun browserDecode(bytes: ByteArray, maxSide: Int): RawImage? {
+    val decoded = jsDecodeImage(bytes.toInt8Array(), maxSide).await<JsAny?>() ?: return null
     return RawImage(rgbaBitmap(jsImagePixels(decoded), jsImageWidth(decoded), jsImageHeight(decoded)), oriented = true)
 }
+
+private fun skiaRaw(bytes: ByteArray): RawImage? = skiaDecode(bytes)?.let { RawImage(it, oriented = true) }
+
+// Skia in wasm knows the common formats, the browser's decoder adds AVIF, and HEIC in Safari. It also scales
+// while decoding, Skia would hold the whole frame in the wasm heap first
+actual suspend fun decodeRawImage(bytes: ByteArray, maxSide: Int): RawImage? =
+    if (maxSide > 0) browserDecode(bytes, maxSide) ?: skiaRaw(bytes) else skiaRaw(bytes) ?: browserDecode(bytes, 0)
 
 // canvas image data comes as RGBA bytes, Compose wants ARGB ints
 fun rgbaBitmap(rgba: Int32Array, width: Int, height: Int): ImageBitmap {

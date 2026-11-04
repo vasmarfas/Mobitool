@@ -90,6 +90,8 @@ The App keeps a small amount of data locally so that it works the way you left i
 - the last 20 HTTP requests, kept without their bodies, form fields, credentials and a login written into
   the address, and with the values of headers and query parameters whose names mention auth, cookie, key,
   token, secret, pass, session or signature left empty
+- the seller's details in the invoice and act tool (name, tax number, bank account, bank), only while the
+  switch to remember them is on, unencrypted, and erased when you turn it off
 - cached copies of the profile and résumé files (`profile.json`, `resume.json`) that describe the
   site's content
 - a cached copy of currency exchange rates
@@ -122,7 +124,8 @@ them.
   Google, Quad9, AdGuard, Mullvad, DNS4EU, Comss, OpenDNS, Control D and Yandex are listed) or to any
   server you enter. The resolver sees the domain name you typed. In the apps you choose the protocol:
   UDP or TCP on port 53 go unencrypted, so the network between you and the resolver sees the name too,
-  DNS over TLS and DNS over QUIC (port 853) and DNS over HTTPS are encrypted.
+  DNS over TLS and DNS over QUIC (port 853) and DNS over HTTPS are encrypted. "Compare resolvers" sends
+  the name to every listed resolver at once over the protocol you chose.
 - **DMARC analyzer.** The domain you typed, its parent domains when it has no record of its own and
   the authorization records of report addresses on other domains are looked up over DNS over HTTPS at
   `cloudflare-dns.com`. Reports you open or paste are read on the device. Only when you press "Look up
@@ -130,10 +133,12 @@ them.
   queries.
 - **SPF checker.** The domain you typed, the domains its record names in include and redirect, and their
   A, AAAA and MX records are looked up over DNS over HTTPS at `cloudflare-dns.com`. When you check an IP
-  address against a record with an `exists` mechanism, a name built from that address goes to the same
-  resolver.
+  address against a record with macros, names built from that address go to the same resolver, and a
+  sender address you typed can put its local part into those names through `%{l}` and `%{s}`.
 - **DKIM checker.** The domain and selector you typed, or 13 common selectors when the field is empty,
-  are looked up as `<selector>._domainkey.<domain>` over DNS over HTTPS at `cloudflare-dns.com`.
+  are looked up as `<selector>._domainkey.<domain>` over DNS over HTTPS at `cloudflare-dns.com`. When you
+  press "Verify the signature" in the email header analyzer, the same lookup is made for the domain and
+  selector from the message. The message itself stays on the device.
 - **Connection check.** The tool pings `1.1.1.1` and `8.8.8.8` (falling back to TCP port 443), resolves
   `one.one.one.one` through the system resolver and over DNS over HTTPS at `cloudflare-dns.com`, fetches
   `connectivitycheck.gstatic.com/generate_204` over plain HTTP to detect a sign-in page,
@@ -169,7 +174,7 @@ them.
   HTTPS when that device uses it (its certificate is checked against the fingerprint it announced) and over plain HTTP
   otherwise. The browser link serves its page only under a random path. Over the internet the two devices first swap,
   through `ppng.io` or the piping server you set, encrypted notes with their names and the addresses they can be
-  reached at: local addresses, public IPv6 addresses, a port the app asks your router to open over NAT-PMP or UPnP
+  reached at: local addresses, public IPv6 addresses, TCP and UDP ports the app asks your router to open over NAT-PMP or UPnP
   while the transfer waits, closed again when it ends, and the outside address of a UDP socket, learned from the STUN
   servers listed above. To find each other when the relay cannot be reached, both devices also join the BitTorrent
   DHT as read-only nodes, starting from `router.bittorrent.com`, `dht.transmissionbt.com`, `router.utorrent.com` and
@@ -190,6 +195,11 @@ them.
   site, nothing leaves the device for that. When you press "Check online" in the apps, the first nine hex
   digits of the address go to `api.maclookup.app` and `api.macvendors.com`: they name the block, the rest
   of the address stays on the device. The website does not make these requests.
+- **SSH client.** The App connects to the host and port you entered, 22 by default. The password and private
+  key stay in memory for the session and are not saved. The fingerprints of accepted host keys are kept on the
+  device, and so are the host, port and user name when you press "Remember".
+- **LAN speed.** Random data goes over TCP to the address and port you entered, 5201 by default, or to the
+  device that connected to you. While the tool waits for a connection, the App listens on that TCP port.
 - **Speed test.** Random data is downloaded from and uploaded to the source you pick, and while it runs
   small requests to the same source measure the latency under load:
   `speed.cloudflare.com`, the Yandex Internetometer at `yandex.ru/internet` (apps only), an
@@ -204,8 +214,11 @@ them.
   you typed are sent to `api.pwnedpasswords.com`. The password itself never leaves your device.
 
 Tools that work with your local network (ping, traceroute, port scanner, LAN scanner,
-Wake-on-LAN, device discovery, network interfaces) talk only to the addresses you specify or to
-devices on your own network. Buttons such as "Open in OpenStreetMap" open that page in your browser.
+Wake-on-LAN, device discovery, network interfaces, SNMP client, Modbus TCP client) talk only to the
+addresses you specify or to devices on your own network. The port scanner reads the banner of open TCP
+ports, sends a short HTTP, Redis or memcached request to the ports of those services, and in UDP mode sends
+DNS, NTP, SSDP and SNMP probes (the community `public`). The SNMP client sends the community you typed
+in plain text, as the protocol does, to UDP port 161 of the host you entered and does not store it. Buttons such as "Open in OpenStreetMap" open that page in your browser.
 
 ## 4. Device permissions and sensors
 

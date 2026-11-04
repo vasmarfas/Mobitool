@@ -156,23 +156,34 @@ private fun RecordBuilder() {
     var domain by rememberSaveable { mutableStateOf("vasmarfas.com") }
     var policy by rememberSaveable { mutableStateOf("quarantine") }
     var subdomains by rememberSaveable { mutableStateOf("") }
+    var missing by rememberSaveable { mutableStateOf("") }
     var pct by rememberSaveable { mutableStateOf("100") }
     var rua by rememberSaveable { mutableStateOf("") }
+    var ruf by rememberSaveable { mutableStateOf("") }
+    var interval by rememberSaveable { mutableStateOf("86400") }
     var strictDkim by rememberSaveable { mutableStateOf(false) }
     var strictSpf by rememberSaveable { mutableStateOf(false) }
     var failure by rememberSaveable { mutableStateOf("0") }
     val name = Punycode.toAscii(hostFrom(domain.substringAfterLast('@')))
+    fun reportTag(tag: String, addresses: String) = addresses.split(',').map { it.trim() }.filter { it.isNotEmpty() }.ifEmpty { null }
+        ?.joinToString(",", prefix = "$tag=") { if (it.startsWith("mailto:")) it else "mailto:$it" }
     val record = listOfNotNull(
         "v=DMARC1",
         "p=$policy",
         subdomains.ifEmpty { null }?.let { "sp=$it" },
+        missing.ifEmpty { null }?.let { "np=$it" },
         pct.trim().takeIf { it.isNotEmpty() && it != "100" }?.let { "pct=$it" },
-        rua.split(',').map { it.trim() }.filter { it.isNotEmpty() }.ifEmpty { null }
-            ?.joinToString(",", prefix = "rua=") { if (it.startsWith("mailto:")) it else "mailto:$it" },
+        reportTag("rua", rua),
+        reportTag("ruf", ruf),
         "adkim=s".takeIf { strictDkim },
         "aspf=s".takeIf { strictSpf },
         failure.takeIf { it != "0" }?.let { "fo=$it" },
+        interval.trim().takeIf { it.isNotEmpty() && it != "86400" }?.let { "ri=$it" },
     ).joinToString("; ")
+    var comparison by remember(record, name) { mutableStateOf<DmarcComparison?>(null) }
+    var comparing by remember { mutableStateOf(false) }
+    var error by remember(record, name) { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     ToolInputField(
         value = domain,
@@ -192,6 +203,14 @@ private fun RecordBuilder() {
             label = { policyLabels[it]?.str() ?: Res.string.dmarc_same_as_p.str() },
         )
     }
+    ToolSection(tagLabels.getValue("np").str()) {
+        ChoiceChips(
+            options = listOf("") + policyLabels.keys,
+            selected = missing,
+            onSelect = { missing = it },
+            label = { policyLabels[it]?.str() ?: Res.string.dmarc_same_as_sp.str() },
+        )
+    }
     NumberField(value = pct, onValueChange = { pct = it }, label = tagLabels.getValue("pct").str(), suffix = "%")
     ToolInputField(
         value = rua,
@@ -201,6 +220,15 @@ private fun RecordBuilder() {
         keyboardType = KeyboardType.Email,
         monospace = true,
     )
+    ToolInputField(
+        value = ruf,
+        onValueChange = { ruf = it },
+        label = tagLabels.getValue("ruf").str(),
+        placeholder = "dmarc-failures@$name",
+        keyboardType = KeyboardType.Email,
+        monospace = true,
+    )
+    NumberField(value = interval, onValueChange = { interval = it }, label = tagLabels.getValue("ri").str(), suffix = Res.string.unit_s.str())
     SwitchRow(
         label = tagLabels.getValue("adkim").str(),
         checked = strictDkim,
@@ -233,10 +261,57 @@ private fun RecordBuilder() {
         KeyValueRow(Res.string.name.str(), "_dmarc.$name")
         KeyValueRow("TXT", record)
         Dmarc.parse(record).issues.forEach { MailIssueText(it) }
-        Dmarc.externalReportHosts(record, name).forEach { host ->
+        if (failure != "0" && ruf.isBlank()) Hint(Res.string.dmarc_fo_needs_ruf.str())
+        if (comparison == null) {
+            Dmarc.externalReportHosts(record, name).forEach { host ->
+                Text(
+                    stringResource(Res.string.dmarc_build_external, host, "$name._report._dmarc.$host"),
+                    color = MaterialTheme.colorScheme.tertiary,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+    ActionButton(
+        text = Res.string.dmarc_compare.str(),
+        onClick = {
+            comparing = true; error = null
+            scope.launch {
+                runCatching { Dmarc.compare(record, name) }
+                    .onSuccess { comparison = it }
+                    .onFailure { error = networkErrorText(it) }
+                comparing = false
+            }
+        },
+        enabled = !comparing && name.isNotEmpty(),
+        icon = Icons.Filled.Search,
+    )
+    if (comparing) LoadingRow()
+    error?.let { ErrorText(it) }
+    comparison?.let { ComparisonCard(name, it) }
+}
+
+@Composable
+private fun ComparisonCard(domain: String, result: DmarcComparison) {
+    ResultCard(title = "_dmarc.${result.source}") {
+        when {
+            result.published == null -> Text(stringResource(Res.string.dmarc_no_record, result.source), style = MaterialTheme.typography.bodyMedium)
+            result.differences.isEmpty() -> Text(
+                Res.string.dmarc_compare_same.str(),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            else -> {
+                KeyValueRow("TXT", result.published)
+                Hint(Res.string.dmarc_compare_differs.str())
+                result.differences.forEach { KeyValueRow((tagLabels[it.tag] ?: Res.string.dmarc_unknown_tag).str(), "${it.published.ifEmpty { "-" }} → ${it.built.ifEmpty { "-" }}", copyable = false) }
+            }
+        }
+        result.external.forEach { host ->
+            val refused = host in result.unauthorized
             Text(
-                stringResource(Res.string.dmarc_build_external, host, "$name._report._dmarc.$host"),
-                color = MaterialTheme.colorScheme.tertiary,
+                if (refused) stringResource(Res.string.dmarc_rua_not_authorized, host, domain, "$domain._report._dmarc.$host") else stringResource(Res.string.dmarc_rua_authorized, host, domain),
+                color = if (refused) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyMedium,
             )
         }

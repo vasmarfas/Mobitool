@@ -722,7 +722,18 @@ export async function peaks(file, perSecond, maxMs) {
     }
 }
 
-// 5.1 folds down the way the Android decoder does it: front + 0.707 × (centre + surround), LFE dropped
+// the same table as StereoMix.kt: L R front, C centre, F LFE, l r surround, S back centre
+const LAYOUTS = { 3: 'LRC', 4: 'LRlr', 5: 'LRClr', 6: 'LRCFlr', 7: 'LRCFlrS', 8: 'LRCFlrlr' };
+
+function stereoMatrix(channels) {
+    const layout = LAYOUTS[channels] ?? 'LR'.padEnd(channels, 'F');
+    return [['L', 'l'], ['R', 'r']].map(([front, surround]) => {
+        const gains = [...layout].map(c => c === front ? 1 : c === surround || c === 'C' || c === 'S' ? Math.SQRT1_2 : 0);
+        const sum = gains.reduce((a, b) => a + b);
+        return gains.map(g => g / sum);
+    });
+}
+
 function interleave(buffers, channels, maxFrames) {
     const frames = Math.min(maxFrames, buffers.reduce((sum, b) => sum + b.length, 0));
     const out = new Int16Array(frames * channels);
@@ -730,10 +741,11 @@ function interleave(buffers, channels, maxFrames) {
     for (const buffer of buffers) {
         const data = [];
         for (let c = 0; c < buffer.numberOfChannels; c++) data.push(buffer.getChannelData(c));
-        const surround = data.length === 6 && channels === 2;
+        const mix = data.length > 2 && channels === 2 ? stereoMatrix(data.length) : null;
         for (let i = 0; i < buffer.length && o < out.length; i++) {
             for (let c = 0; c < channels; c++) {
-                const sample = surround ? (data[c][i] + 0.707 * data[2][i] + 0.707 * data[4 + c][i]) / 2.414 : data[Math.min(c, data.length - 1)][i];
+                let sample = mix ? 0 : data[Math.min(c, data.length - 1)][i];
+                if (mix) for (let k = 0; k < data.length; k++) sample += mix[c][k] * data[k][i];
                 const v = Math.max(-1, Math.min(1, sample));
                 out[o++] = v < 0 ? v * 32768 : v * 32767;
             }

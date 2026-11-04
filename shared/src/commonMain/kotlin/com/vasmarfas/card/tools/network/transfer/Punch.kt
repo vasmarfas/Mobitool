@@ -373,6 +373,10 @@ class Punch private constructor(private val socket: UdpSocket) {
         endpoints = lan.map { "$it:${socket.port}" } + mapped
     }
 
+    fun add(endpoint: String) {
+        endpoints = endpoints + endpoint
+    }
+
     // the role byte keeps a probe looped back by the router from passing for the peer's
     private fun probe(key: ByteArray, type: Byte, sender: Boolean) =
         byteArrayOf(type) + Direct.seal(key, byteArrayOf(if (sender) 1 else 0) + secureRandomBytes(8), byteArrayOf(type))

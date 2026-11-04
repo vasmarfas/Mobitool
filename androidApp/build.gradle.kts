@@ -47,6 +47,7 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "/META-INF/native-image/**"
             excludes += listOf("/lib/*/include/**", "/lib/*/lib/**", "/lib/*/tesseract")
+            excludes += listOf("/META-INF/versions/9/OSGI-INF/MANIFEST.MF", "/META-INF/LICENSE.md")
         }
     }
     signingConfigs {

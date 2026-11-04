@@ -1,12 +1,33 @@
 package com.vasmarfas.card.tools.text
 
+import com.vasmarfas.card.tools.developer.runRegex
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 data class FindReplaceResult(
     val output: String,
     val count: Int,
     val error: String? = null,
+    val timedOut: Boolean = false,
 )
 
 object FindReplace {
+    // the probe goes where a stuck match can be stopped, after it the same matching here is known to finish
+    suspend fun runGuarded(
+        text: String,
+        find: String,
+        replacement: String,
+        ignoreCase: Boolean,
+        useRegex: Boolean,
+        wholeWord: Boolean,
+    ): FindReplaceResult {
+        if (useRegex && find.isNotEmpty()) {
+            val probe = runRegex(find, text, ignoreCase, multiline = true, dotAll = false, replacement = "\$0")
+            if (probe.timedOut) return FindReplaceResult(text, 0, timedOut = true)
+        }
+        return withContext(Dispatchers.Default) { run(text, find, replacement, ignoreCase, useRegex, wholeWord) }
+    }
+
     fun run(
         text: String,
         find: String,

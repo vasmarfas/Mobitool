@@ -17,12 +17,6 @@ data class TracerouteHop(
     val timeMs: Double?,
 )
 
-data class PortProbe(
-    val port: Int,
-    val open: Boolean,
-    val timeMs: Long,
-)
-
 data class LanHost(
     val address: String,
     val hostname: String?,

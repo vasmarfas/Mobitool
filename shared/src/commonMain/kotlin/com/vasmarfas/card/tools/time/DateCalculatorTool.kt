@@ -20,6 +20,7 @@ import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
 import com.vasmarfas.card.ui.components.DateField
 import com.vasmarfas.card.ui.components.ErrorText
+import com.vasmarfas.card.ui.components.Hint
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
@@ -31,6 +32,7 @@ import kotlinx.datetime.daysUntil
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 
 private enum class DateMode { DIFFERENCE, SHIFT, INFO }
 
@@ -42,7 +44,10 @@ val dateCalculatorTool = Tool(
     title = Res.string.date_calculator,
     description = Res.string.date_calculator_description,
     icon = Icons.Filled.DateRange,
-    keywords = listOf("date", "days between", "weekday", "iso week", "leap year", "дата", "дней между", "день недели", "неделя", "високосный"),
+    keywords = listOf(
+        "date", "days between", "weekday", "iso week", "leap year", "working days",
+        "дата", "дней между", "день недели", "неделя", "високосный", "рабочие дни", "производственный календарь",
+    ),
 ) { DateCalculatorScreen() }
 
 @Composable
@@ -85,6 +90,9 @@ private fun DifferenceSection() {
     }
     if (from != null && to != null) {
         val d = remember(from, to) { DateMath.difference(from, to) }
+        val first = minOf(from, to)
+        val last = maxOf(from, to)
+        val russianDays = remember(first, last) { RuWorkCalendar.workingDays(first, last) }
         ResultCard {
             KeyValueRow(
                 Res.string.difference.str(),
@@ -93,12 +101,20 @@ private fun DifferenceSection() {
             KeyValueRow(Res.string.total_days.str(), d.totalDays.toString())
             KeyValueRow(Res.string.weeks.str(), "${d.weeks} ${Res.string.w_2.str()} ${d.weekRemainderDays} ${Res.string.d.str()}")
             KeyValueRow(Res.string.working_days_mon_fri.str(), d.workingDays.toString())
+            if (russianDays != null) KeyValueRow(Res.string.working_days_russia.str(), russianDays.toString())
             KeyValueRow(
                 Res.string.order.str(),
                 (if (from <= to) Res.string.from_is_earlier else Res.string.from_is_later).str(),
                 mono = false,
                 copyable = false,
             )
+        }
+        if (russianDays != null) {
+            Hint(Res.string.date_working_days_hint.str())
+            val years = RuWorkCalendar.years
+            if (first.year !in years || last.year !in years) {
+                Hint(stringResource(Res.string.date_ru_calendar_missing, years.first, years.last))
+            }
         }
     }
 }

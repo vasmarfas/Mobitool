@@ -4,6 +4,8 @@ import com.vasmarfas.card.tools.Tool
 
 val developerTools: List<Tool> = listOf(
     jsonFormatterTool,
+    jsonTypesTool,
+    dataFormatsTool,
     base64Tool,
     hashGeneratorTool,
     uuidGeneratorTool,

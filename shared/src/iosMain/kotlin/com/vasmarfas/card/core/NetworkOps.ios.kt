@@ -32,9 +32,8 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import platform.Network.NW_CONNECTION_DEFAULT_MESSAGE_CONTEXT
-import platform.Network.NW_CONNECTION_FINAL_MESSAGE_CONTEXT
-import platform.Network._nw_parameters_configure_protocol_default_configuration
+import platform.Network.nw_content_context_create
+import platform.Network.nw_content_context_set_is_final
 import platform.Network.nw_connection_cancel
 import platform.Network.nw_connection_create
 import platform.Network.nw_connection_receive
@@ -538,17 +537,17 @@ actual suspend fun tcpDnsQuery(host: String, port: Int, payload: ByteArray, time
 
 actual suspend fun tlsDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray {
     val parameters = nw_parameters_create_secure_tcp(
-        _nw_parameters_configure_protocol_default_configuration,
-        _nw_parameters_configure_protocol_default_configuration,
+        { },
+        { },
     )
-    return framedDnsQuery(host, port, parameters, NW_CONNECTION_DEFAULT_MESSAGE_CONTEXT, payload, timeoutMs)
+    return framedDnsQuery(host, port, parameters, nw_content_context_create("dns")!!, payload, timeoutMs)
 }
 
 // a QUIC nw_connection is one bidirectional stream, and the final-send context ends it with the FIN
 // that RFC 9250 asks for after the query
 actual suspend fun quicDnsQuery(host: String, port: Int, payload: ByteArray, timeoutMs: Int): ByteArray {
     val parameters = nw_parameters_create_quic { options -> nw_quic_add_tls_application_protocol(options, "doq") }
-    return framedDnsQuery(host, port, parameters, NW_CONNECTION_FINAL_MESSAGE_CONTEXT, payload, timeoutMs)
+    return framedDnsQuery(host, port, parameters, nw_content_context_create("dns")!!.also { nw_content_context_set_is_final(it, true) }, payload, timeoutMs)
 }
 
 @OptIn(ExperimentalForeignApi::class)

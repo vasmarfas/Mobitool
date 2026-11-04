@@ -87,11 +87,12 @@ internal suspend fun decodePcm(
                 if (chunk.size < keep * channels) chunk = ShortArray(keep * channels)
                 val raw = if (float) FloatArray(frameCount * sourceChannels).also { buffer.asFloatBuffer().get(it) } else null
                 val shorts = if (float) null else ShortArray(frameCount * sourceChannels).also { buffer.asShortBuffer().get(it) }
+                val mix = if (sourceChannels > 2) stereoMatrix(sourceChannels) else null
                 for (f in 0 until keep) {
                     val src = (f + skip) * sourceChannels
                     for (c in 0 until channels) {
                         chunk[f * channels + c] = when {
-                            sourceChannels == 6 -> downmix(raw, shorts, src, c)
+                            mix != null -> downmix(mix[c], raw, shorts, src)
                             raw != null -> (raw[src + c].coerceIn(-1f, 1f) * 32767).toInt().toShort()
                             else -> shorts!![src + c]
                         }
@@ -108,10 +109,9 @@ internal suspend fun decodePcm(
     }
 }
 
-// ITU downmix: front + 0.707 * (centre + surround), LFE dropped
-private fun downmix(float: FloatArray?, shorts: ShortArray?, src: Int, channel: Int): Short {
-    fun at(i: Int): Float = float?.get(src + i) ?: (shorts!![src + i] / 32768f)
-    val mixed = (at(channel) + 0.707f * at(2) + 0.707f * at(4 + channel)) / 2.414f
+private fun downmix(gains: FloatArray, float: FloatArray?, shorts: ShortArray?, src: Int): Short {
+    var mixed = 0f
+    for (i in gains.indices) mixed += gains[i] * (float?.get(src + i) ?: (shorts!![src + i] / 32768f))
     return (mixed.coerceIn(-1f, 1f) * 32767).toInt().toShort()
 }
 

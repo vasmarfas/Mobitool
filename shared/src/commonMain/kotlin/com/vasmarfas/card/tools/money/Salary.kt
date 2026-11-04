@@ -91,7 +91,13 @@ object SickLeave {
     const val EMPLOYER_DAYS = 3
     private const val DIVISOR = 730
 
-    val contributionCaps = mapOf(2022 to 1_032_000.0, 2023 to 1_917_000.0, 2024 to 2_225_000.0, 2025 to 2_759_000.0)
+    val contributionCaps = mapOf(
+        2022 to 1_032_000.0,
+        2023 to 1_917_000.0,
+        2024 to 2_225_000.0,
+        2025 to 2_759_000.0,
+        2026 to 2_979_000.0,
+    )
     val minimumWage = mapOf(2024 to 19_242.0, 2025 to 22_440.0, 2026 to 27_093.0)
     val years: IntRange = minimumWage.keys.min()..minimumWage.keys.max()
 

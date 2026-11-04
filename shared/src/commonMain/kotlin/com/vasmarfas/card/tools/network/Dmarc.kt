@@ -24,6 +24,10 @@ class DmarcRecord(val tags: List<DmarcTag>, val issues: List<MailIssue>)
 
 class DmarcLookup(val domain: String, val source: String, val records: List<String>, val unauthorized: List<String>)
 
+class DmarcDifference(val tag: String, val published: String, val built: String)
+
+class DmarcComparison(val source: String, val published: String?, val differences: List<DmarcDifference>, val external: List<String>, val unauthorized: List<String>)
+
 data class DmarcRow(
     val sourceIp: String,
     val count: Long,
@@ -58,6 +62,7 @@ object Dmarc {
     private val policies = setOf("none", "quarantine", "reject")
     private val reportSize = Regex("!\\d+[kmgt]?", RegexOption.IGNORE_CASE)
     private val cloudflare = DnsResolver.CLOUDFLARE.dohUrl!!
+    private val defaults = mapOf("pct" to "100", "adkim" to "r", "aspf" to "r", "fo" to "0", "rf" to "afrf", "ri" to "86400")
 
     fun isRecord(txt: String): Boolean = parse(txt).tags.firstOrNull()?.let { it.name == "v" && it.value == "DMARC1" } == true
 
@@ -116,6 +121,33 @@ object Dmarc {
             }
             name = name.substringAfter('.')
         }
+    }
+
+    suspend fun compare(record: String, domain: String): DmarcComparison {
+        val found = lookup(domain)
+        val published = found.records.firstOrNull()
+        val external = externalReportHosts(record, domain)
+        return DmarcComparison(
+            source = found.source,
+            published = published,
+            differences = published?.let { differences(it, record) }.orEmpty(),
+            external = external,
+            unauthorized = external.filter { dmarcRecords("$domain._report._dmarc.$it").isEmpty() },
+        )
+    }
+
+    fun differences(published: String, built: String): List<DmarcDifference> {
+        val left = effective(published)
+        val right = effective(built)
+        return (left.keys + right.keys).filter { left[it] != right[it] }.map { DmarcDifference(it, left[it].orEmpty(), right[it].orEmpty()) }
+    }
+
+    private fun effective(record: String): Map<String, String> {
+        val tags = defaults + parse(record).tags.associate { tag ->
+            tag.name to tag.value.lowercase().split(',').map { it.trim() }.sorted().joinToString(",")
+        }
+        val subdomains = tags["sp"] ?: tags["p"].orEmpty()
+        return tags + mapOf("sp" to subdomains, "np" to (tags["np"] ?: subdomains))
     }
 
     private suspend fun dmarcRecords(name: String): List<String> =

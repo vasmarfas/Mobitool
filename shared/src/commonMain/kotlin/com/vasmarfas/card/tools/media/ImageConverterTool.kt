@@ -47,7 +47,7 @@ val imageConverterTool = Tool(
     description = Res.string.image_converter_description,
     icon = Icons.Filled.PhotoLibrary,
     keywords = listOf(
-        "image converter", "png to jpg", "jpg to png", "heic to jpg", "webp to jpg", "webp", "gif", "bmp", "ico", "favicon", "tiff", "resize image",
+        "image converter", "png to jpg", "jpg to png", "heic to jpg", "webp to jpg", "webp", "gif", "bmp", "ico", "favicon", "tiff", "tga", "targa", "tga to png", "resize image",
         "конвертер изображений", "картинки", "png в jpg", "jpg в png", "heic в jpg", "webp в jpg", "иконка", "фавикон", "изменить размер фото", "уменьшить фото",
     ),
 ) { ImageConverterScreen() }
@@ -70,7 +70,7 @@ private fun ImageConverterScreen() {
     val task = remember { TaskState() }
     val unreadable = Res.string.image_not_readable.str()
 
-    PickButton(Res.string.choose_images.str(), imageExtensions, PickKind.IMAGE, multiple = true, icon = Icons.Filled.AddPhotoAlternate, empty = files.isEmpty()) { picked ->
+    PickButton(Res.string.choose_images.str(), imageExtensions + "tga", PickKind.IMAGE, multiple = true, icon = Icons.Filled.AddPhotoAlternate, empty = files.isEmpty()) { picked ->
         files.clear()
         files += picked
         outputs = emptyList()

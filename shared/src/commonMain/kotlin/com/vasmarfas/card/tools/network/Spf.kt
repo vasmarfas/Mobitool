@@ -1,6 +1,9 @@
 package com.vasmarfas.card.tools.network
 
 import com.vasmarfas.card.resources.*
+import io.ktor.http.encodeURLParameter
+
+private val cidrSuffix = Regex("""(/\d*)?(//\d*)?$""")
 
 data class SpfTerm(
     val raw: String,
@@ -10,8 +13,9 @@ data class SpfTerm(
     val modifier: Boolean,
     val child: SpfNode? = null,
     val addresses: List<String> = emptyList(),
+    val resolved: String = "",
 ) {
-    val target: String get() = value.substringBefore('/')
+    val target: String get() = value.replace(cidrSuffix, "")
     val cidr: String get() = value.removePrefix(target)
 }
 
@@ -29,6 +33,21 @@ class SpfCheck(val root: SpfNode, val lookups: Int, val voids: Int, val issues: 
             }
             collect(root)
         }.distinct()
+
+    private val terms: List<SpfTerm>
+        get() = buildList {
+            fun walk(node: SpfNode) {
+                node.terms.forEach { term ->
+                    add(term)
+                    term.child?.let(::walk)
+                }
+            }
+            walk(root)
+        }
+
+    val usesPtr: Boolean get() = terms.any { it.name == "ptr" }
+
+    val hasLookupMacros: Boolean get() = terms.any { it.name in setOf("include", "redirect", "a", "mx") && '%' in it.value }
 }
 
 class SpfVerdict(val result: String, val term: SpfTerm?, val domain: String)
@@ -40,6 +59,7 @@ object Spf {
     private val mechanisms = setOf("all", "include", "a", "mx", "ptr", "ip4", "ip6", "exists")
     private val whitespace = Regex("\\s+")
     private val macro = Regex("""%\{([a-zA-Z])(\d*)([rR]?)([.\-+,/_=]*)}|%%|%_|%-""")
+    private val addressMacro = Regex("""%\{[iIvVpPcC]""")
     private val cloudflare = DnsResolver.CLOUDFLARE.dohUrl!!
 
     fun isRecord(txt: String): Boolean = txt.trim().lowercase().let { it == "v=spf1" || it.startsWith("v=spf1 ") }
@@ -56,12 +76,12 @@ object Spf {
         SpfTerm(raw, qualifier ?: '+', (if (split < 0) body else body.substring(0, split)).lowercase(), value, split >= 0 && body[split] == '=')
     }
 
-    suspend fun check(domain: String): SpfCheck {
+    // without an address the macros that need it stay unexpanded, evaluate() walks the record again once it has one
+    suspend fun check(domain: String, sender: String = "", ip: String? = null, query: suspend (String, Int) -> List<String> = ::answers): SpfCheck {
+        val envelope = sender.ifEmpty { "postmaster@$domain" }
         var lookups = 0
         var voids = 0
         val issues = mutableListOf<MailIssue>()
-
-        suspend fun query(name: String, type: Int) = DnsClient.queryDoh(cloudflare, name, type, DohFlavour.JSON).answers.filter { it.type == type }.map { it.data }
 
         suspend fun addresses(name: String, cidr: String): List<String> {
             val v4 = cidr.substringAfter('/', "").substringBefore('/').ifEmpty { null }
@@ -72,9 +92,12 @@ object Spf {
         suspend fun node(name: String, txt: List<String>, path: List<String>): SpfNode {
             val found = txt.filter(::isRecord)
             if (found.size > 1) issues += MailIssue(true, Res.string.spf_several_records, name)
-            val terms = found.firstOrNull()?.let(::parse).orEmpty().map { term ->
-                val target = term.target.ifEmpty { name }
-                val skip = '%' in target || lookups > MAX_LOOKUPS * 2
+            val terms = found.firstOrNull()?.let(::parse).orEmpty().map { parsed ->
+                val spec = parsed.target.ifEmpty { name }
+                val pending = ip == null && addressMacro.containsMatchIn(spec)
+                val target = if ('%' in spec && !pending) expand(spec, ip.orEmpty(), name, envelope) else spec
+                val term = if (target == spec) parsed else parsed.copy(resolved = target)
+                val skip = pending || lookups > MAX_LOOKUPS * 2
                 when (term.name) {
                     "include", "redirect" -> {
                         lookups++
@@ -129,10 +152,17 @@ object Spf {
         return SpfCheck(root, lookups, voids, issues)
     }
 
-    suspend fun evaluate(check: SpfCheck, ip: String): SpfVerdict =
-        if (check.lookups > MAX_LOOKUPS || check.voids > MAX_VOIDS) SpfVerdict("permerror", null, check.root.domain) else evaluate(check.root, ip)
+    private suspend fun answers(name: String, type: Int): List<String> =
+        DnsClient.queryDoh(cloudflare, name, type, DohFlavour.JSON).answers.filter { it.type == type }.map { it.data }
 
-    private suspend fun evaluate(node: SpfNode, ip: String): SpfVerdict {
+    suspend fun evaluate(checked: SpfCheck, ip: String, sender: String = "", query: suspend (String, Int) -> List<String> = ::answers): SpfVerdict {
+        val domain = checked.root.domain
+        val current = if (checked.hasLookupMacros) check(domain, sender, ip, query) else checked
+        if (current.lookups > MAX_LOOKUPS || current.voids > MAX_VOIDS) return SpfVerdict("permerror", null, domain)
+        return evaluate(current.root, ip, sender.ifEmpty { "postmaster@$domain" }, query)
+    }
+
+    private suspend fun evaluate(node: SpfNode, ip: String, sender: String, query: suspend (String, Int) -> List<String>): SpfVerdict {
         if (node.records.isEmpty()) return SpfVerdict("none", null, node.domain)
         if (node.records.size > 1) return SpfVerdict("permerror", null, node.domain)
         for (term in node.terms) {
@@ -142,21 +172,21 @@ object Spf {
                 "ip4", "ip6" -> contains(term.value, ip)
                 "a", "mx" -> term.addresses.any { contains(it, ip) }
                 "include" -> {
-                    val inner = term.child?.let { evaluate(it, ip) } ?: return SpfVerdict("permerror", term, node.domain)
+                    val inner = term.child?.let { evaluate(it, ip, sender, query) } ?: return SpfVerdict("permerror", term, node.domain)
                     when (inner.result) {
                         "pass" -> return SpfVerdict(result(term.qualifier), inner.term, inner.domain)
                         "none", "permerror" -> return SpfVerdict("permerror", term, node.domain)
                         else -> false
                     }
                 }
-                "exists" -> DnsClient.queryDoh(cloudflare, expand(term.value, ip, node.domain), 1, DohFlavour.JSON).answers.any { it.type == 1 }
+                "exists" -> query(expand(term.value, ip, node.domain, sender), 1).isNotEmpty()
                 "ptr" -> false
                 else -> return SpfVerdict("permerror", term, node.domain)
             }
             if (matched) return SpfVerdict(result(term.qualifier), term, node.domain)
         }
         val redirect = node.terms.firstOrNull { it.name == "redirect" } ?: return SpfVerdict("neutral", null, node.domain)
-        return redirect.child?.let { evaluate(it, ip) }?.takeIf { it.result != "none" } ?: SpfVerdict("permerror", redirect, node.domain)
+        return redirect.child?.let { evaluate(it, ip, sender, query) }?.takeIf { it.result != "none" } ?: SpfVerdict("permerror", redirect, node.domain)
     }
 
     fun result(qualifier: Char): String = when (qualifier) {
@@ -180,7 +210,8 @@ object Spf {
         return bits in 0..128 && net.withPrefix(bits).groups.contentEquals(address.withPrefix(bits).groups)
     }
 
-    fun expand(spec: String, ip: String, domain: String): String = macro.replace(spec) { match ->
+    // RFC 7208 section 7.3: uppercase letters URL-escape the value, a result over 253 characters loses labels from the left
+    fun expand(spec: String, ip: String, domain: String, sender: String = "postmaster@$domain"): String = macro.replace(spec) { match ->
         when (match.value) {
             "%%" -> "%"
             "%_" -> " "
@@ -188,9 +219,10 @@ object Spf {
             else -> {
                 val v4 = Ipv4.parse(ip)
                 val value = when (match.groupValues[1].lowercase()) {
-                    "s" -> "postmaster@$domain"
-                    "l" -> "postmaster"
-                    "o", "d", "h" -> domain
+                    "s" -> sender
+                    "l" -> sender.substringBeforeLast('@').ifEmpty { "postmaster" }
+                    "o", "h" -> sender.substringAfterLast('@')
+                    "d" -> domain
                     "i" -> v4?.let(Ipv4::format) ?: Ipv6Address.parse(ip)?.expanded()?.replace(":", "")?.toList()?.joinToString(".").orEmpty()
                     "v" -> if (v4 != null) "in-addr" else "ip6"
                     else -> "unknown"
@@ -198,8 +230,8 @@ object Spf {
                 var parts = value.split(*match.groupValues[4].ifEmpty { "." }.toCharArray())
                 if (match.groupValues[3].isNotEmpty()) parts = parts.reversed()
                 match.groupValues[2].toIntOrNull()?.let { parts = parts.takeLast(it) }
-                parts.joinToString(".")
+                parts.joinToString(".").let { if (match.groupValues[1][0].isUpperCase()) it.encodeURLParameter() else it }
             }
         }
-    }
+    }.let { name -> generateSequence(name) { it.substringAfter('.', "") }.first { it.length <= 253 } }
 }

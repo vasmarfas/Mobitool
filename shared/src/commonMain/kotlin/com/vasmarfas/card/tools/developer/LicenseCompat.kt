@@ -31,7 +31,7 @@ class DependencyLine(val label: String, val expression: String, val result: Comp
 
 object LicenseCompat {
     private val aliases: Map<String, Pair<String, Boolean>> = buildMap {
-        Licenses.all.forEach { license ->
+        (Licenses.all + Licenses.dependencyOnly).forEach { license ->
             listOf(license.id, license.short, license.name).forEach { put(normalize(it), license.id to false) }
             if (license.versioned) {
                 put(normalize(license.id + "-only"), license.id to false)
@@ -46,7 +46,8 @@ object LicenseCompat {
         }
         gnu("GPL-2.0", "gplv2", "gpl2", "gpl 2", "gpl-2", "gpl v2", "gnu gpl v2")
         gnu("GPL-3.0", "gplv3", "gpl3", "gpl 3", "gpl-3", "gpl v3", "gnu gpl v3")
-        gnu("LGPL-2.1", "lgplv2.1", "lgpl2.1", "lgpl 2.1", "lgpl-2.1", "lgplv2", "lgpl-2.0", "lgpl2")
+        gnu("LGPL-2.0", "lgplv2", "lgplv2.0", "lgpl2", "lgpl2.0", "lgpl 2", "lgpl 2.0", "lgpl-2")
+        gnu("LGPL-2.1", "lgplv2.1", "lgpl2.1", "lgpl 2.1", "lgpl-2.1")
         gnu("LGPL-3.0", "lgplv3", "lgpl3", "lgpl 3", "lgpl-3")
         gnu("AGPL-3.0", "agplv3", "agpl3", "agpl 3", "agpl-3", "agpl")
         gnu("GFDL-1.3", "gfdl", "fdl 1.3", "gfdlv1.3")
@@ -57,13 +58,28 @@ object LicenseCompat {
             "expat" to "MIT", "mit license" to "MIT", "x11" to "MIT",
             "apache 2.0" to "Apache-2.0", "apache2" to "Apache-2.0", "apache-2" to "Apache-2.0", "apache 2" to "Apache-2.0",
             "apache license 2.0" to "Apache-2.0", "apache license, version 2.0" to "Apache-2.0", "asl 2.0" to "Apache-2.0", "asl2" to "Apache-2.0",
+            "apache software license, version 2.0" to "Apache-2.0", "apache software license 2.0" to "Apache-2.0",
             "bsd" to "BSD-3-Clause", "new bsd" to "BSD-3-Clause", "revised bsd" to "BSD-3-Clause", "bsd-3" to "BSD-3-Clause", "3-clause bsd" to "BSD-3-Clause",
             "bsd 3-clause" to "BSD-3-Clause", "simplified bsd" to "BSD-2-Clause", "freebsd" to "BSD-2-Clause", "bsd-2" to "BSD-2-Clause",
             "2-clause bsd" to "BSD-2-Clause", "bsd 2-clause" to "BSD-2-Clause", "isc license" to "ISC", "zlib license" to "Zlib",
             "boost" to "BSL-1.0", "boost software license" to "BSL-1.0", "public domain" to "Unlicense", "unlicense" to "Unlicense",
             "cc0" to "CC0-1.0", "bsd-zero-clause" to "0BSD", "bsd zero clause" to "0BSD", "mit no attribution" to "MIT-0",
             "mpl 2.0" to "MPL-2.0", "mpl2" to "MPL-2.0", "mpl-2" to "MPL-2.0", "mozilla public license 2.0" to "MPL-2.0",
-            "epl 2.0" to "EPL-2.0", "epl2" to "EPL-2.0", "eupl" to "EUPL-1.2", "eupl 1.2" to "EUPL-1.2",
+            "epl 2.0" to "EPL-2.0", "epl2" to "EPL-2.0", "eclipse public license - v 2.0" to "EPL-2.0", "eclipse public license, version 2.0" to "EPL-2.0",
+            "eupl" to "EUPL-1.2", "eupl 1.2" to "EUPL-1.2",
+            "artistic 2.0" to "Artistic-2.0", "artistic-2" to "Artistic-2.0", "artistic2" to "Artistic-2.0", "perl artistic 2.0" to "Artistic-2.0",
+            "blueoak" to "BlueOak-1.0.0", "blue oak" to "BlueOak-1.0.0", "blue oak model" to "BlueOak-1.0.0", "blue oak model license 1.0.0" to "BlueOak-1.0.0",
+            "cddl" to "CDDL-1.0", "cddl 1.0" to "CDDL-1.0", "cddl-1.1" to "CDDL-1.0", "cddl 1.1" to "CDDL-1.0", "cddl v1.0" to "CDDL-1.0",
+            "common development and distribution license 1.1" to "CDDL-1.0", "common development and distribution license (cddl) v1.0" to "CDDL-1.0",
+            "epl 1.0" to "EPL-1.0", "epl1" to "EPL-1.0", "epl-1" to "EPL-1.0", "eclipse public license - v 1.0" to "EPL-1.0",
+            "eclipse public license, version 1.0" to "EPL-1.0", "eclipse public license v1.0" to "EPL-1.0",
+            "mpl 1.1" to "MPL-1.1", "mpl1.1" to "MPL-1.1", "mozilla public license version 1.1" to "MPL-1.1",
+            "openssl" to "OpenSSL", "ssleay" to "OpenSSL",
+            "python-2.0.1" to "Python-2.0", "python 2.0" to "Python-2.0", "psf" to "Python-2.0", "psf-2.0" to "Python-2.0", "psfl" to "Python-2.0",
+            "python software foundation" to "Python-2.0", "python software foundation license" to "Python-2.0",
+            "unicode" to "Unicode-3.0", "unicode-dfs-2016" to "Unicode-3.0", "unicode-dfs-2015" to "Unicode-3.0",
+            "unicode license agreement - data files and software" to "Unicode-3.0",
+            "wtfpl 2.0" to "WTFPL", "wtfpl-2.0" to "WTFPL", "do what the fuck you want to public" to "WTFPL",
             "busl" to "BUSL-1.1", "business source license" to "BUSL-1.1", "fsl" to "FSL-1.1-MIT", "functional source license" to "FSL-1.1-MIT",
             "fsl-1.1-alv2" to "FSL-1.1-MIT", "elastic" to "Elastic-2.0", "elastic license 2.0" to "Elastic-2.0", "elv2" to "Elastic-2.0",
             "sspl" to "SSPL-1.0", "server side public license" to "SSPL-1.0",
@@ -97,6 +113,8 @@ object LicenseCompat {
     }
 
     fun parse(text: String): SpdxExpr? {
+        // names like "Common Development and Distribution License" hold the word AND
+        resolve(text)?.let { return SpdxExpr.Leaf(text.trim(), it) }
         val tokens = text.replace("(", " ( ").replace(")", " ) ").replace("/", " OR ").trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
         return if (tokens.isEmpty()) null else SpdxParser(tokens).parse()
     }
@@ -111,7 +129,7 @@ object LicenseCompat {
     }
 
     fun checkList(text: String, project: License, projectOrLater: Boolean, usage: LicenseUsage): List<DependencyLine> =
-        text.lines().map { it.trim() }.filter { it.isNotEmpty() }.map { line ->
+        (DependencyFiles.lines(text) ?: text).lines().map { it.trim() }.filter { it.isNotEmpty() }.map { line ->
             val split = listOf("\t", ": ").firstNotNullOfOrNull { separator -> line.indexOf(separator).takeIf { it > 0 }?.let { it to separator.length } }
             val label = split?.let { line.substring(0, it.first).trim() } ?: line
             val expression = split?.let { line.substring(it.first + it.second).trim() } ?: line
@@ -123,7 +141,7 @@ object LicenseCompat {
 
     private fun gnuVersions(id: String, orLater: Boolean): Set<Int> = when (id) {
         "GPL-2.0" -> if (orLater) setOf(2, 3) else setOf(2)
-        "LGPL-2.1" -> setOf(2, 3)
+        "LGPL-2.0", "LGPL-2.1" -> setOf(2, 3)
         "GPL-3.0", "LGPL-3.0", "AGPL-3.0" -> setOf(3)
         else -> emptySet()
     }
@@ -131,6 +149,8 @@ object LicenseCompat {
     private val gplHosts = setOf("GPL-2.0", "GPL-3.0", "AGPL-3.0")
 
     private val euplHosts = setOf("GPL-2.0", "GPL-3.0", "AGPL-3.0", "LGPL-2.1", "LGPL-3.0", "MPL-2.0")
+
+    private val gplIncompatibleFiles = setOf("CDDL-1.0", "EPL-1.0", "MPL-1.1")
 
     fun check(dep: LicenseRef, project: License, projectOrLater: Boolean, usage: LicenseUsage): CompatResult {
         val license = dep.license
@@ -179,12 +199,15 @@ object LicenseCompat {
             Copyleft.NONE -> when {
                 license.id == "Apache-2.0" && dep.exception != LicenseException.LLVM && project.id == "GPL-2.0" && !projectOrLater ->
                     result(Verdict.NO, Res.string.license_compat_apache_gpl2)
+                license.id == "OpenSSL" && project.id in gplHosts && !notDistributed -> result(Verdict.NO, Res.string.license_compat_openssl_gpl)
+                license.id == "OpenSSL" -> result(Verdict.CONDITIONS, Res.string.license_compat_openssl)
                 LicenseFlag.NOTICE in license -> result(Verdict.YES, Res.string.license_compat_permissive)
                 else -> result(Verdict.YES, Res.string.license_compat_public_domain)
             }
             Copyleft.FILE -> when {
                 notDistributed -> result(Verdict.YES, Res.string.license_compat_not_distributed)
                 projectGnu.isNotEmpty() && license.id == "MPL-2.0" -> result(Verdict.YES, Res.string.license_compat_mpl_gpl)
+                projectGnu.isNotEmpty() && license.id in gplIncompatibleFiles -> result(Verdict.NO, Res.string.license_compat_file_gpl, license.short)
                 projectGnu.isNotEmpty() && license.id == "EPL-2.0" -> result(Verdict.CONDITIONS, Res.string.license_compat_epl_gpl)
                 else -> result(Verdict.CONDITIONS, Res.string.license_compat_file, license.short)
             }

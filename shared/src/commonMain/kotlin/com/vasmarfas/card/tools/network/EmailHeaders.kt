@@ -62,6 +62,12 @@ object EmailHeaders {
     private val receivedWith = Regex("""(?i)\bwith\s+([^\s;()]+)""")
     private val bracketedIp = Regex("""[\[(](?:IPv6:)?([0-9A-Fa-f:.]{3,})[\])]""")
     private val angleAddress = Regex("<([^>]*)>")
+    private val charsetName = Regex("""(?i)(?:charset="?|=\?|\*=)([\w.:-]+)""")
+
+    suspend fun read(bytes: ByteArray): MailMessage {
+        TextDecoding.load(charsetName.findAll(TextDecoding.decode(bytes, "latin1")).map { it.groupValues[1] }.toSet())
+        return parse(bytes)
+    }
 
     fun parse(bytes: ByteArray): MailMessage {
         val raw = TextDecoding.decode(bytes, "latin1")
@@ -152,7 +158,7 @@ object EmailHeaders {
     private fun latin1ToText(text: String): String =
         if (text.all { it.code < 0x80 }) text else TextDecoding.decode(latin1Bytes(text))
 
-    private fun latin1Bytes(text: String): ByteArray = ByteArray(text.length) { text[it].code.toByte() }
+    fun latin1Bytes(text: String): ByteArray = ByteArray(text.length) { text[it].code.toByte() }
 
     private fun decodeText(bytes: ByteArray, charset: String): String =
         if (charset.isBlank()) TextDecoding.decode(bytes) else runCatching { TextDecoding.decode(bytes, charset) }.getOrElse { TextDecoding.decode(bytes) }

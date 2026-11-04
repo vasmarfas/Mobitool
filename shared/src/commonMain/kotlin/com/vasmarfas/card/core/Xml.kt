@@ -1,5 +1,6 @@
 package com.vasmarfas.card.core
 
+import com.vasmarfas.card.resources.*
 import kotlin.math.min
 
 class XmlException(message: String) : Exception(message)
@@ -649,6 +650,17 @@ class XmlBuilder(declaration: Boolean = true) {
 }
 
 object TextDecoding {
+    private enum class MultiByte(val table: String) {
+        GBK("gbk"),
+        SHIFT_JIS("jis0208"),
+        EUC_JP("jis0208"),
+        ISO_2022_JP("jis0208"),
+        EUC_KR("euc-kr"),
+        BIG5("big5"),
+    }
+
+    private var multiByteTables = mapOf<String, CharArray>()
+
     private val CP1251 = table(
         "ЂЃ‚ѓ„…†‡€‰Љ‹ЊЌЋЏ",
         "ђ‘’“”•–—\uFFFD™љ›њќћџ",
@@ -719,6 +731,163 @@ object TextDecoding {
         from = 0xA0,
     )
 
+    private val LATIN4 = table(
+        "\u00A0ĄĸŖ¤ĨĻ§¨ŠĒĢŦ\u00ADŽ¯",
+        "°ą˛ŗ´ĩļˇ¸šēģŧŊžŋ",
+        "ĀÁÂÃÄÅÆĮČÉĘËĖÍÎĪ",
+        "ĐŅŌĶÔÕÖ×ØŲÚÛÜŨŪß",
+        "āáâãäåæįčéęëėíîī",
+        "đņōķôõö÷øųúûüũū˙",
+        from = 0xA0,
+    )
+
+    private val ISO_CYRILLIC = table(
+        "\u00A0ЁЂЃЄЅІЇЈЉЊЋЌ\u00ADЎЏ",
+        "АБВГДЕЖЗИЙКЛМНОП",
+        "РСТУФХЦЧШЩЪЫЬЭЮЯ",
+        "абвгдежзийклмноп",
+        "рстуфхцчшщъыьэюя",
+        "№ёђѓєѕіїјљњћќ§ўџ",
+        from = 0xA0,
+    )
+
+    private val ISO_ARABIC = table(
+        "\u00A0\uFFFD\uFFFD\uFFFD¤\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD،\u00AD\uFFFD\uFFFD",
+        "\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\u061B\uFFFD\uFFFD\uFFFD\u061F",
+        "\uFFFD\u0621\u0622\u0623\u0624\u0625\u0626\u0627\u0628\u0629\u062A\u062B\u062C\u062D\u062E\u062F",
+        "\u0630\u0631\u0632\u0633\u0634\u0635\u0636\u0637\u0638\u0639\u063A\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD",
+        "\u0640\u0641\u0642\u0643\u0644\u0645\u0646\u0647\u0648\u0649\u064A\u064B\u064C\u064D\u064E\u064F",
+        "\u0650\u0651\u0652\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD",
+        from = 0xA0,
+    )
+
+    private val ISO_GREEK = table(
+        "\u00A0‘’£€₯¦§¨©ͺ«¬\u00AD\uFFFD―",
+        "°±²³΄΅Ά·ΈΉΊ»Ό½ΎΏ",
+        "ΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟ",
+        "ΠΡ\uFFFDΣΤΥΦΧΨΩΪΫάέήί",
+        "ΰαβγδεζηθικλμνξο",
+        "πρςστυφχψωϊϋόύώ\uFFFD",
+        from = 0xA0,
+    )
+
+    private val ISO_HEBREW = table(
+        "\u00A0\uFFFD¢£¤¥¦§¨©×«¬\u00AD®¯",
+        "°±²³´µ¶·¸¹÷»¼½¾\uFFFD",
+        "\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD",
+        "\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD‗",
+        "\u05D0\u05D1\u05D2\u05D3\u05D4\u05D5\u05D6\u05D7\u05D8\u05D9\u05DA\u05DB\u05DC\u05DD\u05DE\u05DF",
+        "\u05E0\u05E1\u05E2\u05E3\u05E4\u05E5\u05E6\u05E7\u05E8\u05E9\u05EA\uFFFD\uFFFD\u200E\u200F\uFFFD",
+        from = 0xA0,
+    )
+
+    private val LATIN5 = table(
+        "\u00A0¡¢£¤¥¦§¨©ª«¬\u00AD®¯",
+        "°±²³´µ¶·¸¹º»¼½¾¿",
+        "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ",
+        "ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß",
+        "àáâãäåæçèéêëìíîï",
+        "ğñòóôõö÷øùúûüışÿ",
+        from = 0xA0,
+    )
+
+    private val LATIN7 = table(
+        "\u00A0”¢£¤„¦§Ø©Ŗ«¬\u00AD®Æ",
+        "°±²³“µ¶·ø¹ŗ»¼½¾æ",
+        "ĄĮĀĆÄÅĘĒČÉŹĖĢĶĪĻ",
+        "ŠŃŅÓŌÕÖ×ŲŁŚŪÜŻŽß",
+        "ąįāćäåęēčéźėģķīļ",
+        "šńņóōõö÷ųłśūüżž’",
+        from = 0xA0,
+    )
+
+    private val LATIN9 = table(
+        "\u00A0¡¢£€¥Š§š©ª«¬\u00AD®¯",
+        "°±²³Žµ¶·ž¹º»ŒœŸ¿",
+        "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ",
+        "ÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß",
+        "àáâãäåæçèéêëìíîï",
+        "ðñòóôõö÷øùúûüýþÿ",
+        from = 0xA0,
+    )
+
+    private val CP1253 = table(
+        "€\uFFFD‚ƒ„…†‡\uFFFD‰\uFFFD‹\uFFFD\uFFFD\uFFFD\uFFFD",
+        "\uFFFD‘’“”•–—\uFFFD™\uFFFD›\uFFFD\uFFFD\uFFFD\uFFFD",
+        "\u00A0΅Ά£¤¥¦§¨©\uFFFD«¬\u00AD®―",
+        "°±²³΄µ¶·ΈΉΊ»Ό½ΎΏ",
+        "ΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟ",
+        "ΠΡ\uFFFDΣΤΥΦΧΨΩΪΫάέήί",
+        "ΰαβγδεζηθικλμνξο",
+        "πρςστυφχψωϊϋόύώ\uFFFD",
+    )
+
+    private val CP1254 = table(
+        "€\uFFFD‚ƒ„…†‡ˆ‰Š‹Œ\uFFFD\uFFFD\uFFFD",
+        "\uFFFD‘’“”•–—˜™š›œ\uFFFD\uFFFDŸ",
+        "\u00A0¡¢£¤¥¦§¨©ª«¬\u00AD®¯",
+        "°±²³´µ¶·¸¹º»¼½¾¿",
+        "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ",
+        "ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß",
+        "àáâãäåæçèéêëìíîï",
+        "ğñòóôõö÷øùúûüışÿ",
+    )
+
+    private val CP1255 = table(
+        "€\uFFFD‚ƒ„…†‡ˆ‰\uFFFD‹\uFFFD\uFFFD\uFFFD\uFFFD",
+        "\uFFFD‘’“”•–—˜™\uFFFD›\uFFFD\uFFFD\uFFFD\uFFFD",
+        "\u00A0¡¢£₪¥¦§¨©×«¬\u00AD®¯",
+        "°±²³´µ¶·¸¹÷»¼½¾¿",
+        "\u05B0\u05B1\u05B2\u05B3\u05B4\u05B5\u05B6\u05B7\u05B8\u05B9\uFFFD\u05BB\u05BC\u05BD\u05BE\u05BF",
+        "\u05C0\u05C1\u05C2\u05C3\u05F0\u05F1\u05F2\u05F3\u05F4\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD",
+        "\u05D0\u05D1\u05D2\u05D3\u05D4\u05D5\u05D6\u05D7\u05D8\u05D9\u05DA\u05DB\u05DC\u05DD\u05DE\u05DF",
+        "\u05E0\u05E1\u05E2\u05E3\u05E4\u05E5\u05E6\u05E7\u05E8\u05E9\u05EA\uFFFD\uFFFD\u200E\u200F\uFFFD",
+    )
+
+    private val CP1256 = table(
+        "€\u067E‚ƒ„…†‡ˆ‰\u0679‹Œ\u0686\u0698\u0688",
+        "\u06AF‘’“”•–—\u06A9™\u0691›œ\u200C\u200D\u06BA",
+        "\u00A0،¢£¤¥¦§¨©\u06BE«¬\u00AD®¯",
+        "°±²³´µ¶·¸¹\u061B»¼½¾\u061F",
+        "\u06C1\u0621\u0622\u0623\u0624\u0625\u0626\u0627\u0628\u0629\u062A\u062B\u062C\u062D\u062E\u062F",
+        "\u0630\u0631\u0632\u0633\u0634\u0635\u0636×\u0637\u0638\u0639\u063A\u0640\u0641\u0642\u0643",
+        "à\u0644â\u0645\u0646\u0647\u0648çèéêë\u0649\u064Aîï",
+        "\u064B\u064C\u064D\u064Eô\u064F\u0650÷\u0651ù\u0652ûü\u200E\u200F\u06D2",
+    )
+
+    private val CP1257 = table(
+        "€\uFFFD‚\uFFFD„…†‡\uFFFD‰\uFFFD‹\uFFFD¨ˇ¸",
+        "\uFFFD‘’“”•–—\uFFFD™\uFFFD›\uFFFD¯˛\uFFFD",
+        "\u00A0\uFFFD¢£¤\uFFFD¦§Ø©Ŗ«¬\u00AD®Æ",
+        "°±²³´µ¶·ø¹ŗ»¼½¾æ",
+        "ĄĮĀĆÄÅĘĒČÉŹĖĢĶĪĻ",
+        "ŠŃŅÓŌÕÖ×ŲŁŚŪÜŻŽß",
+        "ąįāćäåęēčéźėģķīļ",
+        "šńņóōõö÷ųłśūüżž˙",
+    )
+
+    private val CP874 = table(
+        "€\uFFFD\uFFFD\uFFFD\uFFFD…\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD",
+        "\uFFFD‘’“”•–—\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD",
+        "\u00A0กขฃคฅฆงจฉชซฌญฎฏ",
+        "ฐฑฒณดตถทธนบปผฝพฟ",
+        "ภมยรฤลฦวศษสหฬอฮฯ",
+        "ะ\u0E31าำ\u0E34\u0E35\u0E36\u0E37\u0E38\u0E39\u0E3A\uFFFD\uFFFD\uFFFD\uFFFD฿",
+        "เแโใไๅๆ\u0E47\u0E48\u0E49\u0E4A\u0E4B\u0E4C\u0E4D\u0E4E๏",
+        "๐๑๒๓๔๕๖๗๘๙๚๛\uFFFD\uFFFD\uFFFD\uFFFD",
+    )
+
+    private val KOI8_U = table(
+        "─│┌┐└┘├┤┬┴┼▀▄█▌▐",
+        "░▒▓⌠■∙√≈≤≥\u00A0⌡°²·÷",
+        "═║╒ёє╔ії╗╘╙╚╛ґ╝╞",
+        "╟╠╡ЁЄ╣ІЇ╦╧╨╩╪Ґ╬©",
+        "юабцдефгхийклмно",
+        "пярстужвьызшэщчъ",
+        "ЮАБЦДЕФГХИЙКЛМНО",
+        "ПЯРСТУЖВЬЫЗШЭЩЧЪ",
+    )
+
     private val LATIN1 = table()
 
     private val DECLARED_ENCODING = Regex("""encoding\s*=\s*["']([A-Za-z0-9._:-]+)["']""")
@@ -747,7 +916,18 @@ object TextDecoding {
                 startsWith(bytes, 0xFE, 0xFF) -> utf16(bytes, 2, littleEndian = false)
                 else -> utf16(bytes, 0, littleEndian = false)
             }
-            else -> singleByte(bytes, tableFor(key) ?: throw IllegalArgumentException("Unsupported charset $charset"))
+            else -> tableFor(key)?.let { singleByte(bytes, it) }
+                ?: multiByteFor(key)?.let { kind -> multiByteTables[kind.table]?.let { multiByte(bytes, kind, it) } }
+                ?: throw IllegalArgumentException("Unsupported charset $charset")
+        }
+    }
+
+    // the tables are files, so decode() can use one only after this call, a failed read leaves the charset unsupported
+    suspend fun load(charsets: Collection<String>) {
+        charsets.mapNotNull { multiByteFor(normalize(it))?.table }.distinct().filter { it !in multiByteTables }.forEach { table ->
+            runCatching { Res.readBytes("files/charsets/$table.bin") }.onSuccess { data ->
+                multiByteTables = multiByteTables + (table to CharArray(data.size / 2) { ((data[2 * it].toInt() and 0xFF) shl 8 or (data[2 * it + 1].toInt() and 0xFF)).toChar() })
+            }
         }
     }
 
@@ -762,6 +942,31 @@ object TextDecoding {
         "iso88591", "latin1", "l1" -> LATIN1
         "cp866", "ibm866" -> CP866
         "ibm437", "cp437" -> CP437
+        "koi8u" -> KOI8_U
+        "iso88594", "latin4", "l4" -> LATIN4
+        "iso88595", "cyrillic" -> ISO_CYRILLIC
+        "iso88596", "arabic" -> ISO_ARABIC
+        "iso88597", "greek" -> ISO_GREEK
+        "iso88598", "iso88598i", "hebrew" -> ISO_HEBREW
+        "iso88599", "latin5", "l5" -> LATIN5
+        "iso885913", "latin7", "l7" -> LATIN7
+        "iso885915", "latin9", "l9" -> LATIN9
+        "windows1253", "cp1253" -> CP1253
+        "windows1254", "cp1254" -> CP1254
+        "windows1255", "cp1255" -> CP1255
+        "windows1256", "cp1256" -> CP1256
+        "windows1257", "cp1257" -> CP1257
+        "windows874", "cp874", "tis620", "xwindows874" -> CP874
+        else -> null
+    }
+
+    private fun multiByteFor(key: String): MultiByte? = when (key) {
+        "gb2312", "gb231280", "gbk", "gb18030", "cp936", "windows936", "euccn", "xeuccn", "xgbk", "csgb2312" -> MultiByte.GBK
+        "shiftjis", "sjis", "xsjis", "mskanji", "windows31j", "cp932", "csshiftjis" -> MultiByte.SHIFT_JIS
+        "eucjp", "xeucjp" -> MultiByte.EUC_JP
+        "iso2022jp", "csiso2022jp" -> MultiByte.ISO_2022_JP
+        "euckr", "ksc5601", "ksc56011987", "ksx1001", "korean", "cp949", "windows949", "xwindows949" -> MultiByte.EUC_KR
+        "big5", "big5hkscs", "cp950", "windows950", "xxbig5", "csbig5" -> MultiByte.BIG5
         else -> null
     }
 
@@ -823,6 +1028,99 @@ object TextDecoding {
     }
 
     private fun singleByte(bytes: ByteArray, table: CharArray): String = CharArray(bytes.size) { table[bytes[it].toInt() and 0xFF] }.concatToString()
+
+    // shortcut: JIS X 0212 in EUC-JP and the four-byte GB18030 forms come out as U+FFFD, add their tables if such mail shows up
+    private fun multiByte(bytes: ByteArray, kind: MultiByte, cells: CharArray): String {
+        if (kind == MultiByte.ISO_2022_JP) return iso2022jp(bytes, cells)
+        val out = StringBuilder(bytes.size)
+        var i = 0
+        while (i < bytes.size) {
+            val lead = bytes[i].toInt() and 0xFF
+            val trail = if (i + 1 < bytes.size) bytes[i + 1].toInt() and 0xFF else -1
+            val narrow = when {
+                lead < 0x80 -> lead.toChar()
+                kind == MultiByte.GBK && lead == 0x80 -> '\u20AC'
+                kind == MultiByte.SHIFT_JIS && lead == 0x80 -> '\u0080'
+                kind == MultiByte.SHIFT_JIS && lead in 0xA1..0xDF -> (0xFF61 + lead - 0xA1).toChar()
+                else -> null
+            }
+            when {
+                narrow != null -> {
+                    out.append(narrow)
+                    i++
+                }
+                kind == MultiByte.EUC_JP && lead == 0x8E && trail in 0xA1..0xDF -> {
+                    out.append((0xFF61 + trail - 0xA1).toChar())
+                    i += 2
+                }
+                kind == MultiByte.EUC_JP && lead == 0x8F -> {
+                    out.append('\uFFFD')
+                    i += 3
+                }
+                kind == MultiByte.GBK && trail in 0x30..0x39 -> {
+                    out.append('\uFFFD')
+                    i += 4
+                }
+                else -> {
+                    val pointer = pointer(kind, lead, trail)
+                    out.append(cells.getOrElse(pointer) { '\uFFFD' })
+                    i += if (pointer < 0 && trail < 0x80) 1 else 2
+                }
+            }
+        }
+        return out.toString()
+    }
+
+    // pointer arithmetic of the WHATWG Encoding Standard, the files are its indexes
+    private fun pointer(kind: MultiByte, lead: Int, trail: Int): Int = when (kind) {
+        MultiByte.GBK -> if (lead in 0x81..0xFE && trail in 0x40..0xFE && trail != 0x7F) (lead - 0x81) * 190 + trail - (if (trail < 0x7F) 0x40 else 0x41) else -1
+        MultiByte.SHIFT_JIS -> if ((lead in 0x81..0x9F || lead in 0xE0..0xFC) && trail in 0x40..0xFC && trail != 0x7F) {
+            (lead - (if (lead < 0xA0) 0x81 else 0xC1)) * 188 + trail - (if (trail < 0x7F) 0x40 else 0x41)
+        } else {
+            -1
+        }
+        MultiByte.EUC_JP -> if (lead in 0xA1..0xFE && trail in 0xA1..0xFE) (lead - 0xA1) * 94 + trail - 0xA1 else -1
+        MultiByte.ISO_2022_JP -> if (lead in 0x21..0x7E && trail in 0x21..0x7E) (lead - 0x21) * 94 + trail - 0x21 else -1
+        MultiByte.EUC_KR -> if (lead in 0x81..0xFE && trail in 0x41..0xFE) (lead - 0x81) * 190 + trail - 0x41 else -1
+        MultiByte.BIG5 -> if (lead in 0x81..0xFE && (trail in 0x40..0x7E || trail in 0xA1..0xFE)) (lead - 0x81) * 157 + trail - (if (trail < 0x7F) 0x40 else 0x62) else -1
+    }
+
+    private fun iso2022jp(bytes: ByteArray, cells: CharArray): String {
+        val out = StringBuilder(bytes.size)
+        var wide = false
+        var kana = false
+        var i = 0
+        while (i < bytes.size) {
+            val b = bytes[i].toInt() and 0xFF
+            val next = bytes.getOrElse(i + 1) { 0 }.toInt() and 0xFF
+            val last = (bytes.getOrElse(i + 2) { 0 }.toInt() and 0xFF).toChar()
+            when {
+                b == 0x1B && next == '$'.code && (last == '@' || last == 'B') -> {
+                    wide = true
+                    kana = false
+                    i += 3
+                }
+                b == 0x1B && next == '('.code && last in "BJI" -> {
+                    wide = false
+                    kana = last == 'I'
+                    i += 3
+                }
+                wide && b >= 0x21 -> {
+                    out.append(cells.getOrElse(pointer(MultiByte.ISO_2022_JP, b, next)) { '\uFFFD' })
+                    i += 2
+                }
+                kana && b in 0x21..0x5F -> {
+                    out.append((0xFF61 + b - 0x21).toChar())
+                    i++
+                }
+                else -> {
+                    out.append(if (b < 0x80) b.toChar() else '\uFFFD')
+                    i++
+                }
+            }
+        }
+        return out.toString()
+    }
 
     private fun utf16(bytes: ByteArray, from: Int, littleEndian: Boolean): String {
         val units = (bytes.size - from) / 2

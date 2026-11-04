@@ -132,6 +132,21 @@ class WifiParseTest {
     }
 
     @Test
+    fun systemProfilerOnMacos27() {
+        val json = """
+            {"SPAirPortDataType":[{"spairport_airport_interfaces":[{"_name":"en0",
+              "spairport_current_network_information":{"_name":"<redacted>","spairport_network_channel":"48 (5GHz, 80MHz)",
+                "spairport_signal_noise":"-52 dBm / -93 dBm"},
+              "spairport_airport_other_local_wireless_networks":[
+                {"_name":"<redacted>","spairport_network_channel":"48 (5GHz, 80MHz)","spairport_signal_noise":"-52 dBm / -93 dBm"},
+                {"_name":"<redacted>","spairport_network_channel":"6 (2GHz, 20MHz)"}]}]}]}
+        """.trimIndent()
+        val point = parseSystemProfiler(json).single()
+        assertTrue(point.connected)
+        assertEquals("", point.ssid)
+    }
+
+    @Test
     fun systemProfiler() {
         val json = """
             {"SPAirPortDataType":[{"spairport_airport_interfaces":[{"_name":"en0",

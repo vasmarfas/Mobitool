@@ -173,9 +173,49 @@ class LicensesTest {
 
     @Test
     fun readsLinesFromReports() {
-        val lines = LicenseCompat.checkList("react: MIT\nleft-pad\tWTFPL\n\nGPL-3.0-only", license("MIT"), false, LicenseUsage.DISTRIBUTE)
+        val lines = LicenseCompat.checkList("react: MIT\nleft-pad\tMystery-1.0\n\nGPL-3.0-only", license("MIT"), false, LicenseUsage.DISTRIBUTE)
         assertEquals(listOf("react", "left-pad", "GPL-3.0-only"), lines.map { it.label })
         assertEquals(listOf(Verdict.YES, Verdict.UNKNOWN, Verdict.NO), lines.map { it.result.verdict })
+    }
+
+    @Test
+    fun namesOfDependencyLicenses() {
+        mapOf(
+            "Artistic-2.0" to "Artistic-2.0", "The Artistic License 2.0" to "Artistic-2.0",
+            "CDDL-1.0" to "CDDL-1.0", "Common Development and Distribution License 1.0" to "CDDL-1.0", "CDDL-1.1" to "CDDL-1.0",
+            "Common Development and Distribution License (CDDL) v1.0" to "CDDL-1.0",
+            "EPL-1.0" to "EPL-1.0", "Eclipse Public License - v 1.0" to "EPL-1.0", "Eclipse Public License 1.0" to "EPL-1.0",
+            "MPL-1.1" to "MPL-1.1", "Mozilla Public License 1.1" to "MPL-1.1",
+            "LGPL-2.0-only" to "LGPL-2.0", "LGPL-2.0-or-later" to "LGPL-2.0", "LGPLv2" to "LGPL-2.0",
+            "Python-2.0" to "Python-2.0", "PSF-2.0" to "Python-2.0", "Python Software Foundation License" to "Python-2.0",
+            "BlueOak-1.0.0" to "BlueOak-1.0.0", "Blue Oak Model License 1.0.0" to "BlueOak-1.0.0",
+            "Unicode-3.0" to "Unicode-3.0", "Unicode-DFS-2016" to "Unicode-3.0",
+            "WTFPL" to "WTFPL", "OpenSSL" to "OpenSSL", "The Apache Software License, Version 2.0" to "Apache-2.0",
+        ).forEach { (name, id) ->
+            assertEquals(id, assertIs<SpdxExpr.Leaf>(LicenseCompat.parse(name), name).ref?.license?.id, name)
+        }
+        assertTrue(Licenses.dependencyOnly.none { it in Licenses.all })
+    }
+
+    // FSF license list: Artistic 2.0, Python 2.0.1+ and WTFPL are GPL-compatible, CDDL, EPL 1.0, MPL 1.1 and the OpenSSL license are not
+    @Test
+    fun rulesForDependencyLicenses() {
+        assertEquals(Verdict.YES, verdict("Artistic-2.0", "GPL-3.0"))
+        assertEquals(Verdict.YES, verdict("Python-2.0", "GPL-2.0"))
+        assertEquals(Verdict.YES, verdict("WTFPL", "GPL-3.0"))
+        assertEquals(Verdict.YES, verdict("BlueOak-1.0.0", "LicenseRef-Proprietary"))
+        assertEquals(Verdict.YES, verdict("Unicode-3.0", "MIT"))
+        assertEquals(Verdict.NO, verdict("CDDL-1.0", "GPL-3.0"))
+        assertEquals(Verdict.NO, verdict("EPL-1.0", "GPL-2.0"))
+        assertEquals(Verdict.NO, verdict("MPL-1.1", "GPL-3.0"))
+        assertEquals(Verdict.CONDITIONS, verdict("CDDL-1.0", "LicenseRef-Proprietary"))
+        assertEquals(Verdict.CONDITIONS, verdict("EPL-1.0", "Apache-2.0"))
+        assertEquals(Verdict.YES, verdict("CDDL-1.0", "GPL-3.0", LicenseUsage.NETWORK))
+        assertEquals(Verdict.NO, verdict("OpenSSL", "GPL-3.0"))
+        assertEquals(Verdict.CONDITIONS, verdict("OpenSSL", "MIT"))
+        assertEquals(Verdict.YES, verdict("LGPL-2.0-only", "GPL-3.0"))
+        assertEquals(Verdict.CONDITIONS, verdict("LGPL-2.0-only", "LicenseRef-Proprietary"))
+        assertEquals(Verdict.YES, verdict("CDDL-1.0 OR GPL-2.0-only", "GPL-2.0"))
     }
 
     @Test

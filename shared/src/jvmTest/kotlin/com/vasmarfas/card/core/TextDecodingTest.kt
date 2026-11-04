@@ -1,10 +1,14 @@
 package com.vasmarfas.card.core
 
+import com.vasmarfas.card.tools.network.EmailHeaders
 import java.nio.charset.Charset
+import kotlin.io.encoding.Base64
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
 
 class TextDecodingTest {
     private val allBytes = ByteArray(256) { it.toByte() }
@@ -30,6 +34,21 @@ class TextDecodingTest {
             "ISO-8859-1" to listOf("iso-8859-1", "ISO8859_1", "latin1", "Latin-1", "l1"),
             "IBM866" to listOf("cp866", "IBM866"),
             "IBM437" to listOf("ibm437", "cp437", "IBM437"),
+            "KOI8-U" to listOf("koi8-u"),
+            "ISO-8859-4" to listOf("iso-8859-4", "latin4"),
+            "ISO-8859-5" to listOf("iso-8859-5", "ISO_8859-5", "cyrillic"),
+            "ISO-8859-6" to listOf("iso-8859-6", "arabic"),
+            "ISO-8859-7" to listOf("iso-8859-7", "greek"),
+            "ISO-8859-8" to listOf("iso-8859-8", "iso-8859-8-i", "hebrew"),
+            "ISO-8859-9" to listOf("iso-8859-9", "latin5"),
+            "ISO-8859-13" to listOf("iso-8859-13", "latin7"),
+            "ISO-8859-15" to listOf("iso-8859-15", "latin9", "Latin-9"),
+            "windows-1253" to listOf("windows-1253", "cp1253"),
+            "windows-1254" to listOf("windows-1254", "cp1254"),
+            "windows-1255" to listOf("windows-1255", "cp1255"),
+            "windows-1256" to listOf("windows-1256", "cp1256"),
+            "windows-1257" to listOf("windows-1257", "cp1257"),
+            "x-windows-874" to listOf("windows-874", "cp874", "tis-620"),
         )
         val sample = Random(1).nextBytes(10_000)
         for ((jdkName, names) in aliases) {
@@ -42,6 +61,56 @@ class TextDecodingTest {
     }
 
     @Test
+    fun multiByteTablesMatchJdk() = runBlocking {
+        val names = mapOf("gbk" to "GB18030", "shift_jis" to "windows-31j", "euc-kr" to "x-windows-949", "big5" to "Big5-HKSCS")
+        val allowed = mapOf("gbk" to 1, "shift_jis" to 0, "euc-kr" to 0, "big5" to 20)
+        TextDecoding.load(names.keys)
+        for ((name, jdkName) in names) {
+            val charset = Charset.forName(jdkName)
+            var compared = 0
+            var different = 0
+            for (lead in 0x81..0xFE) for (trail in 0x40..0xFE) {
+                val bytes = byteArrayOf(lead.toByte(), trail.toByte())
+                val ours = TextDecoding.decode(bytes, name)
+                val jdk = String(bytes, charset)
+                if (ours.length != 1 || jdk.length != 1 || ours == "\uFFFD" || jdk == "\uFFFD") continue
+                compared++
+                if (ours != jdk) different++
+            }
+            assertTrue(compared > 7000, "$name: $compared")
+            assertTrue(different <= allowed.getValue(name), "$name: $different")
+        }
+    }
+
+    @Test
+    fun multiByteTextRoundTrips() = runBlocking {
+        val texts = mapOf(
+            "GBK" to "邮件主题，中文测试 abc",
+            "GB2312" to "邮件主题，中文测试 abc",
+            "Shift_JIS" to "メールの件名、日本語テスト ｱｲｳ abc",
+            "EUC-JP" to "メールの件名、日本語テスト ｱｲｳ abc",
+            "ISO-2022-JP" to "メールの件名、日本語 abc テスト",
+            "EUC-KR" to "메일 제목 한국어 시험 abc",
+            "Big5" to "郵件主題，繁體中文 abc",
+        )
+        TextDecoding.load(texts.keys)
+        texts.forEach { (name, text) -> assertEquals(text, TextDecoding.decode(text.toByteArray(Charset.forName(name)), name), name) }
+        assertEquals("a\uFFFD b", TextDecoding.decode(byteArrayOf(0x61, 0x81.toByte(), 0x20, 0x62), "euc-kr"))
+    }
+
+    @Test
+    fun mailDecodesWordsAndBodiesInMultiByteCharsets() = runBlocking {
+        fun word(charset: String, text: String) = "=?$charset?B?" + Base64.encode(text.toByteArray(Charset.forName(charset))) + "?="
+        val mail = "From: " + word("GB2312", "张三") + " <a@example.com>\r\n" +
+            "Subject: " + word("ISO-2022-JP", "テスト") + " " + word("ISO-8859-5", "Привет") + "\r\n" +
+            "Content-Type: text/plain; charset=Shift_JIS\r\nContent-Transfer-Encoding: 8bit\r\n\r\n"
+        val message = EmailHeaders.read(mail.encodeToByteArray() + "日本語の本文".toByteArray(Charset.forName("Shift_JIS")))
+        assertEquals("张三 <a@example.com>", message.header("From"))
+        assertEquals("テストПривет", message.header("Subject"))
+        assertEquals("日本語の本文", message.text)
+    }
+
+    @Test
     fun unicodeEncodingsMatchJdk() {
         assertEquals(mixed, TextDecoding.decode(mixed.toByteArray(Charsets.UTF_8), "utf-8"))
         assertEquals(mixed, TextDecoding.decode(mixed.toByteArray(Charsets.UTF_8), "UTF8"))
@@ -51,7 +120,7 @@ class TextDecodingTest {
         assertEquals(mixed, TextDecoding.decode(byteArrayOf(0xFF.toByte(), 0xFE.toByte()) + mixed.toByteArray(Charsets.UTF_16LE), "utf-16"))
         assertEquals(mixed, TextDecoding.decode(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + mixed.toByteArray(Charsets.UTF_8), "utf-8"))
         assertEquals("a\uFFFD", TextDecoding.decode(byteArrayOf(0x61, 0x00, 0x62), "utf-16le"))
-        assertFailsWith<IllegalArgumentException> { TextDecoding.decode(allBytes, "gb2312") }
+        assertFailsWith<IllegalArgumentException> { TextDecoding.decode(allBytes, "x-unknown") }
     }
 
     @Test

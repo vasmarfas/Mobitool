@@ -1,5 +1,6 @@
 package com.vasmarfas.card.tools.developer
 
+import com.vasmarfas.card.core.Lang
 import com.vasmarfas.card.resources.*
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -18,6 +19,17 @@ class LicenseFilesTest {
             if (license.family != LicenseFamily.PROPRIETARY) {
                 assertEquals(Regex("\\S+").findAll(text).count(), license.words, license.id)
             }
+        }
+    }
+
+    @Test
+    fun russianTextsExistForTheCreativeCommons40Licenses() {
+        val russian = Licenses.all.filter { LicenseTexts.readerFile(it, Lang.RU) != it.file }
+        assertEquals(setOf("CC-BY-4.0", "CC-BY-SA-4.0", "CC-BY-ND-4.0", "CC-BY-NC-4.0", "CC-BY-NC-SA-4.0", "CC-BY-NC-ND-4.0"), russian.map { it.id }.toSet())
+        russian.forEach { license ->
+            val text = read("files/licenses/${LicenseTexts.readerFile(license, Lang.RU)}")
+            assertTrue("Лицензиар" in text && "Раздел 8" in text, license.id)
+            assertEquals(license.file, LicenseTexts.readerFile(license, Lang.EN))
         }
     }
 

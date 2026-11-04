@@ -44,9 +44,12 @@ suspend fun decodeImage(bytes: ByteArray, maxSide: Int = 0): ImageBitmap? {
         val bitmap = it.bitmap.limitedTo(maxSide)
         return if (it.oriented) bitmap else bitmap.oriented(Exif.orientation(bytes))
     }
-    if (ImageMetadata.detect(bytes) != ImageContainer.TIFF) return null
-    val tiff = runCatching { Tiff.decode(bytes) }.getOrNull() ?: return null
-    return imageBitmapOf(tiff.pixels, tiff.width, tiff.height).limitedTo(maxSide)
+    val image = when (ImageMetadata.detect(bytes)) {
+        ImageContainer.TIFF -> runCatching { Tiff.decode(bytes) }.getOrNull()
+        ImageContainer.UNKNOWN -> Tga.decode(bytes)
+        else -> null
+    } ?: return null
+    return imageBitmapOf(image.pixels, image.width, image.height).limitedTo(maxSide)
 }
 
 enum class ImageTarget(val title: String, val extension: String, val lossy: Boolean, val transparent: Boolean) {
@@ -119,12 +122,15 @@ private fun encodeStep(image: ImageBitmap, target: ImageTarget, step: Int): Byte
     else -> image.encode(EncodedFormat.JPEG, step)
 }
 
-private fun squared(image: ImageBitmap, side: Int): ImageBitmap {
-    val scale = side.toDouble() / max(image.width, image.height)
-    val w = (image.width * scale).roundToInt().coerceIn(1, side)
-    val h = (image.height * scale).roundToInt().coerceIn(1, side)
+internal fun squared(image: ImageBitmap, side: Int, content: Int = side, background: Color? = null): ImageBitmap {
+    val scale = content.toDouble() / max(image.width, image.height)
+    val w = (image.width * scale).roundToInt().coerceAtLeast(1)
+    val h = (image.height * scale).roundToInt().coerceAtLeast(1)
     val out = ImageBitmap(side, side)
-    Canvas(out).drawImage(image.scaled(w, h), Offset(((side - w) / 2).toFloat(), ((side - h) / 2).toFloat()), Paint())
+    Canvas(out).apply {
+        if (background != null) drawRect(0f, 0f, side.toFloat(), side.toFloat(), Paint().apply { color = background })
+        drawImage(image.scaled(w, h), Offset(((side - w) / 2).toFloat(), ((side - h) / 2).toFloat()), Paint())
+    }
     return out
 }
 

@@ -17,10 +17,12 @@ import com.vasmarfas.card.tools.ToolCategory
 import com.vasmarfas.card.ui.components.AnswerCard
 import com.vasmarfas.card.ui.components.ChoiceChips
 import com.vasmarfas.card.ui.components.ErrorText
+import com.vasmarfas.card.ui.components.Hint
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.MonoTable
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
+import com.vasmarfas.card.ui.components.SwitchRow
 import com.vasmarfas.card.ui.components.ToolSection
 import org.jetbrains.compose.resources.stringResource
 
@@ -32,7 +34,10 @@ val compoundInterestTool = Tool(
     title = Res.string.compound_interest,
     description = Res.string.compound_interest_description,
     icon = Icons.AutoMirrored.Filled.TrendingUp,
-    keywords = listOf("deposit", "investment", "savings", "capitalization", "interest", "вклад", "инвестиции", "капитализация", "накопления", "проценты"),
+    keywords = listOf(
+        "deposit", "investment", "savings", "capitalization", "interest", "deposit tax",
+        "вклад", "инвестиции", "капитализация", "накопления", "проценты", "налог на вклады", "ндфл", "ключевая ставка",
+    ),
 ) { CompoundInterestScreen() }
 
 @Composable
@@ -42,6 +47,10 @@ private fun CompoundInterestScreen() {
     var yearsText by rememberSaveable { mutableStateOf("10") }
     var contributionText by rememberSaveable { mutableStateOf("5000") }
     var compounding by rememberSaveable { mutableStateOf(Compounding.MONTHLY) }
+    var taxed by rememberSaveable { mutableStateOf(false) }
+    var keyRateText by rememberSaveable { mutableStateOf(DepositTax.DEFAULT_KEY_RATE.fmt(2)) }
+    var limitText by rememberSaveable { mutableStateOf(DepositTax.limit(DepositTax.DEFAULT_KEY_RATE).fmt(0)) }
+    val limit = limitText.toDoubleLenient()?.takeIf { it >= 0 }
     val principal = principalText.toDoubleLenient()?.takeIf { it >= 0 }
     val rate = rateText.toDoubleLenient()
     val years = yearsText.trim().toIntOrNull()?.takeIf { it >= 1 }
@@ -77,6 +86,31 @@ private fun CompoundInterestScreen() {
         onSelect = { compounding = it },
         label = { it.title.str() },
     )
+    SwitchRow(
+        label = Res.string.deposit_tax.str(),
+        checked = taxed,
+        onCheckedChange = { taxed = it },
+    )
+    if (taxed) {
+        NumberField(
+            value = keyRateText,
+            onValueChange = { text ->
+                keyRateText = text
+                text.toDoubleLenient()?.let { limitText = DepositTax.limit(it).fmt(0) }
+            },
+            label = Res.string.deposit_tax_key_rate.str(),
+            suffix = "%",
+            isError = keyRateText.isNotBlank() && keyRateText.toDoubleLenient() == null,
+        )
+        NumberField(
+            value = limitText,
+            onValueChange = { limitText = it },
+            label = Res.string.deposit_tax_limit.str(),
+            suffix = "₽",
+            isError = limit == null,
+        )
+        Hint(Res.string.deposit_tax_hint.str())
+    }
     if (years != null && years > MAX_YEARS) {
         ErrorText(stringResource(Res.string.compound_term_limit, MAX_YEARS))
     } else if (principal != null && rate != null && years != null && contribution != null) {
@@ -84,6 +118,7 @@ private fun CompoundInterestScreen() {
             CompoundInterest.grow(principal, rate, years, compounding, contribution)
         }
         val last = rows.last()
+        val tax = if (taxed && limit != null) remember(rows, limit) { DepositTax.byYear(rows, limit) } else null
         AnswerCard(last.balance.fmt(2, grouping = true), Res.string.final_balance.str(), copyValue = last.balance.fmt(2))
         ResultCard {
             KeyValueRow(Res.string.total_contributed.str(), last.contributed.fmt(2, grouping = true))
@@ -93,11 +128,21 @@ private fun CompoundInterestScreen() {
                 if (last.contributed == 0.0) "—" else stringResource(Res.string.percent_value, (last.interest / last.contributed * 100).fmt(1)),
                 copyable = false,
             )
+            if (tax != null) {
+                KeyValueRow(Res.string.deposit_tax_total.str(), tax.sum().fmt(2, grouping = true))
+                KeyValueRow(Res.string.deposit_tax_net.str(), (last.balance - tax.sum()).fmt(2, grouping = true))
+            }
         }
         ToolSection(Res.string.by_year.str()) {
+            val taxTitle = Res.string.salary_tax.str()
             MonoTable(
-                listOf(yearLine(Res.string.year.str(), Res.string.contributed.str(), Res.string.interest.str(), Res.string.balance.str())) +
-                    rows.map { yearLine(it.year.toString(), it.contributed.fmt(2), it.interest.fmt(2), it.balance.fmt(2)) },
+                listOf(
+                    yearLine(Res.string.year.str(), Res.string.contributed.str(), Res.string.interest.str(), Res.string.balance.str()) +
+                        if (tax != null) taxTitle.padStart(14) else "",
+                ) + rows.mapIndexed { i, row ->
+                    yearLine(row.year.toString(), row.contributed.fmt(2), row.interest.fmt(2), row.balance.fmt(2)) +
+                        if (tax != null) tax[i].fmt(2).padStart(14) else ""
+                },
             )
         }
     }

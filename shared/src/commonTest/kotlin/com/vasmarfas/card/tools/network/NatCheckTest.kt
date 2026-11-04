@@ -33,6 +33,11 @@ class NatCheckTest {
         assertEquals(listOf(0, 2, 0, 0, 0x9C, 0x40, 0x9C, 0x40, 0, 0, 2, 0x58), NatPmp.mapRequest(40000, 40000, 600).map { it.toInt() and 0xFF })
         assertEquals(40001, NatPmp.mappedPort(bytes(0, 130, 0, 0, 0, 0, 1, 0, 0x9C, 0x40, 0x9C, 0x41, 0, 0, 2, 0x58)))
         assertNull(NatPmp.mappedPort(bytes(0, 130, 0, 2, 0, 0, 1, 0, 0x9C, 0x40, 0, 0, 0, 0, 0, 0)))
+        // RFC 6886: opcode 1 is UDP and its response opcode 129
+        assertEquals(listOf(0, 1, 0, 0, 0x9C, 0x40, 0x9C, 0x40, 0, 0, 2, 0x58), NatPmp.mapRequest(40000, 40000, 600, udp = true).map { it.toInt() and 0xFF })
+        assertEquals(listOf(0, 1, 0, 0, 0x9C, 0x40, 0, 0, 0, 0, 0, 0), NatPmp.mapRequest(40000, 0, 0, udp = true).map { it.toInt() and 0xFF })
+        assertEquals(40002, NatPmp.mappedPort(bytes(0, 129, 0, 0, 0, 0, 1, 0, 0x9C, 0x40, 0x9C, 0x42, 0, 0, 2, 0x58)))
+        assertNull(NatPmp.mappedPort(bytes(0, 128, 0, 0, 0, 0, 1, 0, 0x9C, 0x40, 0x9C, 0x42, 0, 0, 2, 0x58)))
     }
 
     @Test

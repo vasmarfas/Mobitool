@@ -24,20 +24,24 @@ import com.vasmarfas.card.core.MediaProject
 import com.vasmarfas.card.core.MediaResult
 import com.vasmarfas.card.core.MediaSpec
 import com.vasmarfas.card.core.PickKind
+import com.vasmarfas.card.core.PlatformKind
 import com.vasmarfas.card.core.PreviewState
 import com.vasmarfas.card.core.VideoQuality
+import com.vasmarfas.card.core.currentPlatform
 import com.vasmarfas.card.core.discard
 import com.vasmarfas.card.core.formatBytes
 import com.vasmarfas.card.core.renamed
 import com.vasmarfas.card.core.save
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.core.toDoubleLenient
+import com.vasmarfas.card.core.videoBitrate
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
 import com.vasmarfas.card.ui.components.ActionButton
 import com.vasmarfas.card.ui.components.ChoiceChips
 import com.vasmarfas.card.ui.components.ErrorText
+import com.vasmarfas.card.ui.components.Hint
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.NumberField
 import com.vasmarfas.card.ui.components.ResultCard
@@ -48,6 +52,7 @@ import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.size
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 
 val videoConverterTool = Tool(
     id = "video-converter",
@@ -56,8 +61,9 @@ val videoConverterTool = Tool(
     description = Res.string.video_converter_description,
     icon = Icons.Filled.VideoFile,
     keywords = listOf(
-        "video", "convert", "mp4", "mkv", "avi", "mov", "webm", "compress", "extract audio", "mp3", "resize",
-        "видео", "конвертер", "сжать видео", "звук из видео", "перекодировать", "уменьшить видео",
+        "video", "convert", "mp4", "mkv", "avi", "mov", "webm", "compress", "extract audio", "mp3", "resize", "file size", "bitrate",
+        "whatsapp", "discord", "видео", "конвертер", "сжать видео", "звук из видео", "перекодировать", "уменьшить видео",
+        "размер файла", "битрейт", "видео для ватсап",
     ),
 ) { VideoConverterScreen() }
 
@@ -71,6 +77,36 @@ internal fun MediaInfoRows(file: PlatformFile, info: MediaInfo) {
     val codecs = listOfNotNull(info.videoCodec, info.audioCodec?.let { codec -> codec + if (info.sampleRate > 0) " · ${info.sampleRate} ${Res.string.unit_hz.str()}" else "" })
     if (codecs.isNotEmpty()) KeyValueRow(Res.string.codecs.str(), codecs.joinToString(" / "), copyable = false)
     KeyValueRow(Res.string.size.str(), formatBytes(file.size(), binary = false), copyable = false)
+}
+
+@Composable
+private fun sizePresetLabel(megabytes: Int): String {
+    val size = "$megabytes ${Res.string.unit_mb.str()}"
+    return when (megabytes) {
+        10 -> "$size · Discord"
+        16 -> "$size · WhatsApp"
+        25 -> "$size · ${Res.string.video_converter_preset_mail.str()}"
+        else -> size
+    }
+}
+
+@Composable
+private fun BitrateEstimate(spec: MediaSpec, info: MediaInfo, durationMs: Long) {
+    val (width, height) = spec.frameSize(info)
+    val fps = spec.frameRate(info)
+    val video = spec.videoBitrate(width, height, fps, durationMs)
+    val expected = spec.expectedBytes(video, durationMs)
+    val kbps = Res.string.unit_kbit_s.str()
+    ResultCard(title = Res.string.video_converter_estimate.str()) {
+        KeyValueRow(Res.string.video_converter_video_rate.str(), "${video / 1000} $kbps", copyable = false)
+        if (spec.keepAudio) KeyValueRow(Res.string.video_converter_audio_rate.str(), "${spec.audioBitrateKbps} $kbps", copyable = false)
+        KeyValueRow(Res.string.video_converter_expected_size.str(), formatBytes(expected, binary = false), copyable = false)
+    }
+    if (spec.targetBytes > 0 && expected > spec.targetBytes) {
+        ErrorText(stringResource(Res.string.video_converter_size_unreachable, formatBytes(expected, binary = false)))
+    } else if (spec.targetBytes > 0 && blockyBitrate(video, width, height, fps)) {
+        Hint(Res.string.video_converter_low_bitrate.str())
+    }
 }
 
 @Composable
@@ -92,6 +128,7 @@ private fun VideoConverterScreen() {
     var audioKbps by rememberSaveable { mutableStateOf(192) }
     var range by remember { mutableStateOf(0f..1f) }
     var result by remember { mutableStateOf<MediaResult?>(null) }
+    var goalBytes by remember { mutableStateOf(0L) }
     val task = remember { TaskState() }
     DisposableEffect(Unit) { onDispose { result?.discard() } }
 
@@ -119,6 +156,7 @@ private fun VideoConverterScreen() {
 
     val formats = MediaFormat.entries.filter { it in MediaEngine.formats && (probed.hasVideo || !it.video) }
     val target = if (format in formats) format else formats.first()
+    val bitrateApplies = currentPlatform != PlatformKind.IOS
     ToolSection(Res.string.format.str()) {
         ChoiceChips(options = formats, selected = target, onSelect = { format = it }, label = { it.extension.uppercase() })
     }
@@ -153,6 +191,14 @@ private fun VideoConverterScreen() {
             }
             SwitchRow(Res.string.limit_file_size.str(), limit, { limit = it })
             if (limit) {
+                if (bitrateApplies) {
+                    ChoiceChips(
+                        options = videoSizePresets,
+                        selected = limitMb.toIntOrNull(),
+                        onSelect = { limitMb = it.toString() },
+                        label = { sizePresetLabel(it) },
+                    )
+                }
                 NumberField(limitMb, { limitMb = it }, Res.string.target_size.str(), suffix = Res.string.unit_mb.str())
             } else {
                 SegmentedChoice(
@@ -176,6 +222,32 @@ private fun VideoConverterScreen() {
         player.seek((moved * probed.durationMs).toLong())
     }
 
+    val start = (range.start * probed.durationMs).toLong()
+    val end = (range.endInclusive * probed.durationMs).toLong().coerceAtLeast(start + 100)
+    val landscape = probed.width >= probed.height
+    val custom = height == -1
+    val requested = MediaSpec(
+        format = target,
+        width = when {
+            custom -> (customWidth.toIntOrNull() ?: probed.width).coerceIn(16, 7680) / 2 * 2
+            height > 0 && !landscape -> height
+            else -> 0
+        },
+        height = when {
+            custom -> (customHeight.toIntOrNull() ?: probed.height).coerceIn(16, 7680) / 2 * 2
+            height > 0 && landscape -> height
+            else -> 0
+        },
+        quality = quality,
+        targetBytes = if (limit) ((limitMb.toDoubleLenient() ?: 0.0) * 1_000_000).toLong() else 0,
+        audioBitrateKbps = audioKbps,
+        keepAudio = probed.hasAudio && !(target.video && mute),
+        copyStreams = copy && target.video,
+    )
+    val sized = requested.targetBytes > 0 && target.video
+    val spec = if (sized) requested.copy(audioBitrateKbps = requested.fittedAudioKbps(end - start)) else requested
+    if (bitrateApplies && target.video && !copy) BitrateEstimate(spec, probed, end - start)
+
     ActionButton(
         text = Res.string.convert.str(),
         icon = Icons.Filled.Movie,
@@ -183,28 +255,7 @@ private fun VideoConverterScreen() {
         onClick = {
             result?.discard()
             result = null
-            val start = (range.start * probed.durationMs).toLong()
-            val end = (range.endInclusive * probed.durationMs).toLong().coerceAtLeast(start + 100)
-            val landscape = probed.width >= probed.height
-            val custom = height == -1
-            val spec = MediaSpec(
-                format = target,
-                width = when {
-                    custom -> (customWidth.toIntOrNull() ?: probed.width).coerceIn(16, 7680) / 2 * 2
-                    height > 0 && !landscape -> height
-                    else -> 0
-                },
-                height = when {
-                    custom -> (customHeight.toIntOrNull() ?: probed.height).coerceIn(16, 7680) / 2 * 2
-                    height > 0 && landscape -> height
-                    else -> 0
-                },
-                quality = quality,
-                targetBytes = if (limit) ((limitMb.toDoubleLenient() ?: 0.0) * 1_000_000).toLong() else 0,
-                audioBitrateKbps = audioKbps,
-                keepAudio = probed.hasAudio && !(target.video && mute),
-                copyStreams = copy && target.video,
-            )
+            goalBytes = if (sized && !copy) spec.targetBytes else 0
             task.launch(scope) { progress ->
                 result = MediaEngine.export(MediaProject(MediaClip(source, ClipKind.VIDEO, start, end), spec), progress)
             }
@@ -215,6 +266,7 @@ private fun VideoConverterScreen() {
         ResultCard(title = Res.string.result.str()) {
             if (target.video) ResultPreview(output, renamed(source.name, target.extension))
             SizeChange(source.size(), output.size)
+            if (goalBytes in 1 until output.size) Hint(Res.string.video_converter_over_target.str())
             SaveButton { output.save(renamed(source.name, target.extension)) }
         }
     }

@@ -326,7 +326,7 @@ internal fun FormPanel(session: EditorSession) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(label + if (field.required) " *" else "", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (pageIndex >= 0) TextButton(onClick = { session.current = pageIndex }) { Text(stringResource(Res.string.pdf_edit_page_number, pageIndex + 1)) }
+                if (pageIndex >= 0) TextButton(onClick = { session.current = pageIndex }) { Text(stringResource(Res.string.page_number, pageIndex + 1)) }
             }
             when (field.kind) {
                 FieldKind.TEXT -> ToolInputField(
@@ -400,7 +400,7 @@ internal fun OutlinePanel(session: EditorSession) {
             Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
                 Text(row.item.title.ifEmpty { "…" }, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
-                    if (index >= 0) stringResource(Res.string.pdf_edit_page_number, index + 1) else Res.string.pdf_edit_bookmark_no_page.str(),
+                    if (index >= 0) stringResource(Res.string.page_number, index + 1) else Res.string.pdf_edit_bookmark_no_page.str(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -417,7 +417,7 @@ internal fun OutlinePanel(session: EditorSession) {
         }
     }
     if (adding) {
-        val initial = stringResource(Res.string.pdf_edit_page_number, session.current + 1)
+        val initial = stringResource(Res.string.page_number, session.current + 1)
         TitleDialog(initial, onDismiss = { adding = false }) { title ->
             session.commit(session.edit.copy(outline = outline + OutlineItem(title, session.page.id)))
             adding = false
@@ -481,7 +481,7 @@ internal fun DocumentPanel(session: EditorSession, save: EditorSaveOptions, onSa
             fun set(next: Watermark, typing: Boolean = false) = if (typing) session.type("watermark", session.edit.copy(watermark = next)) else session.commit(session.edit.copy(watermark = next))
             ToolInputField(value = watermark.text, onValueChange = { set(watermark.copy(text = it), typing = true) }, label = Res.string.text.str())
             LabeledSlider(Res.string.font_size.str(), "${watermark.size.toDouble().fmt(0)} ${Res.string.unit_point.str()}", watermark.size, 16f..140f) { set(watermark.copy(size = it.toInt().toFloat())) }
-            LabeledSlider(Res.string.pdf_edit_opacity.str(), "${(watermark.opacity * 100).toInt()} %", watermark.opacity, 0.05f..1f) { set(watermark.copy(opacity = it)) }
+            LabeledSlider(Res.string.opacity.str(), "${(watermark.opacity * 100).toInt()} %", watermark.opacity, 0.05f..1f) { set(watermark.copy(opacity = it)) }
             ChoiceChips(options = listOf(0, 30, 45, 60, 90), selected = watermark.angle, onSelect = { set(watermark.copy(angle = it)) }, label = { "$it°" })
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 ColorDots(listOf(0xFFC62828, 0xFF1565C0, 0xFF757575, 0xFF000000, 0xFF2E7D32).map { it.toInt() }, watermark.color) { set(watermark.copy(color = it)) }
@@ -528,9 +528,9 @@ private fun positionLabel(position: NumberPosition): String = when (position) {
 
 @Composable
 internal fun qualityLabel(quality: ImageQuality): String = when (quality) {
-    ImageQuality.HIGH -> Res.string.pdf_edit_quality_high.str()
-    ImageQuality.MEDIUM -> Res.string.pdf_edit_quality_medium.str()
-    ImageQuality.LOW -> Res.string.pdf_edit_quality_low.str()
+    ImageQuality.HIGH -> Res.string.quality_high.str()
+    ImageQuality.MEDIUM -> Res.string.quality_medium.str()
+    ImageQuality.LOW -> Res.string.quality_low.str()
 }
 
 @Composable

@@ -6,6 +6,7 @@ val designTools: List<Tool> = listOf(
     qrGeneratorTool,
     colorConverterTool,
     imagePaletteTool,
+    appIconsTool,
     gradientGeneratorTool,
     barcodeGeneratorTool,
     contrastCheckerTool,

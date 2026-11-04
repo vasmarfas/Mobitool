@@ -1,6 +1,6 @@
 Required Notice: Copyright 2026 vasmarfas
 
-This file supplements [LICENSE](LICENSE), which is the unmodified PolyForm Strict License 1.0.0. Where the two disagree, LICENSE controls. This file adds the required copyright notice, a short summary of the license and a branding restriction that a copyright license does not cover on its own.
+This file supplements [LICENSE](LICENSE), which is the unmodified PolyForm Strict License 1.0.0. Where the two disagree, LICENSE controls. This file adds the required copyright notice, a short summary of the license, a permission for contributors that goes beyond LICENSE and a branding restriction that a copyright license does not cover on its own.
 
 ## What the license allows
 
@@ -9,7 +9,7 @@ The summary below is for convenience, the binding terms are in [LICENSE](LICENSE
 This is a personal site and a personal app. The source is published so that it can be read, audited and learned from, not reused. PolyForm Strict grants use for noncommercial purposes and nothing else.
 
 - You may read the code, run the official builds and run your own local build for personal study or experiment.
-- You may not change the software or build anything on top of it. That includes patches you keep to yourself, translated forks, re-themed versions and copying parts of this code into another project.
+- You may not change the software or build anything on top of it, apart from the contributor permission below. That includes patches you keep to yourself, translated forks, re-themed versions and copying parts of this code into another project.
 - You may not distribute the software, modified or not. Only the maintainer publishes builds.
 - You may not use it commercially.
 
@@ -17,7 +17,7 @@ Anything beyond that needs a separate written agreement with the copyright holde
 
 ## Contributing
 
-Pull requests are welcome. Forking [github.com/vasmarfas/mobitool](https://github.com/vasmarfas/mobitool) on GitHub to prepare one is the normal way to contribute, and this notice does not restrict it: keep the fork while you work toward a pull request and sync it with upstream. You may not keep a fork as an independent product, that is publish it, promote it or ship it to anyone.
+Pull requests are welcome. The copyright holder gives this permission in addition to LICENSE: you may fork [github.com/vasmarfas/mobitool](https://github.com/vasmarfas/mobitool) on GitHub, change the code in that fork and build it, only to prepare and submit a pull request or a patch to that repository. Keep the fork while you work toward a pull request and sync it with upstream. The permission covers nothing else. You may not keep a fork as an independent product, that is publish it, promote it or ship it to anyone.
 
 By submitting a contribution you agree that it becomes part of this project on the same basis as the rest of the code, and that the maintainer may use it in published builds without the license restricting the maintainer's own use of the combined work.
 

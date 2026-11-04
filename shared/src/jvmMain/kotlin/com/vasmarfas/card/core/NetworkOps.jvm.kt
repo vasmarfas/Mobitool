@@ -245,8 +245,8 @@ internal fun parseNmcli(text: String): List<WifiAccessPoint> = text.lines().mapN
     )
 }
 
-// shortcut: system_profiler names no BSSID and needs location access for SSIDs since macOS 14.4,
-// a CoreWLAN bridge would lift both
+// shortcut: system_profiler names no BSSID, needs location access for SSIDs since macOS 14.4 and on macOS 27 gives a signal
+// only for the current network, a CoreWLAN bridge would lift all three
 internal fun parseSystemProfiler(json: String): List<WifiAccessPoint> = runCatching {
     fun JsonObject.text(key: String) = (this[key] as? JsonPrimitive)?.content.orEmpty()
     fun point(network: JsonObject, connected: Boolean): WifiAccessPoint? {
@@ -255,7 +255,7 @@ internal fun parseSystemProfiler(json: String): List<WifiAccessPoint> = runCatch
         val details = channel.substringAfter('(', "").substringBefore(')').split(',').map { it.trim() }
         val band = bandOf(details.firstOrNull().orEmpty().replace("GHz", " GHz"), number)
         val rssi = network.text("spairport_signal_noise").substringBefore(" dBm").trim().toIntOrNull() ?: return null
-        val name = network.text("_name")
+        val name = network.text("_name").takeUnless { it == "<redacted>" }.orEmpty()
         return WifiAccessPoint(
             ssid = name,
             bssid = "$name/$number",
@@ -281,7 +281,7 @@ internal fun parseSystemProfiler(json: String): List<WifiAccessPoint> = runCatch
     interfaces.filterIsInstance<JsonObject>().flatMap { nif ->
         listOfNotNull((nif["spairport_current_network_information"] as? JsonObject)?.let { point(it, true) }) +
             (nif["spairport_airport_other_local_wireless_networks"] as? JsonArray).orEmpty().filterIsInstance<JsonObject>().mapNotNull { point(it, false) }
-    }
+    }.distinctBy { it.bssid }
 }.getOrDefault(emptyList())
 
 actual suspend fun cellReadings(): CellScan = CellScan(emptyList(), CellProblem.UNSUPPORTED)

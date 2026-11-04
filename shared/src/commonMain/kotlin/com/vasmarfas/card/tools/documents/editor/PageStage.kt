@@ -73,6 +73,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -316,24 +317,28 @@ private fun InlineText(session: EditorSession, input: StageInput, mark: TextMark
     val rect = toScreen.rect(mark.box)
     val bounds = Rect(rect.topLeft, Size(max(rect.width, 48f), max(rect.height, (mark.size * scale * 1.4).toFloat())))
     val focus = remember(mark.id) { FocusRequester() }
-    var text by remember(mark.id) { mutableStateOf(mark.text) }
-    var spans by remember(mark.id, mark.spans) { mutableStateOf(mark.withText(text).spans) }
+    var value by remember(mark.id) { mutableStateOf(TextFieldValue(mark.text)) }
+    var spans by remember(mark.id, mark.spans) { mutableStateOf(mark.withText(value.text).spans) }
     var focused by remember(mark.id) { mutableStateOf(false) }
     LaunchedEffect(mark.id) { runCatching { focus.requestFocus() } }
     SideEffect { input.textBounds = bounds }
     DisposableEffect(mark.id) {
         onDispose {
             input.textBounds = null
-            input.finishText(mark.id, text, spans)
+            session.textRange = null
+            input.finishText(mark.id, value.text, spans)
         }
     }
     BasicTextField(
-        value = text,
-        onValueChange = {
-            val next = mark.copy(text = text, spans = spans).withText(it)
-            text = it
-            spans = next.spans
-            session.preview = next
+        value = value,
+        onValueChange = { next ->
+            if (next.text != value.text) {
+                val changed = mark.copy(text = value.text, spans = spans).withText(next.text)
+                spans = changed.spans
+                session.preview = changed
+            }
+            value = next
+            session.textRange = next.selection.takeUnless { it.collapsed }
         },
         textStyle = TextStyle(
             color = Color(mark.color),
@@ -341,7 +346,7 @@ private fun InlineText(session: EditorSession, input: StageInput, mark: TextMark
             fontWeight = if (mark.bold) FontWeight.Bold else FontWeight.Normal,
             fontStyle = if (mark.italic) FontStyle.Italic else FontStyle.Normal,
         ),
-        visualTransformation = { value -> TransformedText(styled(value.text, spans), OffsetMapping.Identity) },
+        visualTransformation = { TransformedText(styled(it.text, spans), OffsetMapping.Identity) },
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         modifier = Modifier
             .offset { IntOffset(bounds.left.roundToInt(), bounds.top.roundToInt()) }
@@ -351,7 +356,7 @@ private fun InlineText(session: EditorSession, input: StageInput, mark: TextMark
             .padding(with(density) { (mark.size * scale * 0.2).toFloat().toDp() })
             .focusRequester(focus)
             .onFocusChanged { state ->
-                if (focused && !state.isFocused) input.finishText(mark.id, text, spans)
+                if (focused && !state.isFocused) input.finishText(mark.id, value.text, spans)
                 focused = state.isFocused
             },
     )

@@ -5,13 +5,14 @@ import androidx.compose.material.icons.filled.FindReplace
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
+import com.vasmarfas.card.tools.developer.RegexTester
 import com.vasmarfas.card.ui.components.ErrorText
 import com.vasmarfas.card.ui.components.KeyValueRow
 import com.vasmarfas.card.ui.components.SwitchRow
@@ -58,10 +59,12 @@ private fun FindReplaceScreen() {
     SwitchRow(Res.string.ignore_case.str(), ignoreCase, { ignoreCase = it })
     SwitchRow(Res.string.whole_words_only.str(), wholeWord, { wholeWord = it })
     SwitchRow(Res.string.regular_expression.str(), useRegex, { useRegex = it })
-    val result = remember(input, find, replacement, ignoreCase, useRegex, wholeWord) {
-        FindReplace.run(input, find, replacement, ignoreCase, useRegex, wholeWord)
-    }
-    if (result.error != null) {
+    val result = produceState<FindReplaceResult?>(null, input, find, replacement, ignoreCase, useRegex, wholeWord) {
+        value = FindReplace.runGuarded(input, find, replacement, ignoreCase, useRegex, wholeWord)
+    }.value ?: return
+    if (result.timedOut) {
+        ErrorText(stringResource(Res.string.regex_timeout, RegexTester.TIME_LIMIT_MS / 1000))
+    } else if (result.error != null) {
         ErrorText(stringResource(Res.string.invalid_regex, result.error))
     } else if (find.isNotEmpty()) {
         KeyValueRow(Res.string.matches.str(), result.count.toString(), copyable = false)

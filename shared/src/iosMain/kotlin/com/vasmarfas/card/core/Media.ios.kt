@@ -7,7 +7,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import cnames.structs.__CFURL
 import com.vasmarfas.card.resources.*
 import io.github.vinceglb.filekit.PlatformFile
-import io.github.vinceglb.filekit.absolutePath
 import kotlinx.cinterop.COpaquePointerVar
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -153,6 +152,8 @@ import platform.Foundation.CFBridgingRelease
 import platform.Foundation.CFBridgingRetain
 import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSFileSize
+import platform.Foundation.NSNumber
 import platform.Foundation.NSURL
 import platform.Foundation.dataWithBytes
 import platform.Foundation.writeToFile
@@ -164,12 +165,13 @@ import kotlin.coroutines.resumeWithException
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-private val PlatformFile.url: NSURL get() = NSURL.fileURLWithPath(absolutePath())
+private val PlatformFile.url: NSURL get() = nsUrl
 
 internal fun cmTime(ms: Long): CValue<CMTime> = CMTimeMake(ms, 1000)
 
 @Suppress("UNCHECKED_CAST")
-private val AVAssetTrack.format: CMFormatDescriptionRef? get() = formatDescriptions.firstOrNull() as CMFormatDescriptionRef?
+// shortcut: the retain is never balanced, a few bytes per track read, fine for a tool that opens a handful of files
+private val AVAssetTrack.format: CMFormatDescriptionRef? get() = formatDescriptions.firstOrNull()?.let { CFBridgingRetain(it)?.reinterpret() }
 
 private fun fourCc(code: UInt): String = when (code.toInt()) {
     0x61766331, 0x61766333 -> "h264"
@@ -218,7 +220,7 @@ actual object MediaEngine {
         val video = asset.tracksWithMediaType(AVMediaTypeVideo).firstOrNull() as AVAssetTrack?
         val audio = asset.tracksWithMediaType(AVMediaTypeAudio).firstOrNull() as AVAssetTrack?
         if (video == null && audio == null) {
-            val image = UIImage.imageWithContentsOfFile(file.absolutePath()) ?: throw MediaException("unreadable file")
+            val image = UIImage.imageWithContentsOfFile(file.nsUrl.path.orEmpty()) ?: throw MediaException("unreadable file")
             val (w, h) = image.size.useContents { (width * image.scale).roundToInt() to (height * image.scale).roundToInt() }
             return@withContext MediaInfo(0, w, h, 0.0, "image", null, 0, 0, 0)
         }
@@ -326,9 +328,10 @@ actual object MediaEngine {
         // the export session picks no bitrate for a size, it stops writing at the limit and calls that a success
         if (spec.targetBytes > 0) {
             val writtenMs = (CMTimeGetSeconds(AVURLAsset.URLAssetWithURL(NSURL.fileURLWithPath(output), null).duration) * 1000).toLong()
-            if (writtenMs + 500 < project.durationMs) {
+            val bytes = (NSFileManager.defaultManager.attributesOfItemAtPath(output, null)?.get(NSFileSize) as? NSNumber)?.longLongValue ?: 0
+            if (writtenMs + 500 < project.durationMs || bytes > spec.targetBytes) {
                 NSFileManager.defaultManager.removeItemAtPath(output, null)
-                throw MediaException("the size limit cut the video at $writtenMs ms", Res.string.video_size_limit_cut)
+                throw MediaException("the size limit gave $bytes bytes and $writtenMs ms", Res.string.video_size_limit_cut)
             }
         }
         return MediaResult(PlatformFile(output))
@@ -457,7 +460,7 @@ actual object MediaEngine {
     // compositions take only tracks, so a photo becomes a two-frame H.264 clip at its own proportions,
     // upright the way UIKit draws it
     private suspend fun stillVideo(file: PlatformFile, durationMs: Long, maxSide: Int): NSURL {
-        val image = UIImage.imageWithContentsOfFile(file.absolutePath()) ?: throw MediaException("unreadable image")
+        val image = UIImage.imageWithContentsOfFile(file.nsUrl.path.orEmpty()) ?: throw MediaException("unreadable image")
         val (imageW, imageH) = image.size.useContents { width * image.scale to height * image.scale }
         val fit = minOf(1.0, maxSide / maxOf(imageW, imageH))
         val width = ((imageW * fit).roundToInt() / 2 * 2).coerceAtLeast(2)

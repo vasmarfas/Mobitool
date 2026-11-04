@@ -311,7 +311,7 @@ jobs:
           aws s3 cp dist/download.html "s3://$BUCKET/download" --endpoint-url "$ENDPOINT" \
             --content-type 'text/html; charset=utf-8' --cache-control no-cache
 
-      # site verification pages and .well-known are put in the bucket by hand, the extensionless download copy above
+      # site verification pages and anything else in .well-known are put in the bucket by hand, the extensionless download copy above
       - name: Delete stale objects
         if: steps.guard.outputs.ready == 'true'
         run: >-

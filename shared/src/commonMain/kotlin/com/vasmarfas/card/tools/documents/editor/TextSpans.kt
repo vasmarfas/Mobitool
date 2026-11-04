@@ -32,6 +32,24 @@ internal fun TextMark.restyled(next: TextLook): TextMark {
     return copy(color = next.color, size = next.size, font = next.font, bold = next.bold, italic = next.italic, align = next.align, spans = spans)
 }
 
+internal fun TextMark.lookAt(index: Int): Look = looks().getOrElse(index) { look }
+
+// only what the toolbar moved away from the look it showed reaches the range, the runs inside keep the rest
+internal fun TextMark.restyledRange(start: Int, end: Int, shown: Look, next: TextLook): TextMark {
+    val looks = looks().mapIndexed { i, it ->
+        if (i !in start until end) {
+            it
+        } else {
+            Look(
+                if (next.bold != shown.bold) next.bold else it.bold,
+                if (next.italic != shown.italic) next.italic else it.italic,
+                if (next.color != shown.color) next.color else it.color,
+            )
+        }
+    }
+    return copy(spans = spansOf(looks, look))
+}
+
 internal fun TextMark.withText(next: String): TextMark {
     if (spans.isEmpty() || next == text) return copy(text = next)
     var prefix = 0

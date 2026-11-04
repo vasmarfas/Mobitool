@@ -46,15 +46,15 @@ object NatPmp {
         return (8 until 12).joinToString(".") { (response[it].toInt() and 0xFF).toString() }
     }
 
-    // opcode 2 maps a TCP port for lifetime seconds; lifetime 0 with external port 0 removes the mapping
-    fun mapRequest(internal: Int, external: Int, lifetime: Int): ByteArray = byteArrayOf(
-        0, 2, 0, 0,
+    // opcode 1 maps a UDP port and 2 a TCP port for lifetime seconds; lifetime 0 with external port 0 removes the mapping
+    fun mapRequest(internal: Int, external: Int, lifetime: Int, udp: Boolean = false): ByteArray = byteArrayOf(
+        0, if (udp) 1 else 2, 0, 0,
         (internal shr 8).toByte(), internal.toByte(), (external shr 8).toByte(), external.toByte(),
         (lifetime shr 24).toByte(), (lifetime shr 16).toByte(), (lifetime shr 8).toByte(), lifetime.toByte(),
     )
 
     fun mappedPort(response: ByteArray?): Int? {
-        if (response == null || response.size < 16 || response[1].toInt() and 0xFF != 130 || response[2].toInt() != 0 || response[3].toInt() != 0) return null
+        if (response == null || response.size < 16 || response[1].toInt() and 0xFF !in 129..130 || response[2].toInt() != 0 || response[3].toInt() != 0) return null
         return ((response[10].toInt() and 0xFF) shl 8) or (response[11].toInt() and 0xFF)
     }
 }

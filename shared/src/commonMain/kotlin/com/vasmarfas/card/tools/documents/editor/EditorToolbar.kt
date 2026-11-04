@@ -288,9 +288,18 @@ private fun MarkOptions(session: EditorSession, renderer: MarkRenderer, mark: Ma
     val point = Res.string.unit_point.str()
     when (mark) {
         is TextMark -> Controls {
-            TextOptions(TextLook(mark.color, mark.size, mark.font, mark.bold, mark.italic, mark.align)) { look ->
-                session.replace(renderer.fitted(mark.restyled(look)))
-                session.style = look.applyTo(session.style)
+            val live = (session.preview as? TextMark)?.takeIf { it.id == mark.id } ?: mark
+            val range = session.textRange?.takeIf { session.editing == mark.id && it.max <= live.text.length }
+            val shown = if (range != null) live.lookAt(range.min) else live.look
+            TextOptions(TextLook(shown.color, mark.size, mark.font, shown.bold, shown.italic, mark.align)) { look ->
+                val whole = if (range != null) look.copy(color = live.color, bold = live.bold, italic = live.italic) else look
+                val next = if (range != null && Look(look.bold, look.italic, look.color) != shown) {
+                    live.restyledRange(range.min, range.max, shown, look)
+                } else {
+                    live.restyled(whole)
+                }
+                session.replace(renderer.fitted(next))
+                session.style = whole.applyTo(session.style)
             }
         }
         is InkMark -> Controls {
@@ -410,7 +419,7 @@ private fun shapeLabel(kind: ShapeKind): String = when (kind) {
 @Composable
 private fun fontLabel(font: MarkFont): String = when (font) {
     MarkFont.SANS -> Res.string.pdf_edit_font_sans.str()
-    MarkFont.SERIF -> Res.string.pdf_edit_font_serif.str()
+    MarkFont.SERIF -> Res.string.font_serif.str()
     MarkFont.MONO -> Res.string.pdf_edit_font_mono.str()
 }
 

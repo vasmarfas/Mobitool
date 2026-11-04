@@ -126,6 +126,11 @@ private val OPEN = setOf(MODIFY, DISTRIBUTE)
 
 private val PERMISSIVE_CODE = OPEN + setOf(NOTICE, OSI, FSF, GPL_COMPATIBLE)
 
+private val FILE_COPYLEFT = OPEN + setOf(NOTICE, DISCLOSE, PATENT, OSI, FSF)
+
+private fun dependency(id: String, name: String, family: LicenseFamily, copyleft: Copyleft, flags: Set<LicenseFlag>) =
+    License(id, id, name, family, setOf(CODE), family.title, ANY, copyleft, flags, 0, 0, "", "")
+
 object Licenses {
     val all: List<License> = listOf(
         License(
@@ -346,7 +351,21 @@ object Licenses {
         ),
     )
 
-    private val byId = all.associateBy { it.id }
+    // met in dependency trees, nobody starts a project under them, so the catalog and its texts leave them out
+    val dependencyOnly: List<License> = listOf(
+        dependency("Artistic-2.0", "Artistic License 2.0", PERMISSIVE, Copyleft.NONE, PERMISSIVE_CODE + setOf(STATE_CHANGES, PATENT)),
+        dependency("BlueOak-1.0.0", "Blue Oak Model License 1.0.0", PERMISSIVE, Copyleft.NONE, OPEN + setOf(NOTICE, PATENT)),
+        dependency("CDDL-1.0", "Common Development and Distribution License 1.0", WEAK_COPYLEFT, Copyleft.FILE, FILE_COPYLEFT),
+        dependency("EPL-1.0", "Eclipse Public License 1.0", WEAK_COPYLEFT, Copyleft.FILE, FILE_COPYLEFT),
+        dependency("LGPL-2.0", "GNU Library General Public License v2", WEAK_COPYLEFT, Copyleft.LIBRARY, OPEN + setOf(NOTICE, STATE_CHANGES, DISCLOSE, OSI, FSF, GPL_COMPATIBLE)),
+        dependency("MPL-1.1", "Mozilla Public License 1.1", WEAK_COPYLEFT, Copyleft.FILE, FILE_COPYLEFT),
+        dependency("OpenSSL", "OpenSSL License", PERMISSIVE, Copyleft.NONE, OPEN + setOf(NOTICE, FSF)),
+        dependency("Python-2.0", "Python License 2.0", PERMISSIVE, Copyleft.NONE, PERMISSIVE_CODE + STATE_CHANGES),
+        dependency("Unicode-3.0", "Unicode License v3", PERMISSIVE, Copyleft.NONE, PERMISSIVE_CODE),
+        dependency("WTFPL", "Do What The F*ck You Want To Public License", PUBLIC_DOMAIN, Copyleft.NONE, OPEN + setOf(FSF, GPL_COMPATIBLE)),
+    )
+
+    private val byId = (all + dependencyOnly).associateBy { it.id }
 
     fun byId(id: String): License? = byId[id]
 

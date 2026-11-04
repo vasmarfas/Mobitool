@@ -13,6 +13,21 @@ enum class Compounding(val perYear: Int, val title: StringResource) {
 
 class YearRow(val year: Int, val contributed: Double, val interest: Double, val balance: Double)
 
+// Tax Code, articles 214.2 and 224: 13% of the base up to 2.4 million, 15% of the part above it
+object DepositTax {
+    const val DEFAULT_KEY_RATE = 16.0
+
+    fun limit(keyRate: Double): Double = 1_000_000 * keyRate / 100
+
+    fun ndfl(yearInterest: Double, limit: Double): Double {
+        val base = (yearInterest - limit).coerceAtLeast(0.0)
+        return minOf(base, 2_400_000.0) * 0.13 + (base - 2_400_000).coerceAtLeast(0.0) * 0.15
+    }
+
+    fun byYear(rows: List<YearRow>, limit: Double): List<Double> =
+        rows.mapIndexed { i, row -> ndfl(row.interest - (rows.getOrNull(i - 1)?.interest ?: 0.0), limit) }
+}
+
 object CompoundInterest {
     fun grow(principal: Double, annualRate: Double, years: Int, compounding: Compounding, monthlyContribution: Double): List<YearRow> {
         val periods = compounding.perYear

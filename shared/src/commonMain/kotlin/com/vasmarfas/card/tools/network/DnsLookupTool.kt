@@ -77,6 +77,7 @@ private fun DnsLookupScreen() {
     var customResolvers by remember { mutableStateOf(CustomResolvers.load()) }
     var state by remember { mutableStateOf(DnsState()) }
     var compare by remember { mutableStateOf<List<ResolverAnswer>?>(null) }
+    var compared by remember { mutableStateOf(DnsTransport.DOH) }
     val scope = rememberCoroutineScope()
     val choices: List<ResolverChoice> =
         DnsResolver.entries.filter { it.usableHere }.map { ResolverChoice.BuiltIn(it) } + customResolvers.map { ResolverChoice.Custom(it) }
@@ -111,15 +112,19 @@ private fun DnsLookupScreen() {
     fun runCompare() {
         val query = name.trim()
         if (query.isEmpty()) return
-        val targets = DnsResolver.entries.filter { it.dohUrl != null }.map { Triple(resolverLabels.getValue(it), it.dohUrl!!, it.dohFlavour) } +
-            customResolvers.map { Triple(it.name.ifBlank { it.url }, DohRequest.normalize(it.url), it.flavour) }
+        val targets = choices.filter { transport in it.transports && it != ResolverChoice.BuiltIn(DnsResolver.CUSTOM) }
+        compared = transport
         state = state.copy(loading = true)
         scope.launch {
             compare = coroutineScope {
-                targets.map { (label, url, flavour) ->
+                targets.map { target ->
+                    val label = when (target) {
+                        is ResolverChoice.BuiltIn -> resolverLabels.getValue(target.resolver)
+                        is ResolverChoice.Custom -> target.resolver.name.ifBlank { target.resolver.url }
+                    }
                     async {
-                        runCatching { DnsClient.queryDoh(url, Punycode.toAscii(query), DnsTypes.byName[type] ?: 1, flavour) }
-                            .fold({ ResolverAnswer(label, it, null) }, { ResolverAnswer(label, null, networkErrorText(it)) })
+                        runCatching { DnsClient.query(Punycode.toAscii(query), type, target, transport) }
+                            .fold({ ResolverAnswer(label, it.response, null) }, { ResolverAnswer(label, null, networkErrorText(it)) })
                     }
                 }.awaitAll()
             }
@@ -194,7 +199,7 @@ private fun DnsLookupScreen() {
         }
     }
     compare?.let { results ->
-        ResultCard(title = Res.string.answers_across_resolvers.str()) {
+        ResultCard(title = "${Res.string.answers_across_resolvers.str()} · ${compared.label}") {
             results.forEach { answer ->
                 val text = answer.response?.let { resp ->
                     resp.answers.joinToString("\n") { "${it.typeName} ${it.data} (TTL ${it.ttl})" }.ifEmpty { resp.rcodeName }

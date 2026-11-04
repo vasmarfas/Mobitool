@@ -123,11 +123,13 @@ private fun SpfScreen() {
 @Composable
 private fun IpCheck(check: SpfCheck) {
     var ip by rememberSaveable { mutableStateOf("") }
+    var sender by rememberSaveable { mutableStateOf("") }
     var verdict by remember(check) { mutableStateOf<SpfVerdict?>(null) }
     var error by remember(check) { mutableStateOf<String?>(null) }
     var running by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val address = ip.trim()
+    val envelope = sender.trim().takeIf { '@' in it }.orEmpty()
     ToolSection(Res.string.spf_check_ip.str()) {
         ToolInputField(
             value = ip,
@@ -137,12 +139,22 @@ private fun IpCheck(check: SpfCheck) {
             keyboardType = KeyboardType.Uri,
             monospace = true,
         )
+        ToolInputField(
+            value = sender,
+            onValueChange = { sender = it; verdict = null },
+            label = Res.string.spf_sender.str(),
+            placeholder = "user@${check.root.domain}",
+            keyboardType = KeyboardType.Email,
+            monospace = true,
+            supportingText = Res.string.spf_sender_hint.str(),
+        )
+        if (check.usesPtr) Hint(Res.string.spf_ptr_skipped.str())
         ActionButton(
             text = Res.string.check.str(),
             onClick = {
                 running = true; error = null
                 scope.launch {
-                    runCatching { Spf.evaluate(check, address) }
+                    runCatching { Spf.evaluate(check, address, envelope) }
                         .onSuccess { verdict = it }
                         .onFailure { error = networkErrorText(it) }
                     running = false
@@ -177,6 +189,10 @@ private fun Terms(node: SpfNode, depth: Int) {
             Text(term.raw, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = monoFamily()))
             val label = (mechanismLabels[term.name] ?: Res.string.dmarc_unknown_tag).str()
             Hint(if (term.modifier) label else "${Spf.result(term.qualifier)}, $label")
+            when {
+                term.resolved.isNotEmpty() -> Hint(term.resolved)
+                '%' in term.value -> Hint(Res.string.spf_macro_needs_ip.str())
+            }
             if (term.addresses.isNotEmpty()) Hint(term.addresses.joinToString(", "))
         }
         term.child?.let { Terms(it, depth + 1) }

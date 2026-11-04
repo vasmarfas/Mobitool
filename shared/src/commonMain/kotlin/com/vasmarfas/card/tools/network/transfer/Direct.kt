@@ -41,6 +41,8 @@ class Reach(val listener: TcpServer, val endpoints: List<String>, val punch: Pun
     }
 }
 
+private class Mapping(val tcp: String, val udp: String?, val remove: suspend () -> Unit)
+
 internal suspend fun TcpStream.readFully(into: ByteArray) {
     var filled = 0
     while (filled < into.size) {
@@ -77,15 +79,16 @@ object Direct {
         val v6 = if (currentPlatform == PlatformKind.IOS) emptyList() else addresses.filter(::globalIpv6)
         val punch = Punch.open()
         val mapping = coroutineScope {
-            val mapped = async { runCatching { withTimeoutOrNull(5_000) { mapPort(port, lan) } }.getOrNull() }
+            val mapped = async { runCatching { withTimeoutOrNull(5_000) { mapPorts(port, punch?.port, lan) } }.getOrNull() }
             punch?.gather(lan)
             mapped.await()
         }
-        val endpoints = lan.map { "$it:$port" } + v6.map { "[$it]:$port" } + listOfNotNull(mapping?.first)
-        return Reach(listener, endpoints, punch, mapping?.second)
+        mapping?.udp?.let { punch?.add(it) }
+        val endpoints = lan.map { "$it:$port" } + v6.map { "[$it]:$port" } + listOfNotNull(mapping?.tcp)
+        return Reach(listener, endpoints, punch, mapping?.remove)
     }
 
-    private suspend fun mapPort(port: Int, lan: List<String>): Pair<String, suspend () -> Unit>? {
+    private suspend fun mapPorts(port: Int, punchPort: Int?, lan: List<String>): Mapping? {
         val gateway = wifiDetails()["Gateway"]?.takeIf { Ipv4.parse(it) != null } ?: return null
         val net = Ipv4Subnet(Ipv4.parse(gateway)!!, 24).network
         val own = lan.firstOrNull { Ipv4.parse(it)?.let { a -> Ipv4Subnet(a, 24).network == net } == true } ?: return null
@@ -93,9 +96,13 @@ object Direct {
 
         val external = NatPmp.mappedPort(udpQuery(gateway, 5351, NatPmp.mapRequest(port, port, LEASE), 1_500))
         if (external != null) {
+            val outer = punchPort?.let { NatPmp.mappedPort(udpQuery(gateway, 5351, NatPmp.mapRequest(it, it, LEASE, udp = true), 1_500)) }
             val ip = NatPmp.externalAddress(udpQuery(gateway, 5351, NatPmp.request, 1_500))
-            val remove: suspend () -> Unit = { udpQuery(gateway, 5351, NatPmp.mapRequest(port, 0, 0), 1_000) }
-            if (public(ip)) return "$ip:$external" to remove
+            val remove: suspend () -> Unit = {
+                udpQuery(gateway, 5351, NatPmp.mapRequest(port, 0, 0), 1_000)
+                if (outer != null && punchPort != null) udpQuery(gateway, 5351, NatPmp.mapRequest(punchPort, 0, 0, udp = true), 1_000)
+            }
+            if (public(ip)) return Mapping("$ip:$external", outer?.let { "$ip:$it" }, remove)
             remove()
         }
 
@@ -108,17 +115,22 @@ object Direct {
         val soapPort = authority.substringAfter(':', "80").toIntOrNull() ?: 80
         suspend fun call(action: String, arguments: List<Pair<String, String>> = emptyList()): String? =
             runCatching { tcpExchange(host, soapPort, Upnp.request(url, type, action, arguments), 3_000).decodeToString() }.getOrNull()
-        val mapped = call(
+        suspend fun add(protocol: String, number: Int): Boolean = call(
             "AddPortMapping",
             listOf(
-                "NewRemoteHost" to "", "NewExternalPort" to "$port", "NewProtocol" to "TCP", "NewInternalPort" to "$port",
+                "NewRemoteHost" to "", "NewExternalPort" to "$number", "NewProtocol" to protocol, "NewInternalPort" to "$number",
                 "NewInternalClient" to own, "NewEnabled" to "1", "NewPortMappingDescription" to "Mobitool", "NewLeaseDuration" to "$LEASE",
             ),
-        )
-        if (mapped?.lineSequence()?.firstOrNull()?.contains(" 200 ") != true) return null
-        val remove: suspend () -> Unit = { call("DeletePortMapping", listOf("NewRemoteHost" to "", "NewExternalPort" to "$port", "NewProtocol" to "TCP")) }
+        )?.lineSequence()?.firstOrNull()?.contains(" 200 ") == true
+        suspend fun drop(protocol: String, number: Int) = call("DeletePortMapping", listOf("NewRemoteHost" to "", "NewExternalPort" to "$number", "NewProtocol" to protocol))
+        if (!add("TCP", port)) return null
+        val outer = punchPort?.takeIf { add("UDP", it) }
+        val remove: suspend () -> Unit = {
+            drop("TCP", port)
+            outer?.let { drop("UDP", it) }
+        }
         val ip = call("GetExternalIPAddress")?.let(Upnp::externalIp)
-        if (public(ip)) return "$ip:$port" to remove
+        if (public(ip)) return Mapping("$ip:$port", outer?.let { "$ip:$it" }, remove)
         remove()
         return null
     }

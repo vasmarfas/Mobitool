@@ -1,0 +1,15 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.vasmarfas.mobitool",
+      "sha256_cert_fingerprints": [
+        "57:3E:E9:E4:0E:D0:6B:3F:80:6E:44:05:16:22:6F:11:33:18:55:E9:E0:BF:5F:EE:9F:4E:D1:93:D5:D7:16:47",
+        "9C:C6:91:70:64:47:AA:07:B4:B6:14:C1:1A:34:7E:6A:C0:F5:87:30:F8:67:F9:0D:09:06:D4:2D:46:9A:21:60",
+        "54:66:78:39:57:ED:AB:10:F7:6C:EC:02:26:4D:79:7D:83:0E:D2:D7:D6:AB:4C:BB:81:04:1F:BD:E2:4A:FA:8B",
+        "73:CB:2E:4B:35:34:D0:EB:69:6F:67:54:3D:23:9D:10:1F:43:F6:0D:F8:92:8E:2A:29:02:18:FC:A6:6F:73:53"
+      ]
+    }
+  }
+]

@@ -61,11 +61,13 @@ import com.vasmarfas.card.core.fmt
 import com.vasmarfas.card.core.limitedTo
 import com.vasmarfas.card.core.renamed
 import com.vasmarfas.card.core.saveBytes
+import com.vasmarfas.card.core.scaled
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
 import com.vasmarfas.card.ui.components.ChoiceChips
+import com.vasmarfas.card.ui.components.DropdownChoice
 import com.vasmarfas.card.ui.components.ErrorText
 import com.vasmarfas.card.ui.components.LoadingRow
 import com.vasmarfas.card.ui.components.SegmentedChoice
@@ -76,6 +78,7 @@ import io.github.vinceglb.filekit.readBytes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.StringResource
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -90,7 +93,7 @@ val photoEditorTool = Tool(
     keywords = listOf(
         "photo editor", "image editor", "crop", "rotate", "flip", "mirror", "straighten", "filter", "brightness", "contrast", "saturation", "vignette",
         "фоторедактор", "редактор фото", "обрезать фото", "кадрировать", "повернуть фото", "отразить", "выровнять горизонт", "фильтры", "яркость",
-        "контраст", "насыщенность", "виньетка",
+        "контраст", "насыщенность", "виньетка", "vk cover", "youtube thumbnail", "instagram size", "обложка vk", "размер для соцсетей", "превью youtube",
     ),
     expandable = true,
 ) { PhotoEditorScreen() }
@@ -115,6 +118,25 @@ private val freeAspect = CropAspect(0, 0)
 private val aspects = listOf(
     freeAspect, CropAspect(-1, -1), CropAspect(1, 1), CropAspect(4, 3), CropAspect(3, 4), CropAspect(3, 2), CropAspect(16, 9), CropAspect(9, 16), CropAspect(4, 5),
 )
+
+private class SocialSize(val title: StringResource, val width: Int, val height: Int) {
+    val aspect = CropAspect(width, height)
+}
+
+private val socialSizes = listOf(
+    SocialSize(Res.string.photo_social_vk_cover, 1590, 530),
+    SocialSize(Res.string.photo_social_vk_post, 1200, 800),
+    SocialSize(Res.string.photo_social_vk_product, 1000, 1000),
+    SocialSize(Res.string.photo_social_stories, 1080, 1920),
+    SocialSize(Res.string.photo_social_ig_square, 1080, 1080),
+    SocialSize(Res.string.photo_social_ig_portrait, 1080, 1350),
+    SocialSize(Res.string.photo_social_tg_avatar, 640, 640),
+    SocialSize(Res.string.photo_social_yt_thumbnail, 1280, 720),
+    SocialSize(Res.string.photo_social_yt_banner, 2048, 1152),
+    SocialSize(Res.string.photo_social_yt_avatar, 800, 800),
+    SocialSize(Res.string.photo_social_link, 1200, 630),
+)
+private val socialChoices = listOf<SocialSize?>(null) + socialSizes
 
 @Stable
 private class PhotoSession(val source: ImageBitmap, val name: String) {
@@ -236,19 +258,26 @@ private fun PhotoEditorScreen() {
     val turned = edit.quarterTurns % 2 == 1
     val fullWidth = (edit.crop.width * if (turned) photo.source.height else photo.source.width).roundToInt()
     val fullHeight = (edit.crop.height * if (turned) photo.source.width else photo.source.height).roundToInt()
-    ToolSection(Res.string.long_side.str()) {
-        ChoiceChips(
-            options = listOf(0, 4096, 2560, 1920, 1280, 1080).filter { it < max(fullWidth, fullHeight) },
-            selected = longSide,
-            onSelect = { longSide = it },
-            label = { if (it == 0) Res.string.as_source.str() else "$it px" },
-        )
-        val scale = if (longSide in 1 until max(fullWidth, fullHeight)) longSide.toDouble() / max(fullWidth, fullHeight) else 1.0
-        Text("${(fullWidth * scale).roundToInt()} × ${(fullHeight * scale).roundToInt()} px", style = MaterialTheme.typography.bodyMedium)
+    // undo brings back an earlier crop but not the aspect, such a crop must not be stretched to the preset
+    val social = socialSizes.firstOrNull { it.aspect == photo.aspect && abs(fullWidth.toFloat() * it.height / (fullHeight.toFloat() * it.width) - 1f) < 0.02f }
+    if (social != null) {
+        Text("${social.width} × ${social.height} px", style = MaterialTheme.typography.bodyMedium)
+    } else {
+        ToolSection(Res.string.long_side.str()) {
+            ChoiceChips(
+                options = listOf(0, 4096, 2560, 1920, 1280, 1080).filter { it < max(fullWidth, fullHeight) },
+                selected = longSide,
+                onSelect = { longSide = it },
+                label = { if (it == 0) Res.string.as_source.str() else "$it px" },
+            )
+            val scale = if (longSide in 1 until max(fullWidth, fullHeight)) longSide.toDouble() / max(fullWidth, fullHeight) else 1.0
+            Text("${(fullWidth * scale).roundToInt()} × ${(fullHeight * scale).roundToInt()} px", style = MaterialTheme.typography.bodyMedium)
+        }
     }
     SaveButton {
         val bytes = withContext(Dispatchers.Default) {
-            encodeImage(PhotoEditor.render(photo.source, edit).limitedTo(longSide), target, quality)
+            val rendered = PhotoEditor.render(photo.source, edit)
+            encodeImage(if (social != null) rendered.scaled(social.width, social.height) else rendered.limitedTo(longSide), target, quality)
         }
         saveBytes(bytes, renamed(photo.name, target.extension, "-edit"))
     }
@@ -278,6 +307,16 @@ private fun CropPanel(photo: PhotoSession, frame: ImageBitmap) {
                 else -> "${it.width}:${it.height}"
             }
         },
+    )
+    DropdownChoice(
+        options = socialChoices,
+        selected = socialSizes.firstOrNull { it.aspect == photo.aspect },
+        onSelect = { size ->
+            photo.aspect = size?.aspect ?: freeAspect
+            size?.aspect?.ratio(frame)?.let { photo.commit(edit.copy(crop = PhotoEditor.fitCrop(it))) }
+        },
+        label = Res.string.photo_social_size.str(),
+        text = { size -> if (size == null) Res.string.photo_social_none.str() else "${size.title.str()} · ${size.width} × ${size.height}" },
     )
     EditButtons {
         EditButton(Res.string.rotate_left.str(), Icons.Filled.Rotate90DegreesCcw, true) {

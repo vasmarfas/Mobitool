@@ -8,6 +8,7 @@ val documentTools: List<Tool> = listOf(
     documentConverterTool,
     docScannerTool,
     photoToTextTool,
+    invoiceTool,
     imagesToPdfTool,
     mergePdfTool,
     compressPdfTool,
