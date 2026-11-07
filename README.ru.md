@@ -5,7 +5,7 @@
 ([vasmarfas.com](https://vasmarfas.com), [vasmarfas.ru](https://vasmarfas.ru)) и в нативные приложения
 для Android, iOS, Windows, macOS на Apple Silicon и Linux.
 
-**English:** [`README.md`](README.md) · **Поддержать:** [`SUPPORT.md`](SUPPORT.md) ·
+**English:** [`README.md`](README.md) · **Чат в Telegram:** [@vasmarfas_chat](https://t.me/vasmarfas_chat) · **Поддержать:** [`SUPPORT.md`](SUPPORT.md) ·
 **Приватность:** [`privacy-policy.md`](privacy-policy.md) · **Условия:** [`terms.md`](terms.md)
 
 ## Что внутри

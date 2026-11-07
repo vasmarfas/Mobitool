@@ -76,6 +76,14 @@
       }
     },
     {
+      "type": "channel",
+      "url": "https://t.me/vasmarfas_chat",
+      "label": {
+        "en": "TG chat",
+        "ru": "TG-чат"
+      }
+    },
+    {
       "type": "email",
       "url": "mailto:admin@vasmarfas.com",
       "label": {

@@ -5,7 +5,7 @@ Multiplatform / Compose Multiplatform codebase builds the site on WebAssembly
 ([vasmarfas.com](https://vasmarfas.com), [vasmarfas.ru](https://vasmarfas.ru)) and native apps for Android,
 iOS, Windows, macOS on Apple Silicon and Linux.
 
-**Русский:** [`README.ru.md`](README.ru.md) · **Support:** [`SUPPORT.md`](SUPPORT.md) ·
+**Русский:** [`README.ru.md`](README.ru.md) · **Telegram chat:** [@vasmarfas_chat](https://t.me/vasmarfas_chat) · **Support:** [`SUPPORT.md`](SUPPORT.md) ·
 **Privacy:** [`privacy-policy.md`](privacy-policy.md) · **Terms:** [`terms.md`](terms.md)
 
 ## What is inside
