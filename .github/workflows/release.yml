@@ -232,6 +232,10 @@ jobs:
     if: ${{ !cancelled() && needs.meta.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
@@ -242,13 +246,26 @@ jobs:
       - name: List artifacts
         run: ls -lh artifacts
 
+      # the body opens with the table of downloads, linked to the files that were built, and the notes follow it
+      - name: Compose the release body
+        env:
+          VERSION: ${{ needs.meta.outputs.version_name }}
+        run: |
+          set -eu
+          {
+            python3 .github/scripts/release_downloads.py artifacts "$VERSION" "$GITHUB_REPOSITORY"
+            printf '\n'
+            cat artifacts/notes.md
+          } > body.md
+          cat body.md
+
       - name: Publish
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.meta.outputs.version_name }}
           name: v${{ needs.meta.outputs.version_name }}
           target_commitish: ${{ github.sha }}
-          body_path: artifacts/notes.md
+          body_path: body.md
           generate_release_notes: true
           # a failed platform leaves its files out, so such a release is only drafted
           draft: ${{ inputs.draft || contains(needs.*.result, 'failure') }}
