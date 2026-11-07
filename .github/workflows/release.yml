@@ -270,5 +270,5 @@ jobs:
     uses: ./.github/workflows/announce.yml
     with:
       tag: v${{ needs.meta.outputs.version_name }}
-      notes: ${{ inputs.notes_ru }}\n\n${{ inputs.notes_en }}
+      notes: ${{ inputs.notes_ru }}\n\n---\n\n${{ inputs.notes_en }}
     secrets: inherit
