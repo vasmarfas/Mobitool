@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated": "2026-10-20",
+  "updated": "2026-11-07",
   "person": {
     "name": {
       "en": "Vasilii",
@@ -109,6 +109,47 @@
     }
   ],
   "projects": [
+    {
+      "id": "networkhelm",
+      "name": "NetworkHelm",
+      "source": "github",
+      "tagline": {
+        "en": "Router management in the WinBox style: RouterOS, OpenWrt, OPNsense, pfSense, VyOS.",
+        "ru": "Управление роутерами в стиле WinBox: RouterOS, OpenWrt, OPNsense, pfSense, VyOS."
+      },
+      "description": {
+        "en": "One network often holds routers of different systems, and each has its own web panel or console. NetworkHelm opens RouterOS, OpenWrt, OPNsense, pfSense and VyOS in the same window: a menu tree on the left, tabbed windows on the right, tables that update live. It shows the command before Apply and has an SSH terminal and SFTP files. One Kotlin Multiplatform codebase runs on Windows, macOS, Linux, Android and in a browser. It is a release candidate for now, tested mostly on virtual routers.",
+        "ru": "В одной сети часто стоят роутеры разных систем, и у каждой своя веб-панель или консоль. NetworkHelm открывает RouterOS, OpenWrt, OPNsense, pfSense и VyOS в одном окне: слева дерево меню, справа окна с вкладками, таблицы обновляются на глазах. Перед применением программа показывает команду, есть терминал по SSH и файлы по SFTP. Одна кодовая база на Kotlin Multiplatform работает в Windows, macOS, Linux, Android и в браузере. Пока это релиз-кандидат, проверенный в основном на виртуальных роутерах."
+      },
+      "tech": [
+        "Kotlin Multiplatform",
+        "Compose Multiplatform",
+        "Kotlin/Wasm",
+        "Ktor",
+        "SSH",
+        "SNMP"
+      ],
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux",
+        "Android",
+        "Web"
+      ],
+      "links": [
+        {
+          "type": "github",
+          "url": "https://github.com/vasmarfas/networkhelm"
+        },
+        {
+          "type": "website",
+          "url": "https://vasmarfas.github.io/networkhelm/"
+        }
+      ],
+      "year": "2026",
+      "featured": true,
+      "stars": 5
+    },
     {
       "id": "notivisor",
       "name": "Notivisor",

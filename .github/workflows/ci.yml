@@ -92,8 +92,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |
           set -eu
-          echo "$(sysctl -n hw.ncpu) cores, $(( $(sysctl -n hw.memsize) / 1048576 ))M memory"
-          ( while sleep 300; do echo "$(date -u +%H:%M) $(memory_pressure | tail -n 1), swap $(sysctl -n vm.swapusage)"; done ) &
+          bash .github/scripts/link_sampler.sh &
           sampler=$!
           trap 'kill $sampler' EXIT
           ./gradlew :shared:linkReleaseFrameworkIosArm64

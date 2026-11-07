@@ -14,8 +14,12 @@ UQCYtzsovMRC1vFrXxxDXFlIetj7N_0KKHEwsJVaxKROYzNS
 
 ## Leave a Review
 
-The app is not in the stores yet. Once it is on Google Play and RuStore, a review there will help other
-people find it, and the store links will appear here.
+A review helps other people find the app:
+[Google Play](https://play.google.com/store/apps/details?id=com.vasmarfas.mobitool),
+[App Store](https://apps.apple.com/app/id6816425850),
+[Mac App Store](https://apps.apple.com/app/id6816425850?platform=mac),
+[Microsoft Store](https://apps.microsoft.com/detail/9MWHC2SBXFV1) or
+[RuStore](https://www.rustore.ru/catalog/app/com.vasmarfas.mobitool).
 
 ## Contact
 
