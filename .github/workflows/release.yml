@@ -262,3 +262,13 @@ jobs:
             artifacts/*.deb
             artifacts/*.rpm
             artifacts/*.dmg
+
+  announce:
+    name: Announce
+    needs: [meta, android, desktop, ios, github_release]
+    if: ${{ !cancelled() && needs.github_release.result == 'success' && !inputs.draft && !contains(needs.*.result, 'failure') }}
+    uses: ./.github/workflows/announce.yml
+    with:
+      tag: v${{ needs.meta.outputs.version_name }}
+      notes: ${{ inputs.notes_ru }}\n\n${{ inputs.notes_en }}
+    secrets: inherit
