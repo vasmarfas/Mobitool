@@ -45,7 +45,7 @@ actual suspend fun wifiDetails(): Map<String, String> {
             result["Interface"] = it.interfaceName ?: ""
             result["Addresses"] = it.linkAddresses.joinToString(", ") { a -> a.toString() }
             result["DNS"] = it.dnsServers.joinToString(", ") { d -> d.hostAddress ?: "" }
-            result["Gateway"] = it.routes.firstOrNull { r -> r.isDefaultRoute }?.gateway?.hostAddress ?: ""
+            result["Gateway"] = androidGateway(it.routes.filter { r -> r.isDefaultRoute && r.hasGateway() }.mapNotNull { r -> r.gateway }, it.interfaceName)
             result["Domains"] = it.domains ?: ""
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 result["MTU"] = it.mtu.toString()

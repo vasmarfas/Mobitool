@@ -2352,8 +2352,10 @@
     <string name="speed_base_url">Базовый адрес</string>
     <string name="add_source">Добавить источник</string>
     <string name="subnet_calculator">Калькулятор подсетей</string>
-    <string name="subnet_calculator_description">Подсети IPv4 и IPv6: сеть, broadcast и диапазон хостов. Маска, wildcard, двоичный вид и тип адреса.</string>
-    <string name="address_prefix_or_mask">Адрес / префикс или маска</string>
+    <string name="subnet_calculator_description">Подсети IPv4 и IPv6: сеть, broadcast и диапазон хостов. Маска, wildcard, двоичный вид и тип адреса. Для диапазона адресов IPv4 — блоки CIDR и наименьшая сеть вокруг него.</string>
+    <string name="address_prefix_mask_or_range">Адрес / префикс, маска или диапазон</string>
+    <string name="cidr_blocks">Блоки CIDR</string>
+    <string name="enclosing_network">Наименьшая сеть вокруг диапазона</string>
     <string name="address_prefix">Адрес / префикс</string>
     <string name="netmask">Маска</string>
     <string name="wildcard">Wildcard</string>

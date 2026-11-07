@@ -2328,8 +2328,10 @@
     <string name="speed_base_url">Base URL</string>
     <string name="add_source">Add source</string>
     <string name="subnet_calculator">Subnet calculator</string>
-    <string name="subnet_calculator_description">IPv4 and IPv6 subnets: network, broadcast and host range. Mask, wildcard, binary form and address type.</string>
-    <string name="address_prefix_or_mask">Address / prefix or mask</string>
+    <string name="subnet_calculator_description">IPv4 and IPv6 subnets: network, broadcast and host range. Mask, wildcard, binary form and address type. An IPv4 address range gives its CIDR blocks and the smallest network around it.</string>
+    <string name="address_prefix_mask_or_range">Address / prefix, mask or range</string>
+    <string name="cidr_blocks">CIDR blocks</string>
+    <string name="enclosing_network">Smallest network around the range</string>
     <string name="address_prefix">Address / prefix</string>
     <string name="netmask">Netmask</string>
     <string name="wildcard">Wildcard</string>

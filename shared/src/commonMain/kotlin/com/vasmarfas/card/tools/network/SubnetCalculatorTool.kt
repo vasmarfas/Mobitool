@@ -27,7 +27,7 @@ val subnetCalculatorTool = Tool(
     title = Res.string.subnet_calculator,
     description = Res.string.subnet_calculator_description,
     icon = Icons.Filled.AccountTree,
-    keywords = listOf("cidr", "ip", "mask", "netmask", "vlsm", "маска", "подсеть", "ipv6"),
+    keywords = listOf("cidr", "ip", "mask", "netmask", "vlsm", "range", "маска", "подсеть", "диапазон", "ipv6"),
 ) { SubnetCalculatorScreen() }
 
 @Composable
@@ -44,16 +44,18 @@ private fun SubnetCalculatorScreen() {
     when (version) {
         IpVersion.V4 -> {
             val subnet = remember(input) { Ipv4.parseSubnet(input) }
+            val range = remember(input) { if (subnet == null) Ipv4.parseRange(input) else null }
             ToolInputField(
                 value = input,
                 onValueChange = { input = it },
-                label = Res.string.address_prefix_or_mask.str(),
-                placeholder = "10.0.0.1/8 · 172.16.5.4 255.255.240.0",
+                label = Res.string.address_prefix_mask_or_range.str(),
+                placeholder = "10.0.0.1/8 · 172.16.5.4 255.255.240.0 · 10.0.0.5-90",
                 keyboardType = KeyboardType.Uri,
-                isError = input.isNotBlank() && subnet == null,
+                isError = input.isNotBlank() && subnet == null && range == null,
                 monospace = true,
             )
             if (subnet != null) Ipv4Result(subnet)
+            if (range != null) Ipv4RangeResult(range.first, range.second)
         }
 
         IpVersion.V6 -> {
@@ -102,6 +104,26 @@ private fun Ipv4Result(s: Ipv4Subnet) {
             if (s.isPublic) add(Res.string.public.str())
         }.joinToString(", ")
         KeyValueRow(Res.string.type.str(), type, mono = false, copyable = false)
+    }
+}
+
+@Composable
+private fun Ipv4RangeResult(first: Long, last: Long) {
+    val blocks = remember(first, last) { SubnetMath.rangeToCidrs(first, last) }
+    val around = Ipv4.enclosing(first, last)
+    ResultCard {
+        KeyValueRow(Res.string.first_address.str(), Ipv4.format(first))
+        KeyValueRow(Res.string.last_address.str(), Ipv4.format(last))
+        KeyValueRow(Res.string.total_addresses.str(), (last - first + 1).fmtGrouped())
+    }
+    ResultCard(Res.string.cidr_blocks.str()) {
+        blocks.forEach { b -> KeyValueRow("${Ipv4.format(b.network)}/${b.prefix}", "${Ipv4.format(b.network)} – ${Ipv4.format(b.broadcast)} · ${b.totalAddresses.fmtGrouped()}") }
+    }
+    ResultCard(Res.string.enclosing_network.str()) {
+        KeyValueRow(Res.string.network.str(), "${Ipv4.format(around.network)}/${around.prefix}")
+        KeyValueRow(Res.string.netmask.str(), Ipv4.format(around.mask))
+        KeyValueRow(Res.string.wildcard.str(), Ipv4.format(around.wildcard))
+        KeyValueRow(Res.string.broadcast.str(), if (around.prefix >= 31) "—" else Ipv4.format(around.broadcast))
     }
 }
 

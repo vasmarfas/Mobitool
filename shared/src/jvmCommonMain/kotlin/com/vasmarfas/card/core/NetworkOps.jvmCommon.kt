@@ -10,6 +10,7 @@ import java.io.DataInputStream
 import java.io.File
 import java.net.DatagramPacket
 import java.net.DatagramSocket
+import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.MulticastSocket
@@ -45,7 +46,8 @@ private val isAndroid = (System.getProperty("java.vendor") ?: "").lowercase().co
     System.getProperty("java.runtime.name")?.lowercase()?.contains("android") == true ||
     System.getProperty("os.name") == "Linux" && File("/system/bin/ping").exists()
 
-private val pingBinary: String = when {
+private fun pingBinary(host: String): String = when {
+    isAndroid && host.contains(':') -> "/system/bin/ping6"
     isAndroid -> "/system/bin/ping"
     else -> "ping"
 }
@@ -67,7 +69,7 @@ actual fun platformNetCapabilities() = PlatformNetCapabilities(
 )
 
 private fun pingCommand(host: String, timeoutMs: Int, ttl: Int?, size: Int?): List<String> = buildList {
-    add(pingBinary)
+    add(pingBinary(host))
     when {
         isWindows -> {
             if (!host.contains(':')) add("-4")
@@ -116,6 +118,13 @@ actual suspend fun icmpPing(host: String, sequence: Int, timeoutMs: Int, ttl: In
         text
     }.getOrElse { return@withContext PingReply(sequence, null, null, null, it.message ?: "ping failed") }
     parsePing(output, sequence, ttl, isWindows && host.contains(':'), (System.nanoTime() - started) / 1_000_000.0)
+}
+
+// Android lists IPv6 routes first, and a link-local gateway is reachable only through its interface
+internal fun androidGateway(gateways: List<InetAddress>, interfaceName: String?): String {
+    val gateway = gateways.firstOrNull { it is Inet4Address } ?: gateways.firstOrNull() ?: return ""
+    val address = gateway.hostAddress?.substringBefore('%').orEmpty()
+    return if (gateway.isLinkLocalAddress) "$address%$interfaceName" else address
 }
 
 actual suspend fun tcpConnect(host: String, port: Int, timeoutMs: Int): Long? = withContext(Dispatchers.IO) {

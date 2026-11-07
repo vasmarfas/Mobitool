@@ -210,7 +210,7 @@ private fun ConnectionCheckScreen() {
             StepRow(step.title.str(), finding) {
                 if (step == CheckStep.GATEWAY && !gateway.isNullOrEmpty()) {
                     facts.router?.let { Hint(stringResource(Res.string.conn_router_model, it)) }
-                    TextButton(onClick = { openUrl("http://$gateway") }) { Text(Res.string.conn_open_router.str()) }
+                    if (':' !in gateway) TextButton(onClick = { openUrl("http://$gateway") }) { Text(Res.string.conn_open_router.str()) }
                 }
                 if (step == CheckStep.PORTAL && finding?.verdict == Verdict.FAIL) {
                     TextButton(onClick = { openUrl("http://neverssl.com") }) { Text(Res.string.conn_open_portal.str()) }

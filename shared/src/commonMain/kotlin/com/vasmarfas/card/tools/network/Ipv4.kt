@@ -43,6 +43,7 @@ data class Ipv4Subnet(
 
 object Ipv4 {
     private val dotted = Regex("""^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$""")
+    private val lastOctet = Regex("""\d{1,3}""")
 
     fun parse(text: String): Long? {
         val m = dotted.find(text.trim()) ?: return null
@@ -110,6 +111,23 @@ object Ipv4 {
 
     // in a list of blocks a bare address is that one host, not its classful network
     fun parseBlock(text: String): Ipv4Subnet? = parse(text)?.let { Ipv4Subnet(it, 32) } ?: parseSubnet(text)
+
+    // 10.0.0.1-10.0.0.9 or 10.0.0.1-9 (the last octet); the forms of parseSubnet give the whole network, but a bare address is that one host
+    fun parseRange(text: String): Pair<Long, Long>? {
+        val t = text.trim()
+        val dash = t.indexOf('-')
+        if (dash < 0) {
+            parse(t)?.let { return it to it }
+            return parseSubnet(t)?.let { it.network to it.broadcast }
+        }
+        val first = parse(t.substring(0, dash)) ?: return null
+        val tail = t.substring(dash + 1).trim()
+        val last = parse(tail) ?: lastOctet.matchEntire(tail)?.value?.toInt()?.takeIf { it <= 255 }?.let { (first and 0xFFFFFF00L) or it.toLong() } ?: return null
+        return if (first <= last) first to last else null
+    }
+
+    // the smallest single network that holds both ends
+    fun enclosing(first: Long, last: Long): Ipv4Subnet = Ipv4Subnet(first, (first xor last).toInt().countLeadingZeroBits())
 
     fun ptrName(value: Long): String =
         (0..3).joinToString(".") { i -> ((value shr (i * 8)) and 0xFF).toString() } + ".in-addr.arpa"

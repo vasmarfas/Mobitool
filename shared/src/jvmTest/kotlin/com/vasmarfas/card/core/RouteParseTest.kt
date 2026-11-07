@@ -1,10 +1,21 @@
 package com.vasmarfas.card.core
 
+import java.net.InetAddress
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class RouteParseTest {
+    @Test
+    fun androidPrefersIpv4AndScopesLinkLocal() {
+        val v4 = InetAddress.getByName("192.0.2.1")
+        val linkLocal = InetAddress.getByName("fe80::1")
+        assertEquals("192.0.2.1", androidGateway(listOf(linkLocal, v4), "wlan0"))
+        assertEquals("${linkLocal.hostAddress}%wlan0", androidGateway(listOf(linkLocal), "wlan0"))
+        assertEquals(InetAddress.getByName("2001:db8::1").hostAddress, androidGateway(listOf(InetAddress.getByName("2001:db8::1")), "wlan0"))
+        assertEquals("", androidGateway(emptyList(), "wlan0"))
+    }
+
     @Test
     fun windowsPicksTheLowestMetric() {
         val routes = """
