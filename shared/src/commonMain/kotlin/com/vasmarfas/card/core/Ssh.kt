@@ -14,14 +14,3 @@ interface SshShell {
     suspend fun resize(columns: Int, rows: Int)
     fun close()
 }
-
-// trust runs on the transport thread during key exchange, false fails the connection
-expect suspend fun openSshShell(
-    host: String,
-    port: Int,
-    user: String,
-    auth: SshAuth,
-    columns: Int,
-    rows: Int,
-    trust: (SshHostKey) -> Boolean,
-): SshShell

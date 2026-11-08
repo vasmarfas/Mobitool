@@ -1,5 +1,6 @@
 package com.vasmarfas.card.tools.network.transfer
 
+import com.vasmarfas.card.tools.developer.HashAlgorithm
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.IvParameterSpec
@@ -30,6 +31,6 @@ class TransferCryptoJvmTest {
         val password = "482913557204"
         val spec = PBEKeySpec(password.toCharArray(), "mobitool".encodeToByteArray(), 1000, 48 * 8)
         val expected = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
-        assertContentEquals(expected, pbkdf2Sha256(password.encodeToByteArray(), "mobitool".encodeToByteArray(), 1000, 48))
+        assertContentEquals(expected, pbkdf2(HashAlgorithm.SHA256, password.encodeToByteArray(), "mobitool".encodeToByteArray(), 1000, 48))
     }
 }

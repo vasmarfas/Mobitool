@@ -7,8 +7,8 @@ androidx-activity = "1.13.0"
 camerax = "1.6.2"
 androidx-core = "1.19.1"
 androidx-lifecycle = "2.11.0"
-bouncycastle = "1.86"
 commonsImaging = "1.0.0-alpha6"
+minaSshd = "2.20.1"
 composeMultiplatform = "1.13.0-alpha01"
 ffmpeg = "8.1.2-1.5.14"
 filekit = "0.16.0"
@@ -36,7 +36,6 @@ navigationevent = "1.1.0"
 pdfbox = "3.0.8"
 pdfjs = "6.3.289"
 qrose = "1.3.0"
-sshj = "0.41.2"
 tesseract = "5.5.3-1.5.14"
 tesseractJs = "7.0.0"
 zxing = "3.5.4"
@@ -47,6 +46,7 @@ kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotl
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
 commons-imaging = { module = "org.apache.commons:commons-imaging", version.ref = "commonsImaging" }
+mina-sshd = { module = "org.apache.sshd:sshd-core", version.ref = "minaSshd" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 camerax-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
@@ -92,9 +92,6 @@ navigationevent-compose = { module = "org.jetbrains.androidx.navigationevent:nav
 pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 qrose = { module = "io.github.alexzhirkevich:qrose", version.ref = "qrose" }
 qrose-oned = { module = "io.github.alexzhirkevich:qrose-oned", version.ref = "qrose" }
-bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
-bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
-sshj = { module = "com.hierynomus:sshj", version.ref = "sshj" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 
 [plugins]

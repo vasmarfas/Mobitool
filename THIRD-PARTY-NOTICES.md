@@ -37,8 +37,6 @@ Full text: [licenses/Apache-2.0.txt](licenses/Apache-2.0.txt)
 | tessdata_fast language models `eng` and `rus` (`files/tessdata`) | Google LLC and Tesseract contributors |
 | tesseract.js 7.0.0 and tesseract.js-core 7.0.0 (website, loaded from its own `vendor/` folder when a text recognition tool runs) | Kevin Kwok, Jerome Wu and contributors |
 | JavaCPP Presets for Tesseract and Leptonica (Android and desktop builds), licensed under Apache-2.0 or GPLv2 with the Classpath Exception at the recipient's choice | Samuel Audet |
-| sshj (Android and desktop builds), which includes code derived from Apache MINA SSHD and Apache Commons Net | sshj contributors, The Apache Software Foundation |
-| asn-one, pulled in by sshj (Android and desktop builds) | Jeroen van Erp |
 
 ## MIT License
 
@@ -49,8 +47,6 @@ Full text: [licenses/Apache-2.0.txt](licenses/Apache-2.0.txt)
 **FileKit** — Copyright (c) 2026 Vincent Guillebaud
 
 **zxing-wasm** (website, loaded from its own `vendor/` folder when the scanner opens) — Copyright (c) 2023 Ze-Zheng Wu
-
-**Bouncy Castle** (`bcprov`, `bcpkix`, `bcutil`, Android and desktop builds) — Copyright (c) 2000-2026 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)
 
 **SLF4J API** (Android and desktop builds) — Copyright (c) 2004-2022 QOS.ch Sarl (Switzerland)
 

@@ -112,7 +112,7 @@ enum class Interest(val id: String, val group: InterestGroup, val title: StringR
     HEALTH(
         "health", InterestGroup.EVERYDAY, Res.string.interest_health, Icons.Filled.MonitorHeart,
         listOf(
-            "bmi-body", "water-intake", "sleep-calculator", "blood-pressure", "due-date", "breathing", "caffeine-decay", "body-metrics",
+            "bmi-body", "water-intake", "sleep-calculator", "blood-pressure", "breathing", "caffeine-decay", "body-metrics",
             "hba1c-glucose", "water-and-macros", "blood-alcohol",
         ),
     ),

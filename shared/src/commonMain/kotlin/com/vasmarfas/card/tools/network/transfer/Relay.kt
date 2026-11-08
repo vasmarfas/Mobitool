@@ -10,6 +10,7 @@ import com.vasmarfas.card.core.currentPlatform
 import com.vasmarfas.card.core.incomingFile
 import com.vasmarfas.card.core.secureRandomBytes
 import com.vasmarfas.card.tools.developer.Crc32
+import com.vasmarfas.card.tools.developer.HashAlgorithm
 import com.vasmarfas.card.tools.developer.Sha256
 import com.vasmarfas.card.tools.developer.toHex
 import io.github.vinceglb.filekit.PlatformFile
@@ -160,7 +161,7 @@ object Relay {
     class Keys(val path: String, val key: ByteArray)
 
     suspend fun keys(code: String): Keys = withContext(Dispatchers.Default) {
-        val derived = pbkdf2Sha256(code.encodeToByteArray(), salt, ITERATIONS, 48)
+        val derived = pbkdf2(HashAlgorithm.SHA256, code.encodeToByteArray(), salt, ITERATIONS, 48)
         Keys(derived.copyOf(16).toHex(), derived.copyOfRange(16, 48))
     }
 

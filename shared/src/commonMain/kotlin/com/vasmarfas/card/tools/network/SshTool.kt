@@ -1,8 +1,12 @@
 package com.vasmarfas.card.tools.network
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,11 +15,12 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -47,22 +52,37 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
@@ -73,12 +93,12 @@ import com.vasmarfas.card.core.PlatformKind
 import com.vasmarfas.card.core.Prefs
 import com.vasmarfas.card.core.SshAuth
 import com.vasmarfas.card.core.SshShell
-import com.vasmarfas.card.core.openSshShell
 import com.vasmarfas.card.core.pickFiles
 import com.vasmarfas.card.core.str
 import com.vasmarfas.card.resources.*
 import com.vasmarfas.card.tools.Tool
 import com.vasmarfas.card.tools.ToolCategory
+import com.vasmarfas.card.tools.network.ssh.openSshShell
 import com.vasmarfas.card.ui.components.ActionButton
 import com.vasmarfas.card.ui.components.ErrorText
 import com.vasmarfas.card.ui.components.Hint
@@ -110,7 +130,7 @@ val sshClientTool = Tool(
     description = Res.string.ssh_client_description,
     icon = Icons.Filled.Terminal,
     keywords = listOf("ssh", "terminal", "shell", "console", "putty", "openssh", "remote", "терминал", "консоль", "сервер"),
-    platforms = PlatformKind.jvm,
+    platforms = PlatformKind.native,
 ) { SshScreen() }
 
 private enum class SshAuthMode { PASSWORD, KEY }
@@ -315,28 +335,65 @@ private fun SecretField(value: String, onValueChange: (String) -> Unit, label: S
     )
 }
 
+// the hidden field always holds this one character, so a backspace on an empty line still has something to erase
+private const val SENTINEL = " "
+
+private val CTRL_LETTERS = listOf(
+    Key.A, Key.B, Key.C, Key.D, Key.E, Key.F, Key.G, Key.H, Key.I, Key.J, Key.K, Key.L, Key.M,
+    Key.N, Key.O, Key.P, Key.Q, Key.R, Key.S, Key.T, Key.U, Key.V, Key.W, Key.X, Key.Y, Key.Z,
+)
+
+private val FUNCTION_KEYS = mapOf(
+    Key.F1 to "\u001bOP", Key.F2 to "\u001bOQ", Key.F3 to "\u001bOR", Key.F4 to "\u001bOS",
+    Key.F5 to "\u001b[15~", Key.F6 to "\u001b[17~", Key.F7 to "\u001b[18~", Key.F8 to "\u001b[19~",
+    Key.F9 to "\u001b[20~", Key.F10 to "\u001b[21~", Key.F11 to "\u001b[23~", Key.F12 to "\u001b[24~",
+)
+
+private fun emptyField() = TextFieldValue(SENTINEL, TextRange(SENTINEL.length))
+
 @Composable
 private fun SshTerminal(connection: SshConnection, columns: Int, style: TextStyle, height: Dp, onLeave: () -> Unit) {
     val terminal = connection.terminal
     val shell = connection.shell
     var revision by remember { mutableIntStateOf(0) }
     var ended by remember { mutableStateOf(false) }
-    var input by remember { mutableStateOf("") }
     var ctrl by remember { mutableStateOf(false) }
+    var field by remember { mutableStateOf(emptyField()) }
+    var typing by remember { mutableStateOf(false) }
+    val focus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val lineCount = remember(revision) { terminal.lineCount }
 
-    fun send(bytes: ByteArray) {
-        scope.launch { runCatching { shell.write(bytes) } }
+    fun send(keys: String) {
+        scope.launch { runCatching { shell.write(keys.encodeToByteArray()) } }
     }
 
-    fun press(sequence: String) {
-        send((input + sequence).encodeToByteArray())
-        input = ""
+    fun openKeyboard() {
+        focus.requestFocus()
+        keyboard?.show()
+    }
+
+    fun press(keys: String) {
+        send(keys)
+        focus.requestFocus()
     }
 
     fun arrow(key: TerminalKey) = press(TerminalKeys.arrow(key, terminal.applicationCursor))
+
+    // whatever the keyboard typed or erased in the hidden field since the last change goes out at once,
+    // a keyboard still composing a word keeps its text until it commits
+    fun edit(next: TextFieldValue) {
+        val before = field.text
+        val common = before.commonPrefixWith(next.text).length
+        val typed = next.text.substring(common).replace('\n', '\r')
+        val control = if (ctrl && typed.length == 1) TerminalKeys.control(typed[0]) else null
+        if (control != null) ctrl = false
+        val keys = TerminalKeys.BACKSPACE.repeat(before.length - common) + (control?.let { Char(it.toInt()).toString() } ?: typed)
+        if (keys.isNotEmpty()) send(keys)
+        field = if (next.composition == null) emptyField() else next
+    }
 
     DisposableEffect(shell) { onDispose { shell.close() } }
     LaunchedEffect(shell) {
@@ -346,6 +403,7 @@ private fun SshTerminal(connection: SshConnection, columns: Int, style: TextStyl
                 val count = shell.read(buffer)
                 if (count < 0) break
                 terminal.feed(buffer, count)
+                terminal.takeReplies().takeIf { it.isNotEmpty() }?.let { shell.write(it.encodeToByteArray()) }
                 revision++
             }
         }
@@ -356,51 +414,75 @@ private fun SshTerminal(connection: SshConnection, columns: Int, style: TextStyl
         runCatching { shell.resize(columns, TERMINAL_ROWS) }
     }
     LaunchedEffect(revision) { list.scrollToItem(lineCount - 1) }
+    LaunchedEffect(Unit) { focus.requestFocus() }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SelectionContainer {
-            LazyColumn(
-                state = list,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(height + TERMINAL_PADDING * 2)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(TERMINAL_BACKGROUND)
-                    .padding(TERMINAL_PADDING),
-            ) {
-                items(lineCount) { index ->
-                    val line = remember(revision, index) { terminalLine(terminal.runs(index)) }
-                    Text(line, style = style, color = TERMINAL_FOREGROUND, softWrap = false, maxLines = 1)
+        // a press inside SelectionContainer focuses the selection, so after a plain click, one without a drag
+        // or a long press, focus goes back to the hidden field. A selection keeps it, and Ctrl+C copies it
+        Box(
+            Modifier.pointerInput(ended) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    var click = true
+                    while (true) {
+                        val change = awaitPointerEvent(PointerEventPass.Final).changes.firstOrNull { it.id == down.id } ?: break
+                        val moved = (change.position - down.position).getDistance() > viewConfiguration.touchSlop
+                        if (moved || change.uptimeMillis - down.uptimeMillis > viewConfiguration.longPressTimeoutMillis) click = false
+                        if (!change.pressed) break
+                    }
+                    if (click && !ended) openKeyboard()
                 }
+            },
+        ) {
+            SelectionContainer {
+                LazyColumn(
+                    state = list,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(height + TERMINAL_PADDING * 2)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(TERMINAL_BACKGROUND)
+                        .border(1.dp, if (typing) MaterialTheme.colorScheme.primary else TERMINAL_BACKGROUND, RoundedCornerShape(8.dp))
+                        .padding(TERMINAL_PADDING),
+                ) {
+                    items(lineCount) { index ->
+                        val line = remember(revision, index) { terminalLine(terminal.runs(index)) }
+                        Text(line, style = style, color = TERMINAL_FOREGROUND, softWrap = false, maxLines = 1)
+                    }
+                }
+            }
+            if (!ended) {
+                BasicTextField(
+                    value = field,
+                    onValueChange = { edit(it) },
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .size(1.dp)
+                        .alpha(0f)
+                        .focusRequester(focus)
+                        .onFocusChanged { typing = it.isFocused }
+                        .onPreviewKeyEvent { event ->
+                            val keys = if (event.type == KeyEventType.KeyDown) hardwareKey(event, terminal.applicationCursor) else null
+                            keys?.let { send(it) }
+                            keys != null
+                        },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
+                    cursorBrush = SolidColor(Color.Transparent),
+                )
             }
         }
         if (ended) {
             Hint(Res.string.ssh_closed.str())
         } else {
-            OutlinedTextField(
-                value = input,
-                onValueChange = { typed ->
-                    val code = if (ctrl && typed.length > input.length) TerminalKeys.control(typed.last()) else null
-                    if (code != null) {
-                        ctrl = false
-                        send(byteArrayOf(code))
-                    } else {
-                        input = typed
-                    }
-                },
-                label = { Text(Res.string.ssh_input.str()) },
-                modifier = Modifier.fillMaxWidth().onPreviewKeyEvent { event ->
-                    val sequence = if (event.type == KeyEventType.KeyDown) hardwareKey(event.key, terminal.applicationCursor) else null
-                    sequence?.let { press(it) }
-                    sequence != null
-                },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = monoFamily()),
-                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { press("\r") }),
-            )
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                FilterChip(selected = ctrl, onClick = { ctrl = !ctrl }, label = { Text("Ctrl") })
+                FilterChip(
+                    selected = ctrl,
+                    onClick = {
+                        ctrl = !ctrl
+                        focus.requestFocus()
+                    },
+                    label = { Text("Ctrl") },
+                )
                 KeyButton({ press(TerminalKeys.ESCAPE) }) { Text("Esc") }
                 KeyButton({ press("\t") }) { Text("Tab") }
                 KeyButton({ arrow(TerminalKey.LEFT) }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, Res.string.ssh_key_left.str()) }
@@ -420,15 +502,30 @@ private fun KeyButton(onClick: () -> Unit, content: @Composable RowScope.() -> U
     OutlinedButton(onClick = onClick, contentPadding = PaddingValues(horizontal = 12.dp), content = content)
 }
 
-private fun hardwareKey(key: Key, application: Boolean): String? = when (key) {
-    Key.Enter, Key.NumPadEnter -> "\r"
-    Key.Tab -> "\t"
-    Key.Escape -> TerminalKeys.ESCAPE
-    Key.DirectionUp -> TerminalKeys.arrow(TerminalKey.UP, application)
-    Key.DirectionDown -> TerminalKeys.arrow(TerminalKey.DOWN, application)
-    Key.DirectionLeft -> TerminalKeys.arrow(TerminalKey.LEFT, application)
-    Key.DirectionRight -> TerminalKeys.arrow(TerminalKey.RIGHT, application)
-    else -> null
+// keys a text field would not pass on as text. Ctrl+V and Ctrl+Shift combinations stay with the field, so paste works
+private fun hardwareKey(event: KeyEvent, application: Boolean): String? {
+    if (event.isCtrlPressed && !event.isAltPressed && !event.isShiftPressed && event.key != Key.V) {
+        val letter = CTRL_LETTERS.indexOf(event.key)
+        if (letter >= 0) return Char(letter + 1).toString()
+    }
+    if (event.isMetaPressed) return null
+    return when (event.key) {
+        Key.Enter, Key.NumPadEnter -> "\r"
+        Key.Tab -> "\t"
+        Key.Escape -> TerminalKeys.ESCAPE
+        Key.Backspace -> TerminalKeys.BACKSPACE
+        Key.Delete -> "\u001b[3~"
+        Key.Insert -> "\u001b[2~"
+        Key.MoveHome -> if (application) "\u001bOH" else "\u001b[H"
+        Key.MoveEnd -> if (application) "\u001bOF" else "\u001b[F"
+        Key.PageUp -> "\u001b[5~"
+        Key.PageDown -> "\u001b[6~"
+        Key.DirectionUp -> TerminalKeys.arrow(TerminalKey.UP, application)
+        Key.DirectionDown -> TerminalKeys.arrow(TerminalKey.DOWN, application)
+        Key.DirectionLeft -> TerminalKeys.arrow(TerminalKey.LEFT, application)
+        Key.DirectionRight -> TerminalKeys.arrow(TerminalKey.RIGHT, application)
+        else -> FUNCTION_KEYS[event.key]
+    }
 }
 
 private fun terminalColor(color: Int, fallback: Color): Color =

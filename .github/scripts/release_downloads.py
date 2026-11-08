@@ -18,7 +18,7 @@ rows = [
         "x86-64 (64-bit)",
         files(("EXE", f"{name}-windows-setup.exe"), ("MSI", f"{name}-windows.msi")),
         files(("DEB", f"{name}-linux-amd64.deb"), ("RPM", f"{name}-linux-x86_64.rpm")),
-        "",
+        files(("DMG", f"{name}-macos-x86_64.dmg")),
         android,
         "",
         "[Open](https://vasmarfas.com/#tools)",

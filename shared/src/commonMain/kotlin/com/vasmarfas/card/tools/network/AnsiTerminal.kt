@@ -60,8 +60,10 @@ private fun StringBuilder.appendScalar(codePoint: Int) {
     }
 }
 
-// shortcut: one cell per code point, no scroll regions and no alternate screen, so wide characters shift
-// the row and full-screen programs draw over the main screen, a real emulator is the upgrade if vim matters
+private fun screenOf(rows: Int) = ArrayDeque<MutableList<TerminalCell>>().apply { repeat(rows) { addLast(mutableListOf()) } }
+
+// shortcut: one cell per code point, so wide characters shift the row, a cell grid with widths is the upgrade
+// if CJK output matters
 class AnsiTerminal(columns: Int, val rows: Int, private val scrollback: Int = 2000) {
     private enum class State { GROUND, ESCAPE, CSI, STRING, STRING_ESCAPE, SKIP }
 
@@ -70,7 +72,11 @@ class AnsiTerminal(columns: Int, val rows: Int, private val scrollback: Int = 20
     var applicationCursor = false
         private set
 
-    private val lines = ArrayDeque<MutableList<TerminalCell>>().apply { repeat(rows) { addLast(mutableListOf()) } }
+    private val main = screenOf(rows)
+
+    // full-screen programs such as vim and htop draw here and leave the main screen and its scrollback as they were
+    private var alternate: ArrayDeque<MutableList<TerminalCell>>? = null
+    private val lines get() = alternate ?: main
     private val blank = TerminalCell(' '.code, TerminalStyle())
     private var state = State.GROUND
     private var style = TerminalStyle()
@@ -81,11 +87,22 @@ class AnsiTerminal(columns: Int, val rows: Int, private val scrollback: Int = 20
     private var utf8Value = 0
     private var row = 0
     private var column = 0
+    private var scrollTop = 0
+    private var scrollBottom = rows - 1
+    private var savedRow = 0
+    private var savedColumn = 0
+    private var savedStyle = TerminalStyle()
+    private var cursorVisible = true
+    private var autowrap = true
+    private val replies = StringBuilder()
 
     private val top: Int get() = lines.size - rows
     private val current: MutableList<TerminalCell> get() = lines[top + row]
 
     val lineCount: Int get() = lines.size
+
+    // answers to status queries such as the cursor position, the caller sends them back to the host
+    fun takeReplies(): String = replies.toString().also { replies.clear() }
 
     fun resize(columns: Int) {
         this.columns = columns
@@ -94,7 +111,7 @@ class AnsiTerminal(columns: Int, val rows: Int, private val scrollback: Int = 20
 
     fun runs(index: Int): List<TerminalRun> {
         val line = lines[index]
-        val cursor = if (index == top + row) minOf(column, columns - 1) else -1
+        val cursor = if (cursorVisible && index == top + row) minOf(column, columns - 1) else -1
         val result = mutableListOf<TerminalRun>()
         val text = StringBuilder()
         var runStyle = TerminalStyle()
@@ -172,6 +189,40 @@ class AnsiTerminal(columns: Int, val rows: Int, private val scrollback: Int = 20
             '('.code, ')'.code, '*'.code, '+'.code, '#'.code, '%'.code, ' '.code -> State.SKIP
             else -> State.GROUND
         }
+        when (c) {
+            '7'.code -> saveCursor()
+            '8'.code -> restoreCursor()
+            'D'.code -> lineFeed()
+            'E'.code -> {
+                column = 0
+                lineFeed()
+            }
+            'M'.code -> if (row == scrollTop) scrollDown(1) else moveTo(row - 1, column)
+            'c'.code -> reset()
+        }
+    }
+
+    private fun saveCursor() {
+        savedRow = row
+        savedColumn = column
+        savedStyle = style
+    }
+
+    private fun restoreCursor() {
+        moveTo(savedRow, savedColumn)
+        style = savedStyle
+    }
+
+    private fun reset() {
+        alternate = null
+        style = TerminalStyle()
+        scrollTop = 0
+        scrollBottom = rows - 1
+        cursorVisible = true
+        autowrap = true
+        applicationCursor = false
+        eraseDisplay(2)
+        moveTo(0, 0)
     }
 
     private fun csi(c: Int) {
@@ -195,7 +246,20 @@ class AnsiTerminal(columns: Int, val rows: Int, private val scrollback: Int = 20
     }
 
     private fun setMode(final: Int) {
-        if (1 in params && (final == 'h'.code || final == 'l'.code)) applicationCursor = final == 'h'.code
+        if (final != 'h'.code && final != 'l'.code) return
+        val on = final == 'h'.code
+        for (mode in params) {
+            when (mode) {
+                1 -> applicationCursor = on
+                7 -> autowrap = on
+                25 -> cursorVisible = on
+                47, 1047, 1049 -> {
+                    if (mode == 1049 && on) saveCursor()
+                    alternate = if (on) alternate ?: screenOf(rows) else null
+                    if (mode == 1049 && !on) restoreCursor()
+                }
+            }
+        }
     }
 
     private fun count(at: Int): Int = params.getOrElse(at) { -1 }.coerceAtLeast(1)
@@ -204,18 +268,75 @@ class AnsiTerminal(columns: Int, val rows: Int, private val scrollback: Int = 20
         val mode = params[0].coerceAtLeast(0)
         when (final) {
             'A'.code -> moveTo(row - count(0), column)
-            'B'.code -> moveTo(row + count(0), column)
-            'C'.code -> moveTo(row, column + count(0))
+            'B'.code, 'e'.code -> moveTo(row + count(0), column)
+            'C'.code, 'a'.code -> moveTo(row, column + count(0))
             'D'.code -> moveTo(row, column - count(0))
-            'G'.code -> moveTo(row, count(0) - 1)
+            'E'.code -> moveTo(row + count(0), 0)
+            'F'.code -> moveTo(row - count(0), 0)
+            'G'.code, '`'.code -> moveTo(row, count(0) - 1)
             'd'.code -> moveTo(count(0) - 1, column)
             'H'.code, 'f'.code -> moveTo(count(0) - 1, count(1) - 1)
             'J'.code -> eraseDisplay(mode)
             'K'.code -> eraseLine(mode)
-            'P'.code -> repeat(minOf(count(0), current.size - column)) { current.removeAt(column) }
+            'L'.code -> if (row in scrollTop..scrollBottom) {
+                shift(row, scrollBottom, minOf(count(0), scrollBottom - row + 1), down = true)
+                column = 0
+            }
+            'M'.code -> if (row in scrollTop..scrollBottom) {
+                shift(row, scrollBottom, minOf(count(0), scrollBottom - row + 1), down = false)
+                column = 0
+            }
+            'S'.code -> scrollUp(count(0))
+            'T'.code -> scrollDown(count(0))
+            'P'.code -> repeat(minOf(count(0), current.size - column).coerceAtLeast(0)) { current.removeAt(column) }
             '@'.code -> insertBlanks(count(0))
             'X'.code -> for (at in column until minOf(column + count(0), current.size)) current[at] = blank
             'm'.code -> selectGraphics()
+            'r'.code -> {
+                val first = count(0) - 1
+                val last = if (params.getOrElse(1) { -1 } > 0) params[1] - 1 else rows - 1
+                if (first < last && last < rows) {
+                    scrollTop = first
+                    scrollBottom = last
+                } else {
+                    scrollTop = 0
+                    scrollBottom = rows - 1
+                }
+                moveTo(0, 0)
+            }
+            's'.code -> saveCursor()
+            'u'.code -> restoreCursor()
+            'n'.code -> when (mode) {
+                5 -> replies.append("\u001b[0n")
+                6 -> replies.append("\u001b[${row + 1};${column + 1}R")
+            }
+            'c'.code -> if (mode == 0) replies.append("\u001b[?1;2c")
+        }
+    }
+
+    // the scroll region moves up, the top line goes to the scrollback when the region is the whole main screen
+    private fun scrollUp(count: Int) {
+        if (alternate != null || scrollTop != 0 || scrollBottom != rows - 1) return shift(scrollTop, scrollBottom, count, down = false)
+        repeat(minOf(count, rows)) {
+            main.addLast(mutableListOf())
+            if (main.size > rows + scrollback) main.removeFirst()
+        }
+    }
+
+    private fun scrollDown(count: Int) = shift(scrollTop, scrollBottom, count, down = true)
+
+    // moves the rows first..last of the screen down or up, blank rows come in at the freed end. The base is
+    // taken once: removing a row shrinks the list, and top would point one row higher until the row is added back
+    private fun shift(first: Int, last: Int, count: Int, down: Boolean) {
+        val base = top
+        repeat(minOf(count, last - first + 1)) {
+            if (down) {
+                lines.removeAt(base + last)
+                lines.add(base + first, mutableListOf())
+            } else {
+                lines.removeAt(base + first)
+                lines.add(base + last, mutableListOf())
+            }
         }
     }
 
@@ -225,18 +346,17 @@ class AnsiTerminal(columns: Int, val rows: Int, private val scrollback: Int = 20
     }
 
     private fun lineFeed() {
-        if (row < rows - 1) {
-            row++
-            return
-        }
-        lines.addLast(mutableListOf())
-        if (lines.size > rows + scrollback) lines.removeFirst()
+        if (row == scrollBottom) scrollUp(1) else if (row < rows - 1) row++
     }
 
     private fun put(codePoint: Int) {
         if (column >= columns) {
-            column = 0
-            lineFeed()
+            if (autowrap) {
+                column = 0
+                lineFeed()
+            } else {
+                column = columns - 1
+            }
         }
         val line = current
         while (line.size < column) line.add(blank)

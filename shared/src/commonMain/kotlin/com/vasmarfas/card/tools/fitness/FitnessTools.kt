@@ -21,5 +21,4 @@ val fitnessTools: List<Tool> = listOf(
     vo2MaxTool,
     hba1cTool,
     reactionTimeTool,
-    dueDateTool,
 )

@@ -148,19 +148,19 @@ object ChaCha20Poly1305 {
     }
 }
 
-fun pbkdf2Sha256(password: ByteArray, salt: ByteArray, iterations: Int, length: Int): ByteArray {
+fun pbkdf2(algorithm: HashAlgorithm, password: ByteArray, salt: ByteArray, iterations: Int, length: Int): ByteArray {
     val out = ByteArray(length)
     var index = 1
     var filled = 0
     while (filled < length) {
-        var u = hmac(HashAlgorithm.SHA256, password, salt + byteArrayOf((index ushr 24).toByte(), (index ushr 16).toByte(), (index ushr 8).toByte(), index.toByte()))
+        var u = hmac(algorithm, password, salt + byteArrayOf((index ushr 24).toByte(), (index ushr 16).toByte(), (index ushr 8).toByte(), index.toByte()))
         val t = u.copyOf()
         repeat(iterations - 1) {
-            u = hmac(HashAlgorithm.SHA256, password, u)
+            u = hmac(algorithm, password, u)
             for (i in t.indices) t[i] = (t[i].toInt() xor u[i].toInt()).toByte()
         }
-        t.copyInto(out, filled, 0, minOf(32, length - filled))
-        filled += 32
+        t.copyInto(out, filled, 0, minOf(t.size, length - filled))
+        filled += t.size
         index++
     }
     return out

@@ -1,5 +1,6 @@
 package com.vasmarfas.card.tools.network.transfer
 
+import com.vasmarfas.card.tools.developer.HashAlgorithm
 import com.vasmarfas.card.tools.developer.hexToBytes
 import com.vasmarfas.card.tools.developer.toHex
 import kotlin.test.Test
@@ -32,7 +33,7 @@ class TransferCryptoTest {
 
     @Test
     fun pbkdf2Rfc7914() {
-        val derived = pbkdf2Sha256("passwd".encodeToByteArray(), "salt".encodeToByteArray(), 1, 64)
+        val derived = pbkdf2(HashAlgorithm.SHA256, "passwd".encodeToByteArray(), "salt".encodeToByteArray(), 1, 64)
         assertEquals("55ac046e56e3089fec1691c22544b605f94185216dde0465e68b9d57c20dacbc49ca9cccf179b645991664b39d77ef317c71b845b1e30bd509112041d3a19783", derived.toHex())
     }
 }

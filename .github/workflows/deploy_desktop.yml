@@ -270,9 +270,18 @@ jobs:
           if-no-files-found: error
 
   macos:
-    name: macOS
+    name: macOS ${{ matrix.arch }}
     if: ${{ inputs.build_macos }}
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    # only the arm64 leg sets it, the runner drops an empty output, so the Intel leg cannot overwrite it
     outputs:
       mac_app_store_uploaded: ${{ steps.mas.outputs.uploaded }}
     steps:
@@ -359,7 +368,7 @@ jobs:
         run: |
           set -eu
           mkdir -p out
-          cp desktopApp/build/compose/binaries/main/dmg/*.dmg "out/Mobitool-$VERSION-macos-arm64.dmg"
+          cp desktopApp/build/compose/binaries/main/dmg/*.dmg "out/Mobitool-$VERSION-macos-${{ matrix.arch }}.dmg"
 
       - name: Notarize
         env:
@@ -396,13 +405,14 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
-          name: release-macos
+          name: release-macos-${{ matrix.arch }}
           path: out/*
           if-no-files-found: error
 
+      # the store takes one build per version and jpackage makes no universal app, so Intel Macs install the DMG
       - name: Upload to the Mac App Store
         id: mas
-        if: ${{ !cancelled() && inputs.publish_mac_app_store }}
+        if: ${{ !cancelled() && inputs.publish_mac_app_store && matrix.arch == 'arm64' }}
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}

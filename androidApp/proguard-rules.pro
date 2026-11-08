@@ -23,7 +23,4 @@
 -dontwarn org.bytedeco.**
 -dontwarn java.awt.**
 
-# sshj / Bouncy Castle: the JCA provider loads its algorithm classes from strings
--keep class org.bouncycastle.jcajce.provider.** { *; }
--keep class org.bouncycastle.jce.provider.** { *; }
 -dontwarn javax.naming.**

@@ -495,6 +495,7 @@
                     <a class="chip" data-link="githubDeb" data-fallback="githubReleases">DEB</a>
                     <a class="chip" data-link="githubRpm" data-fallback="githubReleases">RPM</a>
                     <a class="chip" data-link="githubDmg" data-fallback="githubReleases">DMG (Apple Silicon)</a>
+                    <a class="chip" data-link="githubDmgIntel" data-fallback="githubReleases">DMG (Intel)</a>
                 </div>
                 <a class="btn" data-link="githubReleases" data-cta="open">Скоро</a>
             </div>
@@ -534,7 +535,7 @@
             <tr>
                 <th scope="row">
                     <span data-en="Socket networking">Сеть на сокетах</span>
-                    <span class="row-note" data-en="ICMP and TCP ping, traceroute, port scanner, LAN scanner, DNS over UDP, TCP, TLS and QUIC, whois over port 43, network interfaces">пинг по ICMP и TCP, трассировка, сканер портов, сканер сети, DNS по UDP, TCP, TLS и QUIC, whois через порт 43, сетевые интерфейсы</span>
+                    <span class="row-note" data-en="ICMP and TCP ping, traceroute, port scanner, LAN scanner, DNS over UDP, TCP, TLS and QUIC, whois over port 43, network interfaces, SSH, SNMP and Modbus clients">пинг по ICMP и TCP, трассировка, сканер портов, сканер сети, DNS по UDP, TCP, TLS и QUIC, whois через порт 43, сетевые интерфейсы, клиенты SSH, SNMP и Modbus</span>
                 </th>
                 <td class="ok"><span class="cell-label">Android</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
                 <td class="ok"><span class="cell-label">iOS</span><span class="mark" aria-hidden="true">✓</span><span class="sr" data-en="works">работает</span></td>
@@ -678,6 +679,7 @@
             githubDeb: files && files + "-linux-amd64.deb",
             githubRpm: files && files + "-linux-x86_64.rpm",
             githubDmg: files && files + "-macos-arm64.dmg",
+            githubDmgIntel: files && files + "-macos-x86_64.dmg",
             web: "./"
         };
 

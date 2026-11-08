@@ -232,4 +232,55 @@ class AnsiTerminalTest {
         val runs = terminal().write("$esc[31ma$esc[32mb$esc[H").runs(0)
         assertContentEquals(listOf("a", "b"), runs.map { it.text })
     }
+
+    @Test
+    fun alternateScreenLeavesTheShellAsItWas() {
+        val screen = terminal().write("prompt$esc[?1049h$esc[2J$esc[Hvim")
+        assertEquals(4, screen.lineCount)
+        assertEquals("vim", screen.line(0))
+        screen.write("$esc[?1049l")
+        assertEquals("prompt", screen.line(0))
+    }
+
+    @Test
+    fun scrollRegionKeepsTheStatusLine() {
+        val screen = terminal(rows = 4).write("a\r\nb\r\nc\r\nstatus$esc[1;3r$esc[3;1H\nd")
+        assertEquals(4, screen.lineCount)
+        assertEquals("b", screen.line(0))
+        assertEquals("d", screen.line(2))
+        assertEquals("status", screen.line(3))
+    }
+
+    @Test
+    fun reverseIndexAtTheTopScrollsDown() {
+        val screen = terminal(rows = 3).write("a\r\nb\r\nc$esc[H${esc}M")
+        assertEquals("", screen.line(0))
+        assertEquals("a", screen.line(1))
+        assertEquals("b", screen.line(2))
+    }
+
+    @Test
+    fun insertAndDeleteLines() {
+        val screen = terminal(rows = 3).write("a\r\nb\r\nc$esc[2H$esc[L")
+        assertEquals(listOf("a", "", "b"), (0..2).map { screen.line(it) })
+        screen.write("$esc[2M")
+        assertEquals(listOf("a", "", ""), (0..2).map { screen.line(it) })
+    }
+
+    @Test
+    fun savedCursorComesBack() {
+        assertEquals("aXc", terminal().write("a${esc}7bc${esc}8X").line(0))
+    }
+
+    @Test
+    fun hiddenCursorIsNotDrawn() {
+        assertTrue(terminal().write("$esc[?25l").runs(0).none { it.style.inverse })
+    }
+
+    @Test
+    fun statusQueriesAreAnswered() {
+        val screen = terminal().write("ab$esc[6n$esc[c")
+        assertEquals("$esc[1;3R$esc[?1;2c", screen.takeReplies())
+        assertEquals("", screen.takeReplies())
+    }
 }

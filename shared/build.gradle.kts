@@ -91,9 +91,6 @@ kotlin {
                 implementation(libs.bytedeco.javacpp)
                 implementation(libs.bytedeco.tesseract)
                 implementation(libs.bytedeco.leptonica)
-                implementation(libs.sshj)
-                implementation(libs.bouncycastle.bcprov)
-                implementation(libs.bouncycastle.bcpkix)
             }
         }
         jvmMain.get().dependsOn(jvmCommonMain)
@@ -154,6 +151,7 @@ kotlin {
         jvmTest.dependencies {
             implementation(libs.compose.uiTestJunit4)
             implementation(libs.commons.imaging)
+            implementation(libs.mina.sshd)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -316,6 +314,8 @@ tasks.named<Test>("jvmTest") {
     providers.gradleProperty("storeShots").orNull?.let { systemProperty("store.shots", it) }
     providers.gradleProperty("storeOnly").orNull?.let { systemProperty("store.only", it) }
     providers.gradleProperty("storePick").orNull?.let { systemProperty("store.pick", it) }
+    // live SSH servers only when asked: -PsshTest=<user>@<host>:<first port>-<last port>;<key file>,<key file>
+    providers.gradleProperty("sshTest").orNull?.let { systemProperty("ssh.test", it) }
     // StaticPageColorsTest reads the site's stylesheet
     inputs.file(rootProject.layout.projectDirectory.file("webApp/src/wasmJsMain/resources/styles.css"))
         .withPathSensitivity(PathSensitivity.RELATIVE)
