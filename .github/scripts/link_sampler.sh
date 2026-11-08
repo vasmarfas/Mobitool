@@ -7,7 +7,7 @@ while sleep 300; do
   # fd 3, so that the JDK tools in the loop do not eat the list on stdin
   while read -r -u 3 pid main; do
     echo "$pid ${main##*.}: $(ps -o %cpu=,rss= -p "$pid" | awk '{ printf "cpu %s%%, rss %dM", $1, $2 / 1024 }')"
-    jstat -gcutil "$pid"
+    jstat -gc "$pid"
     jstack "$pid" | awk 'BEGIN { RS = "" } /at org\.jetbrains\.kotlin\.(backend|fir|ir)|at llvm/ {
       n = split($0, line, "\n")
       for (i = 1; i <= n; i++) if (i <= 20 || line[i] ~ /phase/) print line[i]

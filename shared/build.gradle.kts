@@ -39,6 +39,8 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
+            // on the 7 GB CI Mac this LTO pass keeps the heap full and the release link hits the 6 h job limit
+            freeCompilerArgs += "-Xdisable-phases=RemoveRedundantCallsToStaticInitializersPhase"
         }
     }
     // the Compose swiftUtils klib links against the Xcode path of JetBrains' CI, so test executables
